@@ -1080,7 +1080,7 @@ function rebuildArchSelect(availableArches, preselected) {
 // always "add to where I'm looking". Edit case: lock to the existing
 // row's repo because changing repo on an existing subscription is a
 // move, not an edit.
-function rebuildSubRepoSelect(existing) {
+function rebuildSubRepoSelect(existing, defaultRepoId) {
   const sel = document.querySelector('#frm-sub-repo');
   const row = document.querySelector('#frm-sub-repo-row');
   if (!sel || !row) return;
@@ -1096,16 +1096,22 @@ function rebuildSubRepoSelect(existing) {
     sel.value = existing.RepoId || 'main';
     sel.disabled = true;
   } else {
-    const preferred = state.selectedRepoId && active.some(r => r.RepoId === state.selectedRepoId)
-      ? state.selectedRepoId
-      : (active[0]?.RepoId || 'main');
+    // Prefer an explicitly requested repo (e.g. the Inventory repo being
+    // viewed when "Subscribe" is clicked there), then the last-selected
+    // Catalog repo, then the first active repo. This keeps the default as
+    // "add to where I'm looking" rather than a stale Catalog selection.
+    const preferred = defaultRepoId && active.some(r => r.RepoId === defaultRepoId)
+      ? defaultRepoId
+      : (state.selectedRepoId && active.some(r => r.RepoId === state.selectedRepoId)
+          ? state.selectedRepoId
+          : (active[0]?.RepoId || 'main'));
     sel.value = preferred;
     sel.disabled = false;
   }
   row.style.display = active.length > 1 ? '' : 'none';
 }
 
-async function openSubDialog(existing) {
+async function openSubDialog(existing, defaultRepoId) {
   // The Arch picker needs the operator's preferred_architectures from
   // service.yaml. Load config on demand so the dialog works even before
   // the operator has visited the Settings tab.
@@ -1115,7 +1121,7 @@ async function openSubDialog(existing) {
 
   $('#dlg-sub-title').textContent = existing ? `Edit subscription #${existing.SubscriptionId}` : 'Add subscription';
   const f = $('#frm-sub'); f.reset();
-  rebuildSubRepoSelect(existing);
+  rebuildSubRepoSelect(existing, defaultRepoId);
   state.pickedPackage = null;
   if (existing) {
     f.PackageId.value = existing.PackageId; f.PackageId.readOnly = true;
@@ -3203,7 +3209,7 @@ $('#btn-vrepo-reconcile').onclick = async () => {
 // History surfaces in the Activity tab via 'package_promoted' admin_events.
 // ============================================================================
 
-async function openPromoModalForSubscription(sub) {
+async function openPromoModalForSubscription(sub, preselectTargetRepoId) {
   if (!sub) return;
   // Refresh the virtual_repos list so newly-created repos show up.
   try {
@@ -3231,6 +3237,11 @@ async function openPromoModalForSubscription(sub) {
       o.value = r.RepoId;
       o.textContent = `${r.RepoId} (${r.DisplayName || ''})`;
       tgtSel.appendChild(o);
+    }
+    // Preselect a requested target (e.g. the Inventory repo the operator is
+    // viewing when promoting from there) so the common case is one click.
+    if (preselectTargetRepoId && candidates.some(r => r.RepoId === preselectTargetRepoId)) {
+      tgtSel.value = preselectTargetRepoId;
     }
   }
 
@@ -3830,6 +3841,31 @@ $('#inv-repo-select').onchange = renderInventory;
 $('#inv-primary-select').onchange = renderInventory;
 $('#inv-only-issues').onchange = () => { if (state.inventory) renderInventoryRows(state.inventory); };
 $('#inv-refresh').onclick = renderInventory;
+// When "Subscribe" is clicked on an untracked Inventory row, the package may
+// already be a published subscription in ANOTHER repo. In that case promoting
+// it into the viewed repo (copying the already-built manifest + installer) is
+// faster than re-acquiring it and avoids the "subscription already exists"
+// error from adding it to the wrong repo. Returns the source subscription to
+// promote from, or null when no other repo has it published (so the caller
+// falls back to a fresh subscription in the viewed repo).
+async function findPromotableSource(packageId, targetRepoId) {
+  if (!state.subs || !state.subs.length) {
+    try { const b = await api('subscriptions'); state.subs = (b.subscriptions || []).filter(Boolean); }
+    catch { return null; }
+  }
+  const candidates = (state.subs || []).filter(s =>
+    s && s.PackageId === packageId && s.RepoId && s.RepoId !== targetRepoId);
+  if (!candidates.length) return null;
+  if (!state.pubs || !state.pubs.length) {
+    try { const b = await api('publications'); state.pubs = (b.publications || []).filter(Boolean); }
+    catch { /* treat as no publications: handled below */ }
+  }
+  // Promotion copies a built artifact, so only a source with at least one
+  // published version is usable; an unsynced subscription has nothing to copy.
+  return candidates.find(s =>
+    (state.pubs || []).some(p => p.subscription_id === s.SubscriptionId)) || null;
+}
+
 // Delegated delete / subscribe for the Inventory table. Universal delete (whole
 // package or one version) works across managed / custom / untracked via
 // DELETE /api/repo/:repoId/package/:packageId; "Subscribe" re-adopts an orphaned
@@ -3842,9 +3878,25 @@ $('#inv-table').addEventListener('click', async (e) => {
   const repoId = state.invRepoId;
   if (!pkg || !repoId) return;
   if (action === 'subscribe') {
-    openSubDialog(null);
-    const input = document.getElementById('pkg-search-input');
-    if (input) { input.value = pkg; input.dispatchEvent(new Event('input', { bubbles: true })); }
+    // If this package is already published in another repo, promote it here
+    // (publish to both) instead of erroring on a duplicate add or re-acquiring
+    // from scratch. Otherwise open the Add-subscription dialog defaulted to the
+    // repo currently being viewed (not the stale Catalog selection).
+    btn.disabled = true;
+    try {
+      const src = await findPromotableSource(pkg, repoId);
+      if (src) {
+        await openPromoModalForSubscription(src, repoId);
+      } else {
+        await openSubDialog(null, repoId);
+        const input = document.getElementById('pkg-search-input');
+        if (input) { input.value = pkg; input.dispatchEvent(new Event('input', { bubbles: true })); }
+      }
+    } catch (err) {
+      toast(`Subscribe: ${err.message}`, 'bad');
+    } finally {
+      btn.disabled = false;
+    }
     return;
   }
   if (action === 'del-pkg' || action === 'del-ver') {
