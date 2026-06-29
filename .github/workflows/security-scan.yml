@@ -1,0 +1,71 @@
+# Durable "keep CVE count at zero" gate: dependency advisories (npm + OSV) on
+# every relevant PR, and HIGH/CRITICAL fixable CVEs in the built image weekly +
+# on demand.
+name: Security scan
+
+on:
+  pull_request:
+    paths:
+      - 'linux/admin/package.json'
+      - 'linux/admin/package-lock.json'
+      - 'linux/Dockerfile'
+  schedule:
+    - cron: '23 6 * * 1'   # weekly Monday 06:23 UTC (catches newly-disclosed CVEs)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deps:
+    name: Node dependency advisories (npm audit + OSV)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: linux/admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # If the committed package-lock.json is present this uses it as-is.
+      # If not, generate one so both scanners see the resolved tree.
+      - name: Ensure lockfile
+        run: '[ -f package-lock.json ] || npm install --package-lock-only --no-audit --no-fund'
+      - name: npm audit (fail on high+)
+        run: npm audit --omit=dev --audit-level=high
+      - name: OSV-Scanner
+        # OSV moved the scanner into the osv-scanner-action/ subdirectory and
+        # dropped the floating v1 tag, so the old google/osv-scanner-action@v1
+        # ref no longer resolves. Pin the relocated action by commit SHA (v2.3.8).
+        uses: google/osv-scanner-action/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
+        with:
+          scan-args: |-
+            --lockfile=linux/admin/package-lock.json
+
+  image:
+    name: Container image CVEs (Trivy, HIGH/CRITICAL fixable)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./linux
+          file: ./linux/Dockerfile
+          tags: repofabric-linux:scan
+          load: true
+      - name: Trivy image scan
+        # The 0.28.0 ref never existed (this action only ships v-prefixed tags);
+        # pin a current release by commit SHA. All inputs below are still valid in
+        # this version (vuln-type is deprecated upstream but still accepted).
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: repofabric-linux:scan
+          format: table
+          exit-code: '1'            # fail the job on findings
+          ignore-unfixed: true      # only gate on CVEs that have a fix available
+          severity: HIGH,CRITICAL
+          vuln-type: os,library

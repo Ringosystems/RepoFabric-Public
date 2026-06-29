@@ -1,0 +1,223 @@
+# RepoFabric SANDBOX: all-in-one, throwaway, NON-ENTERPRISE deployment.
+#
+# This is NOT the recommended production topology. It bundles a dedicated Nginx
+# Proxy Manager and uses a self-signed certificate so it can stand up on one box
+# and be wiped just as easily. Production uses an external, operator-run NPM with
+# a real CA-signed/Let's Encrypt certificate and Microsoft Entra sign-in. See
+# sandbox/README.md for the loud warnings and the divergence table.
+#
+# Bring-up and teardown are driven by the wizard (sandbox/wizard). To wipe the
+# entire box including all data:
+#   docker compose -f sandbox/docker-compose.yml -p repofabric-sandbox down -v
+#
+# Image versions come from sandbox/versions.lock.env; runtime settings from
+# sandbox/.env. The wizard passes both via --env-file. HTTPS-only: only NPM's
+# 443 is published; nothing serves plain HTTP to the host.
+
+name: repofabric-sandbox
+
+services:
+  # The RepoFabric application image, reused from the production Dockerfile via
+  # build args (no fork). Sandbox profile turns on local-admin login and the
+  # permit-invalid-SSL escape hatch; both are inert in a production build.
+  repofabric-linux:
+    build:
+      context: ../linux
+      args:
+        BASE_NODE_IMAGE: "${BASE_NODE_IMAGE:-node:20-bookworm-slim}"
+        BASE_PWSH_IMAGE: "${BASE_PWSH_IMAGE:-mcr.microsoft.com/powershell:lts-debian-12}"
+        NPM_INSTALL_MODE: "${NPM_INSTALL_MODE:-install}"
+    image: repofabric-linux:sandbox
+    container_name: repofabric-linux
+    restart: unless-stopped
+    user: "0:0"
+    environment:
+      REPOFABRIC_DEPLOYMENT_PROFILE: "sandbox"
+      REPOFABRIC_UID: "99"
+      REPOFABRIC_GID: "100"
+      REPOFABRIC_PUBLISHER_URL: "http://127.0.0.1:8085"
+      REPOFABRIC_STATE_DIR: "/var/lib/repofabric"
+      REPOFABRIC_MANIFEST_CACHE_DIR: "/var/cache/repofabric/manifests"
+      REPOFABRIC_INSTALLER_LOCAL_ROOT: "/var/cache/repofabric/installers"
+      # Public HTTPS URLs advertised to clients (resolved by the workstation's
+      # hosts entry to the server IP, terminated by the bundled NPM). The
+      # published HTTPS port is part of the URL: clients reach the bundled NPM on
+      # SANDBOX_HTTPS_PORT (e.g. 8443 on a busy UNRAID box), so winget source URLs
+      # and custom-installer URLs must carry it or downloads hit the wrong port.
+      REPOFABRIC_ADMIN_PUBLIC_URL: "https://winget.${LOCALDOMAIN:-repofabric.localhost}:${SANDBOX_HTTPS_PORT:-443}/admin"
+      REPOFABRIC_INSTALLER_BASE_URL: "https://installers.${LOCALDOMAIN:-repofabric.localhost}:${SANDBOX_HTTPS_PORT:-443}"
+      # Plain-HTTP port the installer server (8091) is published on (see ports:)
+      # so clients can fetch the bootstrap script (/setup.ps1) and CA over HTTP
+      # before they trust the self-signed cert. Advertised to the SPA via features.
+      REPOFABRIC_PUBLIC_HTTP_PORT: "${SANDBOX_HTTP_PORT:-8080}"
+      # Internal service-to-service URLs stay plain HTTP by container name (these
+      # never traverse NPM, so nothing internal needs to trust the self-signed CA).
+      REPOFABRIC_GITEA_BASE_URL: "http://repofabric-gitea:3000"
+      REPOFABRIC_GITEA_REPO: "repofabric/winget-manifests"
+      REPOFABRIC_REWINGED_URL: "http://repofabric-rewinged:8080"
+      # Highest WinGet manifest schema version the bundled rewinged can parse.
+      # Manifests are rendered down to this (rewinged 404s anything newer). The
+      # sandbox cannot auto-detect it (no docker socket), so it is a manual knob set
+      # in versions.lock.env NEXT TO REWINGED_IMAGE: bump both together when you move
+      # to a rewinged build that supports a newer schema. Default 1.10.0 = the
+      # ceiling of the pinned ghcr.io/jantari/rewinged:latest.
+      REPOFABRIC_MAX_MANIFEST_VERSION: "${REPOFABRIC_MAX_MANIFEST_VERSION:-1.10.0}"
+      # Session secret (the wizard generates and persists this into sandbox/.env).
+      # Defaulted to empty so teardown (down) never fails on interpolation; the
+      # wizard always sets it before `up`, and config.js fails fast if it is empty
+      # at container boot.
+      REPOFABRIC_SESSION_SECRET: "${SANDBOX_SESSION_SECRET:-}"
+      # HTTPS-only posture: session cookie stays Secure (real traffic is HTTPS via NPM).
+      REPOFABRIC_COOKIE_SECURE: "true"
+      TZ: "${TZ:-UTC}"
+      CONFIGFABRIC_ENABLED: "false"
+      # If you opt into the Docker socket (see volumes) for multi-repo, this keeps
+      # spawned per-repo Rewinged containers on the sandbox network instead of the
+      # production 'repofabric' network (the code default). Inert without the socket.
+      REPOFABRIC_DOCKER_NETWORK: "repofabric-sandbox"
+    ports:
+      # Plain-HTTP installer server (CA at /sandbox-ca.pem, client bootstrap at
+      # /setup.ps1). Lets a client fetch the bootstrap before it trusts the
+      # self-signed cert. UNRAID often has 8080 taken, so set SANDBOX_HTTP_PORT
+      # to a free port in sandbox/.env. This exposes installer bytes + the CA over
+      # plain HTTP, which is acceptable for the throwaway sandbox only.
+      - "${SANDBOX_HTTP_PORT:-8080}:8091"
+    volumes:
+      - state:/var/lib/repofabric
+      - cache:/var/lib/repofabric/cache
+      - manifests:/var/cache/repofabric/manifests
+      - installers:/var/cache/repofabric/installers
+      - cf-state:/var/lib/configfabric
+      # OPT-IN multi-repo. The sandbox is single-repo by default (no Docker
+      # socket), so "+ add repo" and "Reconcile containers" are hidden. To allow
+      # creating additional virtual repos -- each spawns its own Rewinged
+      # container via the Docker socket -- uncomment the next line and recreate
+      # repofabric-linux. This grants the container control of the Docker daemon,
+      # which is why it is OFF by default in the throwaway sandbox.
+      # - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      sandbox:
+        ipv4_address: 10.89.0.10
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8086/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  repofabric-gitea:
+    image: "${GITEA_IMAGE:-gitea/gitea:1}"
+    container_name: repofabric-gitea
+    restart: unless-stopped
+    environment:
+      USER_UID: "99"
+      USER_GID: "100"
+      GITEA__server__DOMAIN: "gitea.${LOCALDOMAIN:-repofabric.localhost}"
+      GITEA__server__ROOT_URL: "https://gitea.${LOCALDOMAIN:-repofabric.localhost}/"
+      GITEA__server__DISABLE_SSH: "true"
+      GITEA__server__OFFLINE_MODE: "true"
+      GITEA__database__DB_TYPE: "sqlite3"
+      GITEA__service__DISABLE_REGISTRATION: "true"
+      GITEA__service__REQUIRE_SIGNIN_VIEW: "false"
+      GITEA__repository__DEFAULT_BRANCH: "main"
+      # Headless: skip the web installer so the wizard can seed the admin + PAT.
+      GITEA__security__INSTALL_LOCK: "true"
+      TZ: "${TZ:-UTC}"
+    volumes:
+      - gitea:/data
+    networks:
+      sandbox:
+        ipv4_address: 10.89.0.12
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  repofabric-rewinged:
+    image: "${REWINGED_IMAGE:-ghcr.io/jantari/rewinged:latest}"
+    container_name: repofabric-rewinged
+    restart: unless-stopped
+    user: "99:100"
+    volumes:
+      - manifests:/manifests:ro
+    command:
+      - "-manifestPath"
+      - "/manifests/manifests"
+      - "-listen"
+      - "0.0.0.0:8080"
+      - "-logLevel"
+      - "info"
+    networks:
+      sandbox:
+        ipv4_address: 10.89.0.11
+
+  repofabric-npm:
+    image: "${NPM_IMAGE:-jc21/nginx-proxy-manager:latest}"
+    container_name: repofabric-npm
+    restart: unless-stopped
+    # Only HTTPS is published to the host. Port 80 and the 81 admin API are
+    # NOT published, so nothing serves plain HTTP to the outside and the admin
+    # API is reachable only on the sandbox network (the wizard seeds it there).
+    ports:
+      - "${SANDBOX_HTTPS_PORT:-443}:443"
+    volumes:
+      - npm-data:/data
+      - npm-letsencrypt:/etc/letsencrypt
+    networks:
+      sandbox:
+        ipv4_address: 10.89.0.13
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:81/api >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # The deployment wizard. Runs ON the Docker host, talks to the daemon through
+  # the mounted socket, and orchestrates build/cert/seed/validate. Excluded from
+  # a plain `up` by its profile; launched with `docker compose run --rm wizard`
+  # or the thin launch.sh / launch.ps1. See sandbox/wizard/.
+  wizard:
+    build:
+      context: ./wizard
+      args:
+        WIZARD_BASE_IMAGE: "${WIZARD_BASE_IMAGE:-docker:27-cli}"
+    image: repofabric-sandbox-wizard:latest
+    profiles: ["wizard"]
+    environment:
+      LOCALDOMAIN: "${LOCALDOMAIN:-repofabric.localhost}"
+      COMPOSE_PROJECT: "repofabric-sandbox"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../:/repo
+      - certs:/certs
+    working_dir: /repo/sandbox
+    networks: [sandbox]
+    # Interactive by default (compose run allocates a TTY). The entrypoint reads
+    # remaining args, e.g. `... run --rm wizard --non-interactive`.
+    entrypoint: ["/usr/local/bin/wizard-entrypoint.sh"]
+
+networks:
+  sandbox:
+    name: repofabric-sandbox
+    # Static subnet + the per-service IPs above so a container recreate keeps the
+    # same address. NPM resolves each backend hostname once and caches the IP; a
+    # recreate that changed the IP makes NPM 502 until reloaded. Pinning the IPs
+    # removes that failure mode. 10.89.0.0/24 avoids the host's other docker
+    # networks (which sit in 172.16/12).
+    ipam:
+      config:
+        - subnet: 10.89.0.0/24
+
+volumes:
+  state:           { name: repofabric-sandbox-state }
+  cache:           { name: repofabric-sandbox-cache }
+  manifests:       { name: repofabric-sandbox-manifests }
+  installers:      { name: repofabric-sandbox-installers }
+  cf-state:        { name: repofabric-sandbox-cf-state }
+  gitea:           { name: repofabric-sandbox-gitea }
+  npm-data:        { name: repofabric-sandbox-npm-data }
+  npm-letsencrypt: { name: repofabric-sandbox-npm-letsencrypt }
+  certs:           { name: repofabric-sandbox-certs }

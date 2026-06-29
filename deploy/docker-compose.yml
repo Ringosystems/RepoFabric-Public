@@ -1,0 +1,71 @@
+# RepoFabric companion stack (Gitea + Rewinged).
+#
+# These two services are siblings of repofabric-linux (defined in
+# ../linux/docker-compose.yml) and share the 'repofabric' docker network.
+#
+# Reverse proxy: Nginx Proxy Manager (separate container) terminates HTTPS
+# and routes:
+#   gitea.<domain>      -> repofabric-gitea:3000     (port 3030 on the host)
+#   winget.<domain>/api -> repofabric-rewinged:8080  (port 8090 on the host)
+#   installers.<domain> -> repofabric-linux:8091     (served by repofabric-linux)
+name: repofabric
+
+services:
+  gitea:
+    image: gitea/gitea:1
+    container_name: repofabric-gitea
+    restart: unless-stopped
+    environment:
+      USER_UID: "99"
+      USER_GID: "100"
+      # Public identity of the Gitea web UI. Internal traffic (rewinged, the
+      # publisher) reaches Gitea by container name on the repofabric network, so
+      # these only affect the links Gitea renders. Default to a neutral
+      # placeholder; set GITEA_DOMAIN / GITEA_ROOT_URL in deploy/.env (and run
+      # compose with `--env-file deploy/.env`) to your real reverse-proxy host.
+      GITEA__server__DOMAIN: ${GITEA_DOMAIN:-gitea.example.com}
+      GITEA__server__ROOT_URL: ${GITEA_ROOT_URL:-https://gitea.example.com/}
+      GITEA__server__SSH_DOMAIN: ${GITEA_DOMAIN:-gitea.example.com}
+      GITEA__server__DISABLE_SSH: "true"
+      GITEA__server__OFFLINE_MODE: "true"
+      GITEA__database__DB_TYPE: sqlite3
+      GITEA__service__DISABLE_REGISTRATION: "true"
+      # REQUIRE_SIGNIN_VIEW stays false so Rewinged can read the public
+      # winget-manifests repo without authentication. External access to
+      # gitea.<domain> is gated by NPM + LAN ACLs.
+      GITEA__service__REQUIRE_SIGNIN_VIEW: "false"
+      GITEA__repository__DEFAULT_BRANCH: main
+    volumes:
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/gitea:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "3030:3000"
+    networks: [repofabric]
+
+  rewinged:
+    image: ghcr.io/jantari/rewinged:latest
+    container_name: repofabric-rewinged
+    restart: unless-stopped
+    user: "99:100"
+    volumes:
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/manifests:/manifests:ro
+    command:
+      - "-manifestPath"
+      - "/manifests/manifests"
+      - "-listen"
+      - "0.0.0.0:8080"
+      - "-logLevel"
+      - "info"
+    ports:
+      - "8090:8080"
+    networks: [repofabric]
+
+  # The admin UI, publisher, cron, and installer file server all run inside
+  # repofabric-linux (see ../linux/docker-compose.yml). Installer binaries
+  # are served by an Express server on repofabric-linux:8091.
+
+networks:
+  repofabric:
+    name: repofabric
+    driver: bridge

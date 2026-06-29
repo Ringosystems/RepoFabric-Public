@@ -1,0 +1,22 @@
+{
+  "name": "repofabric-linux-admin",
+  "version": "0.1.0",
+  "description": "Browser admin UI for the UNRAID-local fork of RepoFabric. Entra OAuth, first-run setup wizard, users-or-groups access, full WinGet manifest schema custom-publish. RingoSystems Heavy Industries winget repo deployments.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=20.0.0" },
+  "scripts": {
+    "start": "node src/server.js",
+    "test":  "node --test src/peerdist.test.js src/metrics.test.js src/clientconfig.test.js src/intunepolicyscript.test.js src/entra-helper.test.js src/clientbootstrap.test.js"
+  },
+  "dependencies": {
+    "@azure/msal-node":  "^5.3.0",
+    "better-sqlite3":    "^11.5.0",
+    "express":           "^4.21.1",
+    "express-session":   "^1.18.1",
+    "helmet":            "^8.0.0",
+    "js-yaml":           "^4.1.0",
+    "morgan":            "^1.10.0",
+    "multer":            "^2.2.0"
+  }
+}

@@ -1,0 +1,36 @@
+# ConfigFabric integration overlay for linux/docker-compose.yml (RepoFabric#35 D2/#2c).
+#
+# Captures the integrated-deployment shape in the repo so it is reproducible and
+# version-controlled, instead of living only as a hand-edited file on the host.
+# Apply it on top of the base compose:
+#
+#   docker compose \
+#     -f linux/docker-compose.yml \
+#     -f deploy/integration/docker-compose.configfabric.yml \
+#     up -d --force-recreate repofabric-linux
+#
+# What it does:
+#   * Turns the M6 absorption on (CONFIGFABRIC_ENABLED=true). The bearer tokens,
+#     lock-gate URL, and signing material still come from the .env file; see the
+#     ConfigFabric section of linux/.env.example.
+#   * PINS the external `configfabric` docker network onto the container so the
+#     cross-fabric lock-gate survives `--force-recreate`. A runtime
+#     `docker network connect` is dropped on every recreate and silently
+#     fail-closes the gate (the rollout footgun behind RepoFabric#35 #2c); the
+#     pin makes the attachment durable.
+#
+# Prerequisite: the `configfabric` network must already exist (created by the
+# ConfigFabric stack). This overlay only attaches to it; it does not create it.
+# For a CROSS-HOST ConfigFabric (no shared docker network), omit this overlay and
+# instead set CONFIGFABRIC_LOCKGATE_URL in the .env to the peer's admin base.
+
+services:
+  repofabric-linux:
+    environment:
+      CONFIGFABRIC_ENABLED: "true"
+    networks: [repofabric, configfabric]
+
+networks:
+  configfabric:
+    name: configfabric
+    external: true

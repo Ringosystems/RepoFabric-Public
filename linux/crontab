@@ -1,0 +1,88 @@
+# RepoFabric cron jobs.
+# Runs as the repofabric user (UID 99). Every job idempotently no-ops if the
+# container is in setup mode (each line guards on setup.complete, so jobs
+# stay silent until the wizard finishes).
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+REPOFABRIC_MODULE=/opt/repofabric/src/RepoFabric.psd1
+
+# Catalog walker: refresh the repo_catalog table from the read-only
+# manifest mount. Cheap and fast (<1s for a few hundred packages).
+# Guarded on setup.complete so it stays silent until the wizard finishes.
+*/5 * * * * [ -f /var/lib/repofabric/config/setup.complete ] && /usr/bin/pwsh -NoLogo -NoProfile -Command "Import-Module $REPOFABRIC_MODULE; Update-RfRepoCatalog" >> /var/lib/repofabric/logs/cron-catalog.log 2>&1
+
+# Scheduled sync: walks every subscription, acquires/builds/publishes any
+# new versions. Default cadence is every 6 hours; operators change it via
+# Service Configuration which rewrites this file on save. Force-sync from
+# the admin UI uses -Trigger force (priority 0); this scheduled run uses
+# -Trigger scheduled (priority 100). The index-refresh staleness gate
+# inside Sync-RfSubscriptions decides whether to refresh the upstream
+# microsoft/winget-pkgs cache or use the existing one. Same setup.complete
+# guard.
+0 */6 * * * [ -f /var/lib/repofabric/config/setup.complete ] && /usr/bin/pwsh -NoLogo -NoProfile -Command "Import-Module $REPOFABRIC_MODULE; Sync-RfSubscriptions -Trigger scheduled" >> /var/lib/repofabric/logs/cron-sync.log 2>&1
+
+# Daily Gitea archive snapshot: walks every active virtual
+# repo, archives its current HEAD commit (idempotent; no-op if already
+# stored), and writes a gitea_archive_snapshots row. Combined with the
+# per-publish / per-promote / per-drift snapshots written inline by
+# those workflows, this guarantees a recovery point every 24 hours
+# even when no normal publish has happened.
+0 2 * * * [ -f /var/lib/repofabric/config/setup.complete ] && /usr/bin/pwsh -NoLogo -NoProfile -Command "Import-Module $REPOFABRIC_MODULE; New-RfArchiveSnapshot -Reason daily -Confirm:\$false" >> /var/lib/repofabric/logs/cron-archive.log 2>&1
+
+# Drift detection: every 15 minutes, walk each active
+# virtual repo's last 50 Gitea commits and record any whose author
+# email does not match the configured publisher identity. The
+# admin UI shows pending drift events as a banner on the Catalog
+# tab so operators see uninvited commits quickly. INSERT OR IGNORE
+# means repeated runs over the same commits are idempotent.
+*/15 * * * * [ -f /var/lib/repofabric/config/setup.complete ] && /usr/bin/pwsh -NoLogo -NoProfile -Command "Import-Module $REPOFABRIC_MODULE; Update-RfDriftDetection" >> /var/lib/repofabric/logs/cron-drift.log 2>&1
+
+# Popularity refresh (tier 1): every day at 03:00 UTC, hit
+# winget.run's /v2/stats endpoint for the ~500 highest-interest
+# packages (operator subscriptions + recent searches + curated
+# fallback). Populates upstream_popularity so the Add-subscription
+# typeahead can sort mainstream apps to the top. ~17 minutes at the
+# default 2-second pacing. Service.yaml popularity.disabled=true
+# turns this into a no-op for operators who do not want any
+# external dependency.
+0 3 * * * [ -f /var/lib/repofabric/config/setup.complete ] && /usr/bin/pwsh -NoLogo -NoProfile -Command "Import-Module $REPOFABRIC_MODULE; Update-RfPopularityIndex -Tier tier1 -Confirm:\$false" >> /var/lib/repofabric/logs/cron-popularity.log 2>&1
+
+# Popularity refresh (tier 2): every Sunday at 04:30 UTC, walk the
+# long tail. ~5-6 hours at the default pacing. Skipped if a tier 2
+# run from the prior week is still in_progress (the auto-abort
+# horizon in Update-RfPopularityIndex resets that after 24h).
+30 4 * * 0 [ -f /var/lib/repofabric/config/setup.complete ] && /usr/bin/pwsh -NoLogo -NoProfile -Command "Import-Module $REPOFABRIC_MODULE; Update-RfPopularityIndex -Tier tier2 -Confirm:\$false" >> /var/lib/repofabric/logs/cron-popularity.log 2>&1
+
+# Weekly upstream-hash scan: re-runs Update-RfCustomPackageCollisions
+# across every custom-published package and writes any newly-discovered
+# overlaps with the public WinGet repo to custom_packages.upstream_match_json.
+# Sunday 03:15 UTC; runs after the 03:00 daily archive snapshot so the
+# upstream tree is fresh when grep runs. The synchronous check during the
+# publish wizard catches matches that already existed at upload time; this
+# catches packages the public repo published LATER.
+15 3 * * 0 [ -f /var/lib/repofabric/config/setup.complete ] && /usr/bin/pwsh -NoLogo -NoProfile -Command "Import-Module $REPOFABRIC_MODULE; Update-RfCustomPackageCollisions -Confirm:\$false" >> /var/lib/repofabric/logs/cron-upstream-scan.log 2>&1
+
+# Daily heartbeat email (09:00 UTC). Send-RfHeartbeat fires only when no
+# per-run or stale-schedule email has gone out in the last 7 days, so the
+# operator's mailbox stays quiet when the service is busy and producing
+# normal notifications. SMTP must be configured (notifications.smtp.host
+# non-empty) for the cmdlet to do anything; otherwise it logs and returns.
+0 9 * * * [ -f /var/lib/repofabric/config/setup.complete ] && /usr/bin/pwsh -NoLogo -NoProfile -Command "Import-Module $REPOFABRIC_MODULE; Send-RfHeartbeat" >> /var/lib/repofabric/logs/cron-heartbeat.log 2>&1
+
+# Hourly stale-schedule check. Walks the cron log file mtimes via
+# Get-RfTaskState and emits a stale-schedule alert (with 24h suppression)
+# for any cron job that has stopped firing. Recovered signatures get an
+# all-clear. The check itself is cheap (six stat() calls); the email send
+# is gated on real staleness so this is a no-op the vast majority of
+# hours.
+0 * * * * [ -f /var/lib/repofabric/config/setup.complete ] && /usr/bin/pwsh -NoLogo -NoProfile -Command "Import-Module $REPOFABRIC_MODULE; Update-RfTaskStateAlerts -Confirm:\$false" >> /var/lib/repofabric/logs/cron-task-state.log 2>&1
+
+# Daily retention cleanup (02:30 in the container timezone, 30 min after the
+# daily archive snapshot so the snapshot row is recorded before any
+# publication is dropped). Invoke-RfCleanup unpublishes versions beyond each
+# subscription's retention count, prunes publication_notes, and removes the
+# matching installer files from the bind-mounted serve directory. Runs daily so
+# the live version count converges on the configured Retention every night
+# rather than only once a week.
+30 2 * * * [ -f /var/lib/repofabric/config/setup.complete ] && /usr/bin/pwsh -NoLogo -NoProfile -Command "Import-Module $REPOFABRIC_MODULE; Invoke-RfCleanup -Confirm:\$false" >> /var/lib/repofabric/logs/cron-cleanup.log 2>&1

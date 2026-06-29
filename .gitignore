@@ -1,0 +1,63 @@
+# Build + test output (the deliverable is the linux/ container image; these
+# are local staging/run artifacts, never committed)
+/build/
+/out/
+TestResults*.xml
+coverage*.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Ephemeral working files (deploy patches, key transfer, etc.)
+.tmp/
+
+# Secrets: env files are NEVER committed. bootstrap writes a real session secret
+# and cross-fabric bearer tokens into deploy/.env; only the *.example template is
+# tracked (RepoFabric#35 H8).
+.env
+*.env
+
+build.log
+
+sync.log
+
+# Sandbox (throwaway deployment): sandbox/.env holds generated secrets and is
+# covered by the .env / *.env rules above. The committed version lock ends in
+# .env too, so re-include it explicitly so it stays tracked.
+!sandbox/versions.lock.env
+
+# Claude Code per-project workspace state
+.claude/
+
+# Node admin install artifacts. node_modules is built in the docker builder;
+# package-lock.json IS committed (R2) for reproducible, lockable installs (npm ci).
+linux/admin/node_modules/
+
+# PeerDist sidecar cache files (runtime artifacts next to installers)
+*.peerdist
+*.peerdist.tmp
+
+# Lab test transient outputs (regenerated on every run)
+tests/peerdist-lab/lab-test-run.log
+tests/peerdist-lab/labrun*.log
+tests/peerdist-lab/prepare-log.txt
+tests/peerdist-lab/prepare-tee.log
+tests/peerdist-lab/configure-log.txt
+tests/peerdist-lab/peerdist-lab-result.json
+tests/peerdist-lab/agent-prep-report.md
+tests/peerdist-lab/configure-report.md
+
+# Personal / local dev tooling — never commit. The Kilo AI dev-tool config
+# (kilo.jsonc carries per-environment LLM endpoints), the whole .kilo/ agent
+# tree, packaged bundles, and timestamped backup/stale files stay local.
+.kilo/
+kilo.jsonc
+sub-bundle/
+*.bak-*
+*.stale-*

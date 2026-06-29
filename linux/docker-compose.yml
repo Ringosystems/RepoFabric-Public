@@ -1,0 +1,141 @@
+# RepoFabric compose file.
+# Stands up a single repofabric-linux container that runs the PowerShell
+# compute, Node admin UI, cron, and installer static serve all in one image.
+# Joins the existing repofabric network so it reaches gitea and rewinged
+# by name.
+#
+# Prereq companion stack from ../deploy/docker-compose.yml: gitea + rewinged.
+#
+# Reverse proxy (Nginx Proxy Manager is the documented default) terminates
+# HTTPS and routes:
+#   winget.<domain>/admin -> repofabric-linux:8086 (this container)
+#   winget.<domain>/setup -> repofabric-linux:8086 (first-run only)
+#   winget.<domain>/api   -> repofabric-rewinged:8080
+#
+# All secrets come from the .env file at
+#   /mnt/user/appdata/repofabric-linux/.env
+# Do not commit that file. Example is in .env.example.
+
+name: repofabric-linux
+
+services:
+  repofabric-linux:
+    build:
+      context: .
+    image: repofabric-linux:latest
+    container_name: repofabric-linux
+    restart: unless-stopped
+    user: "0:0"          # entrypoint chowns then drops via supervisord
+    # Canonical .env location: alongside this container's state on the SSD cache
+    # pool (the same /mnt/cache/appdata/repofabric-linux/ root as the state mount
+    # below and the deploy/README host layout). bootstrap copies the starter here
+    # (RepoFabric#35 H7). Keep this path in lockstep with deploy/bootstrap.sh and
+    # linux/.env.example.
+    # Path is env-driven so non-UNRAID hosts can point it anywhere; the default
+    # is the UNRAID layout, so an existing deploy that does not set the var is
+    # byte-identical. Set REPOFABRIC_ENV_FILE in deploy/.env and run compose with
+    # `--env-file deploy/.env` (bootstrap.sh writes these for you). The generic
+    # flow points this straight at deploy/.env, so there is no separate copy step.
+    env_file:
+      - ${REPOFABRIC_ENV_FILE:-/mnt/cache/appdata/repofabric-linux/.env}
+    environment:
+      REPOFABRIC_UID: "99"
+      REPOFABRIC_GID: "100"
+      REPOFABRIC_PUBLISHER_URL: "http://127.0.0.1:8085"
+      REPOFABRIC_MANIFEST_CACHE_DIR: "/var/cache/repofabric/manifests"
+      REPOFABRIC_STATE_DIR: "/var/lib/repofabric"
+      # Host-side paths that the docker-driver passes to `docker run` when
+      # spawning per-repo Rewinged containers. Bind mounts on the spawned
+      # containers are resolved by the host docker daemon, so they must be
+      # HOST paths, not container paths.
+      #
+      # Per-repo manifests for non-'main' virtual repos live under
+      # ${REPOFABRIC_MANIFEST_HOST_ROOT}/repos/{slug}/. The 'main' repo
+      # keeps the manifest tree at its root and is managed by
+      # deploy/docker-compose.yml, not by this docker-driver.
+      REPOFABRIC_MANIFEST_HOST_ROOT: "${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/manifests"
+      REPOFABRIC_DOCKER_NETWORK: "repofabric"
+      REPOFABRIC_REWINGED_IMAGE: "ghcr.io/jantari/rewinged:latest"
+      # --- ConfigFabric absorption (the M6 bolt-on, tight sidecar). Default
+      #     OFF. Flip CONFIGFABRIC_ENABLED to "true" (here or in the .env) to
+      #     co-host ConfigFabric inside this container: its pwsh bridge on
+      #     loopback :8089, its tabs in this admin SPA, its own SQLite under
+      #     /var/lib/configfabric. Bearer tokens come from the .env file
+      #     (CONFIGFABRIC_PUBLISHER_TOKEN, CONFIGFABRIC_INGEST_TOKEN; the
+      #     bolt-on lock-gate bearer reuses REPOFABRIC_PUBLISHER_TOKEN). When
+      #     enabling, also give this container reach to ConfigFabric's Gitea
+      #     (point CONFIGFABRIC_GITEA_BASE_URL at repofabric-gitea, or
+      #     `docker network connect configfabric repofabric-linux`).
+      CONFIGFABRIC_ENABLED: "false"
+      CONFIGFABRIC_PUBLISHER_URL: "http://127.0.0.1:8089"
+      CONFIGFABRIC_STATE_DIR: "/var/lib/configfabric"
+    volumes:
+      # Persistent state, config, logs, staging uploads, SQLite DB. Lives
+      # on the UNRAID SSD cache pool because state.sqlite is the bridge's
+      # write-hot path (every queue dequeue, every acquisition row, every
+      # run event is a sync write). On array storage the writes serialise
+      # through HDD seek time and the upstream index DB-write phase hangs.
+      - ${REPOFABRIC_STATE_ROOT:-/mnt/cache/appdata/repofabric-linux}/state:/var/lib/repofabric
+      # Cache subdir is ALSO on SSD because the microsoft/winget-pkgs
+      # sparse clone has ~600,000 small files. Nested bind keeps this
+      # explicit even though the parent mount is already SSD; future
+      # operators may move state back to array but keep cache fast.
+      - ${REPOFABRIC_STATE_ROOT:-/mnt/cache/appdata/repofabric-linux}/cache:/var/lib/repofabric/cache
+      # Read-write mount of the manifest tree. Rewinged reads from this
+      # path (read-only from its side); the publisher writes manifest YAML
+      # files here AND uses it as the git working tree. The publisher
+      # writes directly so Rewinged sees new versions immediately on commit.
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/manifests:/var/cache/repofabric/manifests
+      # Read-write mount of the installers directory. The Express installer
+      # server serves the files on :8091 and the publisher writes installer
+      # binaries directly to this same path via the filesystem. Atomic
+      # .partial-then-rename in Invoke-RfInstallerUpload prevents
+      # express.static from observing half-written files.
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/installers:/var/cache/repofabric/installers
+      # ConfigFabric absorption: CF's OWN SQLite + config + logs, separate from
+      # RepoFabric's state. On the SSD cache pool (state.sqlite is write-hot).
+      # Only written when CONFIGFABRIC_ENABLED=true; harmless to mount otherwise.
+      - ${REPOFABRIC_STATE_ROOT:-/mnt/cache/appdata/repofabric-linux}/configfabric-state:/var/lib/configfabric
+      # docker-driver. The pwsh-bridge needs to talk to the host docker
+      # daemon to spawn one Rewinged container per virtual
+      # repo. Read-write is required because docker compose / docker run
+      # / docker rm all issue write operations on the socket. The mount
+      # is a privileged boundary: anything that gains code execution in
+      # this container with socket access can effectively root the host.
+      # Mitigations:
+      #   * pwsh-bridge listens on loopback only.
+      #   * Admin UI is Entra-gated.
+      #   * The PowerShell docker helpers use arg-array invocation, never
+      #     string concatenation, so container/repo names cannot inject.
+      #   * Container/repo slugs are constrained to [a-z0-9-] by the
+      #     virtual_repos.repo_id CHECK constraint and the New cmdlet's
+      #     ValidatePattern.
+      # Per-repo Rewinged containers join this network, run unprivileged,
+      # and mount the manifest tree read-only.
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Add the host docker group as a supplementary group so the unprivileged
+    # repofabric user (UID 99 GID 100) can read /var/run/docker.sock without
+    # running as root. The entrypoint reads the live GID off the socket and
+    # adds repofabric to a matching group; this group_add is a belt-and-
+    # suspenders fallback for hosts that don't keep docker on the default
+    # GID. UNRAID ships docker as GID 281 by default.
+    group_add:
+      - "${REPOFABRIC_DOCKER_GID:-281}"
+    ports:
+      # Internal-only deployments can drop the host binding entirely and
+      # rely on NPM hitting the container over the repofabric network.
+      - "8086:8086"
+      # Installer static serve for the reverse-proxy host installers.<domain>.
+      - "8091:8091"
+    networks: [repofabric]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8086/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  repofabric:
+    name: repofabric
+    external: true

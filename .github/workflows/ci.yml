@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main, '*.*.*-*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build container, run Pester + Node tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Warm buildkit image (retry transient Docker Hub timeouts)
+        # The builder bootstrap pulls moby/buildkit via the host daemon; a Docker
+        # Hub timeout there fails the whole job (seen 2026-06-06). Pull it first
+        # with backoff so the bootstrap finds it locally.
+        run: |
+          set -e
+          img=moby/buildkit:buildx-stable-1
+          n=0
+          until [ "$n" -ge 5 ]; do
+            if docker pull "$img"; then break; fi
+            n=$((n+1)); echo "pull $img failed (attempt $n/5), retry in $((n*10))s"; sleep $((n*10))
+          done
+          [ "$n" -lt 5 ] || { echo "::error::could not pull $img after 5 attempts"; exit 1; }
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          # Pin to the warmed image, and route in-build docker.io pulls through a
+          # mirror so base-image fetches do not flake on Docker Hub rate limits.
+          driver-opts: image=moby/buildkit:buildx-stable-1
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+
+      - name: Build repofabric-linux image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./linux
+          file: ./linux/Dockerfile
+          tags: repofabric-linux:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Pester (PowerShell module tests)
+        run: |
+          docker run --rm \
+            -e REPOFABRIC_STATE_DIR=/tmp/repofabric-test \
+            -v /tmp/ci-out:/tmp/ci-out \
+            repofabric-linux:ci \
+            pwsh -NoLogo -NoProfile -Command "
+              Import-Module Pester;
+              \$cfg = New-PesterConfiguration;
+              \$cfg.Run.Path = '/opt/repofabric/tests';
+              \$cfg.Output.Verbosity = 'Detailed';
+              \$cfg.TestResult.Enabled = \$true;
+              \$cfg.TestResult.OutputPath = '/tmp/ci-out/test-results.xml';
+              \$cfg.TestResult.OutputFormat = 'NUnitXml';
+              Invoke-Pester -Configuration \$cfg
+            "
+
+      - name: Run Node tests (admin server)
+        # peerdist.js hash math + sidecar invalidation + metrics.js insert,
+        # rollup, aggregations, subnet computation. Runs inside the built
+        # container image where node 20 + better-sqlite3 prebuilts are
+        # already installed and matched to the runtime environment.
+        # Invoked via `node --test` (not `npm test`): npm is removed from the
+        # runtime image (it is build-only and a recurring CVE source). Keep this
+        # file list in sync with the "test" script in linux/admin/package.json.
+        run: |
+          docker run --rm \
+            repofabric-linux:ci \
+            sh -c "cd /opt/repofabric-admin && node --test src/peerdist.test.js src/metrics.test.js src/clientconfig.test.js src/intunepolicyscript.test.js src/entra-helper.test.js"
+
+      - name: Upload test results
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: /tmp/ci-out/test-results.xml
+          if-no-files-found: warn

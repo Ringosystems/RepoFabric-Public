@@ -1,0 +1,8 @@
+{
+  "_comment": "Paste this object as the value of the 'Enable Allowed Sources' setting in the REPOFABRIC Settings Catalog profile to lock the source allowlist. Replace <your-domain>.",
+  "Sources": [
+    { "Name": "winget",  "Arg": "https://cdn.winget.microsoft.com/cache",          "Type": "Microsoft.PreIndexed.Package", "Identifier": "Microsoft.Winget.Source_8wekyb3d8bbwe" },
+    { "Name": "msstore", "Arg": "https://storeedgefd.dsx.mp.microsoft.com/v9.0",   "Type": "Microsoft.Rest",               "Identifier": "StoreEdgeFD" },
+    { "Name": "repofabric",    "Arg": "https://winget.<your-domain>/api/",               "Type": "Microsoft.Rest",               "Identifier": "WingetRepoSync.Production" }
+  ]
+}

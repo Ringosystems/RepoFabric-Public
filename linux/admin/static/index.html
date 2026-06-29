@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RepoFabric admin</title>
+<link rel="stylesheet" href="repofabric-tokens.css">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="./app-linux.css">
+</head>
+<body>
+<header>
+  <h1>RepoFabric</h1>
+  <div class="meta" id="meta">loading...</div>
+  <button type="button" id="btn-compare-deployments" class="header-compare" hidden title="See what the recommended full deployment adds — capabilities, management, and security. It's free too.">⚖️ Sandbox vs Recommended</button>
+  <div class="actions">
+    <a class="header-link" href="/admin/docs/" target="_blank" rel="noopener" title="Deployment walkthrough, per-platform setup, reverse proxy, troubleshooting.">Docs</a>
+    <a class="signout" href="auth/logout">Sign out</a>
+  </div>
+</header>
+<nav id="tabs">
+  <button data-tab="subscriptions" class="active">Catalog</button>
+  <button data-tab="inventory" title="Every version actually in a repo, compared against the primary repo">Inventory</button>
+  <button data-tab="activity">Activity <span id="nav-bridge-dot" class="nav-bridge-dot" title="Bridge service status"></span></button>
+  <button data-tab="bandwidth" title="LAN peer-cache bandwidth savings">Bandwidth</button>
+  <button data-tab="settings">Settings</button>
+  <button data-tab="about" title="Version, license, and open-source attributions">About</button>
+</nav>
+<main id="main">
+
+<section id="tab-subscriptions" class="tab active">
+  <div id="drift-banner" class="drift-banner" hidden></div>
+  <div class="catalog-layout">
+    <!-- ============== Sidebar: virtual repos ============== -->
+    <aside class="catalog-sidebar">
+      <div class="catalog-side-header">
+        <span class="catalog-side-title">Virtual repos</span>
+        <button id="btn-vrepo-add" class="catalog-side-add" title="Create a new virtual repo">+</button>
+      </div>
+      <ul id="catalog-side-list" class="catalog-side-list"></ul>
+      <div class="catalog-side-footer">
+        <button id="btn-vrepo-reconcile" class="ghost catalog-side-reconcile" title="Reconcile Rewinged containers with the desired state">Reconcile containers</button>
+      </div>
+    </aside>
+
+    <!-- ============== Main pane: packages in selected repo ============== -->
+    <div class="catalog-main">
+      <div class="catalog-main-header">
+        <div>
+          <h3 class="catalog-main-title" id="catalog-repo-title">main</h3>
+          <span class="muted" id="catalog-repo-subtitle"></span>
+        </div>
+        <div class="catalog-main-actions">
+          <button id="btn-vrepo-reconcile-retention" class="ghost" title="Enforce retention for this repo: preview the versions to purge and orphaned publication rows to reconcile, then apply">Reconcile retention</button>
+          <button id="btn-vrepo-edit"    class="ghost" disabled title="Edit this repo's settings">Edit repo</button>
+          <button id="btn-vrepo-archive" class="ghost danger" disabled title="Archive this repo (preserves data, hides from default views)">Archive repo</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button id="btn-add-sub">+ Add subscription</button>
+        <a id="btn-publish-custom" class="btn" href="./publish-custom.html" title="Publish an internal / vendor app that is not in the upstream WinGet repo. Drop the installer, fill the highlighted fields, hit Publish.">+ Publish custom app</a>
+        <button id="btn-sub-edit"  disabled>Edit selected</button>
+        <button id="btn-sub-sync"  disabled>Sync selected</button>
+        <button id="btn-sub-promote" disabled title="Copy this package's published manifest to another virtual repo">Promote selected</button>
+        <button id="btn-sub-refresh" class="ghost">Refresh</button>
+      </div>
+
+      <!-- Section 1: subscriptions managed by upstream-tracking -->
+      <h3 class="combined-head">Managed subscriptions <small class="muted">(track upstream WinGet packages)</small></h3>
+      <table id="sub-table">
+        <thead><tr>
+          <th>#</th><th>PackageId</th><th>Track</th><th>Pinned</th>
+          <th title="Most-recent version currently in this virtual repo (= Pinned for pinned subscriptions)">Repo version</th>
+          <th>Arch</th><th>Locale</th><th>Retention</th><th>Pubs</th><th>Size (MB)</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <details class="detail" id="sub-detail">
+        <summary id="sub-detail-summary">Detail</summary>
+        <div id="sub-detail-body" class="detail-body"></div>
+      </details>
+
+      <hr class="combined-divider">
+
+      <!-- Section 2: custom packages operator-published -->
+      <h3 class="combined-head">Operator-added custom apps <small class="muted">(published via this tool; no upstream)</small></h3>
+      <table id="custom-table">
+        <thead><tr>
+          <th>#</th><th>PackageId</th><th>PackageName</th><th>Publisher</th>
+          <th>LastVersion</th><th>Size (MB)</th><th>Upstream</th><th>LastPublishedAt</th><th>Notes</th><th>Actions</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+
+      <!-- Section 3: untracked apps in repo, collapsed by default -->
+      <details class="combined-untracked">
+        <summary><h3 class="combined-head-inline">Untracked apps in repo <small class="muted">(present in manifests/ but neither subscribed nor custom-published)</small></h3></summary>
+        <table id="untracked-table">
+          <thead><tr>
+            <th>PackageId</th><th>Publisher</th><th>PackageName</th><th>LatestVersion</th><th>Versions</th><th>LastSeenUtc</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </details>
+
+      <!-- Section 4 (non-main repos only): packages promoted into this repo. -->
+      <section id="catalog-promoted-in" hidden>
+        <h3 class="combined-head">Promoted into this repo <small class="muted">(arrived via promotion from another repo)</small></h3>
+        <table id="promoted-in-table">
+          <thead><tr>
+            <th>#</th><th>When</th><th>By</th><th>Source</th><th>Package</th><th>Version</th><th>Status</th><th>Target commit</th><th>Notes</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </div>
+  </div>
+</section>
+
+<section id="tab-inventory" class="tab">
+  <div class="inv-toolbar">
+    <label>Repo
+      <select id="inv-repo-select" title="Which repo's full contents to show"></select>
+    </label>
+    <label>Compare against
+      <select id="inv-primary-select" title="Baseline (primary) repo every version is compared to"></select>
+    </label>
+    <button id="inv-set-primary" class="ghost" title="Make the compare-against repo the saved default primary for everyone">Make default</button>
+    <label class="inv-filter-orphans"><input type="checkbox" id="inv-only-issues"> Only show drift / orphans</label>
+    <button id="inv-refresh" class="ghost">Refresh</button>
+    <span id="inv-status" class="muted"></span>
+  </div>
+  <div id="inv-summary" class="inv-summary"></div>
+  <table id="inv-table">
+    <thead><tr>
+      <th>PackageId</th><th>Source</th><th>Versions (newest first)</th>
+      <th title="How this repo compares to the primary repo">vs primary</th>
+      <th title="Versions retention would keep / drop">Retention</th>
+      <th>Size (MB)</th>
+      <th>Actions</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section id="tab-activity" class="tab">
+  <!-- Action bar: sync operations + cancel + bridge restart sit at the top.
+       The full red bridge-service card moved to a single status dot next
+       to the tab name in the nav; it expands to a banner only when the
+       bridge has been unreachable for >=3 consecutive probes (90s+). -->
+  <div class="op-grid">
+    <button id="btn-sync-all"      class="op-btn" title="Pull your subscribed packages from public WinGet into this repo. Fast: does not refresh the upstream index first.">Sync subscriptions (fast)</button>
+    <button id="btn-index-refresh" class="op-btn" title="Sync the package index from the public WinGet community repo (microsoft/winget-pkgs) so you can search and subscribe. No packages are published until you sync a subscription.">Sync index from WinGet (public)</button>
+    <button id="btn-sync-force"    class="op-btn" title="Refresh the public WinGet index AND sync your subscriptions in one run.">Sync subscriptions + WinGet index</button>
+  </div>
+  <div class="toolbar" id="op-cancel-bar" hidden>
+    <button id="btn-op-cancel" class="danger">Force cancel running operation</button>
+    <span class="muted op-cancel-hint">Use when a sync or refresh is stuck. Kills the worker job and clears the in-flight gate so new ops can start.</span>
+  </div>
+
+  <!-- Bridge banner. Hidden by default; appears only after >=3 consecutive
+       failed probes. Self-clears the moment a probe succeeds. -->
+  <div id="bridge-banner" class="bridge-banner" hidden>
+    <span class="bridge-banner-state" id="bridge-banner-state">Bridge unreachable</span>
+    <span class="bridge-banner-detail" id="bridge-banner-detail">Last probe failed. Container may be restarting.</span>
+    <button id="btn-svc-restart" class="ghost bridge-banner-restart">Restart bridge</button>
+  </div>
+
+  <!-- Streaming operation output (sync progress bar, etc.). -->
+  <div id="op-output" class="op-output"></div>
+
+  <!-- Activity feed. Time-ordered union of run + admin_event rows. -->
+  <div class="activity-toolbar">
+    <div class="activity-filters" role="group" aria-label="Filter activity">
+      <button type="button" class="activity-filter is-active" data-filter="all" aria-pressed="true">All</button>
+      <button type="button" class="activity-filter" data-filter="sync" aria-pressed="false">Sync</button>
+      <button type="button" class="activity-filter" data-filter="admin" aria-pressed="false">Admin actions</button>
+      <button type="button" class="activity-filter" data-filter="failures" aria-pressed="false">Failures only</button>
+    </div>
+    <span class="toolbar-spacer"></span>
+    <label class="activity-last">Show last <input id="activity-last" type="number" min="5" max="500" value="50"></label>
+    <button id="btn-activity-refresh" class="ghost">Refresh</button>
+  </div>
+  <table id="activity-table">
+    <thead><tr>
+      <th>Time</th><th>Event</th><th>Subject</th><th>Actor</th><th>Outcome</th><th>Detail</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- Reconcile retention preview -> apply modal -->
+<dialog id="dlg-reconcile" class="modal">
+  <h3 id="reconcile-title">Reconcile retention</h3>
+  <p class="muted" id="reconcile-subtitle"></p>
+  <div id="reconcile-body" class="reconcile-body"><div class="muted">Computing preview…</div></div>
+  <div class="modal-actions">
+    <button type="button" id="reconcile-cancel">Cancel</button>
+    <button type="button" id="reconcile-apply" class="danger" disabled>Apply purge</button>
+  </div>
+</dialog>
+
+<!-- Virtual repo create/edit modal -->
+<dialog id="vrepo-modal" class="modal">
+  <form id="vrepo-form" method="dialog">
+    <h3 id="vrepo-modal-title">New virtual repo</h3>
+    <label>Repo ID <small class="muted">(lowercase, [a-z0-9-]; cannot change after create)</small><br>
+      <input type="text" id="vrepo-slug" pattern="^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$|^[a-z0-9]$" required>
+    </label>
+    <label>Display name<br><input type="text" id="vrepo-display-name"></label>
+    <label>Description<br><input type="text" id="vrepo-description"></label>
+    <label>Base domain <small class="muted">(used to derive hostname; inherits from main if blank)</small><br>
+      <input type="text" id="vrepo-base-domain" placeholder="corp.example.com">
+    </label>
+    <label>Hostname <small class="muted">optional — leave blank to serve this repo at the subdirectory /{repo-id}/api/ on the shared host. Set a value only for a dedicated FQDN; client scripts then use https://&lt;hostname&gt;/api/.</small><br>
+      <input type="text" id="vrepo-hostname" placeholder="(blank = /{repo-id}/api/ subdirectory)">
+    </label>
+    <label>Default binary mode<br>
+      <select id="vrepo-binary-mode">
+        <option value="local">local (publisher hosts installers, default)</option>
+        <option value="upstream">upstream (manifest only; InstallerUrl keeps vendor CDN)</option>
+      </select>
+    </label>
+    <div class="modal-actions">
+      <button type="button" id="vrepo-cancel">Cancel</button>
+      <button type="submit" id="vrepo-save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Multi-repo upgrade nudge. In the Sandbox (no Docker socket) the
+     "+ add repo" and "Reconcile containers" buttons stay visible but open this
+     friendly popup instead of the non-functional multi-repo flow, pointing the
+     operator at the full, free, more-secure production deployment. -->
+<dialog id="multirepo-upgrade-modal" class="modal">
+  <div class="upgrade-modal-body">
+    <h3>✨ Want more than one repository?</h3>
+    <p class="free-banner">💚 The recommended full deployment is <strong>100% FREE</strong> — same as the Sandbox. No license, no cost, ever.</p>
+    <p>You're running the <strong>Sandbox</strong> — the quick, throwaway way to try RepoFabric. It is intentionally <strong>single-repository</strong>, so multi-repo controls are just a preview here.</p>
+    <p>Hosting <strong>multiple WinGet repositories</strong> — each isolated in its own container — is part of the <strong>full RepoFabric deployment</strong>, the recommended, production-ready way to run it. It's also the <strong>more secure</strong> choice: Microsoft Entra sign-in, real TLS certificates, and an isolated reverse proxy.</p>
+    <p class="muted">When you're ready for more than a quick trial, deploy RepoFabric the full way — it's the right way, and (worth repeating) <strong class="free-text">it's completely free</strong>.</p>
+    <div class="modal-actions">
+      <a class="btn" href="/admin/docs/" target="_blank" rel="noopener">Read the deployment guide ↗</a>
+      <button type="button" id="multirepo-upgrade-close">Got it</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Sandbox vs Recommended comparison. Opened from the header "Compare" button
+     (shown only in the sandbox). Highlights only what the recommended full
+     deployment ADDS, grouped by capabilities / management / security. -->
+<dialog id="compare-modal" class="modal">
+  <div class="compare-modal-body">
+    <h3>⚖️ Sandbox vs Recommended deployment</h3>
+    <p class="free-banner">💚 Both are <strong>100% FREE</strong> — no license, no cost. The Recommended deployment simply does more, and does it more securely.</p>
+    <p class="muted">You're on the <strong>Sandbox</strong> (a throwaway, single-box trial). Here's what the <strong>Recommended</strong> full deployment adds:</p>
+
+    <h4 class="cmp-cat">🚀 Capabilities</h4>
+    <table class="cmp-table">
+      <thead><tr><th></th><th>Sandbox (you)</th><th>Recommended ✅</th></tr></thead>
+      <tbody>
+        <tr><th>WinGet repositories</th><td class="cmp-sandbox">One, single repo</td><td class="cmp-rec"><strong>Many</strong> — multiple isolated WinGet sources, each in its own container</td></tr>
+        <tr><th>Storage</th><td class="cmp-sandbox">Throwaway named volumes (wiped on teardown)</td><td class="cmp-rec"><strong>Persistent</strong> host storage that survives upgrades</td></tr>
+        <tr><th>Scale</th><td class="cmp-sandbox">One box, for kicking the tires</td><td class="cmp-rec"><strong>Production-ready</strong>, scales across hosts</td></tr>
+      </tbody>
+    </table>
+
+    <h4 class="cmp-cat">🛠️ Management</h4>
+    <table class="cmp-table">
+      <thead><tr><th></th><th>Sandbox (you)</th><th>Recommended ✅</th></tr></thead>
+      <tbody>
+        <tr><th>Add / archive repos</th><td class="cmp-sandbox">Preview only (disabled)</td><td class="cmp-rec"><strong>Full lifecycle</strong> — create, archive, and reconcile per-repo containers</td></tr>
+        <tr><th>Per-repo routing</th><td class="cmp-sandbox">Single shared host</td><td class="cmp-rec">Each repo on its <strong>own hostname or path</strong></td></tr>
+        <tr><th>Client onboarding</th><td class="cmp-sandbox">Trust a self-signed CA first</td><td class="cmp-rec"><strong>Zero-touch</strong> — clients trust it out of the box</td></tr>
+      </tbody>
+    </table>
+
+    <h4 class="cmp-cat">🔒 Security</h4>
+    <table class="cmp-table">
+      <thead><tr><th></th><th>Sandbox (you)</th><th>Recommended ✅</th></tr></thead>
+      <tbody>
+        <tr><th>Sign-in</th><td class="cmp-sandbox">Shared local admin password</td><td class="cmp-rec"><strong>Microsoft Entra SSO</strong> — MFA and group-based access control</td></tr>
+        <tr><th>Certificate</th><td class="cmp-sandbox">Self-signed (every client must trust a CA)</td><td class="cmp-rec"><strong>Real CA / Let's Encrypt</strong> — trusted everywhere, nothing to install</td></tr>
+        <tr><th>Reverse proxy</th><td class="cmp-sandbox">Bundled, self-contained</td><td class="cmp-rec"><strong>External, operator-run</strong> and isolated from the app</td></tr>
+        <tr><th>Access scope</th><td class="cmp-sandbox">Throwaway, not for production data</td><td class="cmp-rec"><strong>Least-privilege</strong>, hardened for real workloads</td></tr>
+      </tbody>
+    </table>
+
+    <p class="upgrade-cta-line">Running real workloads? <strong>Convert this install to Recommended</strong> for production-grade sign-in, certificates, and persistent storage — it is the same free software, hardened for production. Start from <strong>Settings → Upgrade to Recommended</strong>, which checks your readiness and converts in place when every gap is green.</p>
+    <div class="modal-actions">
+      <button type="button" id="compare-upgrade" class="primary">Upgrade to Recommended →</button>
+      <a class="btn" href="/admin/docs/" target="_blank" rel="noopener">Read the deployment guide ↗</a>
+      <button type="button" id="compare-close">Close</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Promotion create modal. Triggered from the Subscriptions tab's
+     "Promote selected" button; the source repo + package id are
+     pre-filled from the selected row, target repo + version are the
+     operator's choices. Promotion history surfaces in the Activity tab
+     via 'package_promoted' admin_events. -->
+<dialog id="promo-modal" class="modal">
+  <form id="promo-form" method="dialog">
+    <h3>Promote package</h3>
+    <p class="muted">
+      Copies the published manifest set from <strong id="promo-source-label"></strong>
+      to the target virtual repo and pushes to the target's Gitea repository.
+      Installers are shared via their existing URL, so no binary copy occurs.
+    </p>
+    <input type="hidden" id="promo-source">
+    <label>Package <small class="muted">(from selected subscription)</small><br>
+      <input type="text" id="promo-package-id" readonly>
+    </label>
+    <label>Target repo<br>
+      <select id="promo-target" required></select>
+    </label>
+    <label>
+      <span>Versions to promote <small class="muted" id="promo-versions-hint"></small></span>
+      <div id="promo-versions-list" class="promo-versions"></div>
+    </label>
+    <label>Notes <small class="muted">(optional, recorded in audit log)</small><br>
+      <input type="text" id="promo-notes" placeholder="e.g. CAB-2026-091 staging rollout">
+    </label>
+    <div class="modal-actions">
+      <button type="button" id="promo-cancel">Cancel</button>
+      <button type="submit" id="promo-save">Promote</button>
+    </div>
+  </form>
+</dialog>
+
+<section id="tab-settings" class="tab">
+  <!-- Sandbox-only: graduate this throwaway trial to the Recommended (production)
+       deployment. Shown only on the sandbox profile (hidden once graduated). -->
+  <div id="upgrade-card" class="upgrade-card" hidden>
+    <h3>🚀 Upgrade to the Recommended (production) deployment</h3>
+    <p class="muted">You're on the throwaway <strong>Sandbox</strong>, which is not built for production workloads. When your organization is ready, graduate this install to the <strong>Recommended</strong> posture (Microsoft Entra sign-in, a real certificate, per-repo containers, persistent storage). Run the readiness check as often as you like — it is fine to return over several sessions while changes are scheduled — and complete the conversion once every gap is green.</p>
+    <div class="toolbar">
+      <button type="button" id="btn-upgrade-check">Run readiness check</button>
+      <span id="upgrade-status" class="muted"></span>
+    </div>
+    <div id="upgrade-checks" class="upgrade-checks"></div>
+    <div class="toolbar">
+      <button type="button" id="btn-upgrade-complete" class="danger" disabled title="Available once every readiness check passes">Complete conversion to Recommended</button>
+      <small class="muted">Flips sign-in to Entra-only and clears the sandbox warnings. The local admin becomes a dormant break-glass.</small>
+    </div>
+  </div>
+  <div class="toolbar">
+    <button id="btn-cfg-edit"   class="ghost">Edit</button>
+    <button id="btn-cfg-save"   hidden>Save</button>
+    <button id="btn-cfg-cancel" hidden class="ghost">Cancel</button>
+    <button id="btn-cfg-refresh" class="ghost">Refresh</button>
+    <button id="btn-cfg-yaml-toggle" class="ghost u-spacer-r-right">Show raw YAML</button>
+    <span class="muted u-edit-hint" id="cfg-edit-hint"></span>
+  </div>
+  <div id="cfg-warning" class="cfg-warning" hidden>Edits below are split across <code>service.yaml</code> (operational knobs) and <code>solution.yaml</code> (auth, targets, notifications). A timestamped backup of each file is written before save. In-flight operations keep the old config; new bridge calls pick up changes after the next module reload.</div>
+  <div id="cfg-form" class="cfg-form"></div>
+  <pre id="cfg-yaml" class="cfg" hidden></pre>
+  <h3>Backup & disaster recovery</h3>
+  <div id="backup-card" class="cfg-form">
+    <p class="muted">SQLite holds a content-addressed archive of every commit on every virtual repo. Daily snapshots run at 02:00 UTC; publishes, promotes, reverts, and drift captures also write snapshots inline. Verify-backup reconstructs a snapshot into a temporary bare repo, runs git fsck, and checks the head SHA matches byte-for-byte.</p>
+    <div id="backup-status" class="muted">loading...</div>
+    <div class="toolbar">
+      <button type="button" id="btn-backup-snapshot" class="ghost">Take manual snapshot</button>
+      <button type="button" id="btn-backup-drill" class="ghost">Verify backup (DR drill)</button>
+    </div>
+  </div>
+  <h3>Retention cleanup</h3>
+  <div id="cleanup-card" class="cfg-form">
+    <p class="muted">Each subscription keeps its latest <strong>Retention</strong> versions (plus any pinned); a daily sweep at 02:30 (container time) prunes older versions from the repo and deletes their installers. Run it now to bring the Catalog's <code>Pubs</code> counts down to each row's <code>Retention</code> without waiting for the nightly job.</p>
+    <div id="cleanup-status" class="muted"></div>
+    <div class="toolbar">
+      <button type="button" id="btn-cleanup-run" class="ghost">Run retention cleanup now</button>
+    </div>
+  </div>
+  <h3>Search popularity</h3>
+  <div id="popularity-card" class="cfg-form">
+    <p class="muted">Search results are ranked by popularity data fetched from <code>winget.run</code> on a daily cron. This is a request-count proxy (not real install telemetry) and is good enough for "well-known apps appear first". Set <code>popularity.disabled: true</code> in <code>service.yaml</code> to turn off and revert to alphabetical sort.</p>
+    <div id="popularity-status" class="muted">loading...</div>
+    <div class="toolbar">
+      <button type="button" id="btn-popularity-refresh" class="ghost">Refresh now (tier 1)</button>
+    </div>
+  </div>
+  <h3>Health checks</h3>
+  <table id="health-table">
+    <thead><tr><th>Status</th><th>Check</th><th>Detail</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section id="tab-about" class="tab">
+  <div class="about-head">
+    <h2 id="about-product">RepoFabric</h2>
+    <span class="muted" id="about-version">loading...</span>
+  </div>
+  <p class="muted" id="about-copyright"></p>
+  <p>Project repository: <a id="about-repo" href="https://github.com/Ringosystems/RepoFabric" target="_blank" rel="noopener">github.com/Ringosystems/RepoFabric</a></p>
+
+  <h3>License</h3>
+  <p class="muted">RepoFabric is released under the MIT License.</p>
+  <pre id="about-license" class="cfg about-text">loading license...</pre>
+
+  <h3>Open-source attributions</h3>
+  <p class="muted">RepoFabric includes and builds upon third-party open-source software. The notices below reproduce the copyright and license texts their licenses require. The authoritative copy ships with the source as <code>THIRD-PARTY-NOTICES.md</code>.</p>
+  <pre id="about-notices" class="cfg about-text">loading third-party notices...</pre>
+
+  <p class="muted about-tm">WinGet, Intune, Microsoft Entra ID, BranchCache, Delivery Optimization, and Windows are trademarks of the Microsoft group of companies. Docker is a trademark of Docker, Inc. All other trademarks are the property of their respective owners; their use here is nominative and does not imply endorsement.</p>
+</section>
+
+<section id="tab-bandwidth" class="tab">
+  <div class="toolbar">
+    <span class="muted">Window:</span>
+    <button data-bw-window="7"  class="ghost">7 days</button>
+    <button data-bw-window="30" class="ghost active">30 days</button>
+    <button data-bw-window="90" class="ghost">90 days</button>
+    <button id="btn-bw-refresh" class="ghost u-spacer-r-right">Refresh</button>
+    <span class="muted" id="bw-flag-state"></span>
+  </div>
+
+  <div class="bw-headline">
+    <div class="bw-tile">
+      <div class="bw-tile-label">Bytes saved</div>
+      <div class="bw-tile-value"  id="bw-tile-saved">--</div>
+      <div class="bw-tile-sub"    id="bw-tile-savings-ratio">--</div>
+    </div>
+    <div class="bw-tile">
+      <div class="bw-tile-label">Installs (devices)</div>
+      <div class="bw-tile-value"  id="bw-tile-requests">--</div>
+      <div class="bw-tile-sub"    id="bw-tile-peerdist-ratio">--</div>
+    </div>
+    <div class="bw-tile">
+      <div class="bw-tile-label">Top subnet</div>
+      <div class="bw-tile-value"  id="bw-tile-top-subnet">--</div>
+      <div class="bw-tile-sub"    id="bw-tile-top-subnet-saved">--</div>
+    </div>
+    <div class="bw-tile">
+      <div class="bw-tile-label">Top installer</div>
+      <div class="bw-tile-value"  id="bw-tile-top-installer">--</div>
+      <div class="bw-tile-sub"    id="bw-tile-top-installer-saved">--</div>
+    </div>
+  </div>
+
+  <h3 class="combined-head">Bytes per day
+    <span class="bw-legend" aria-hidden="true">
+      <span class="bw-legend-item"><span class="bw-swatch bw-swatch-saved"></span>Saved by peers</span>
+      <span class="bw-legend-item"><span class="bw-swatch bw-swatch-egress"></span>Sent by server</span>
+    </span>
+  </h3>
+  <div id="bw-chart" class="bw-chart"></div>
+
+  <h3 class="combined-head">Per-subnet effectiveness <small class="muted">(one install = one device per installer; savings accrue across devices)</small></h3>
+  <table id="bw-subnets-table">
+    <thead><tr>
+      <th>Subnet</th><th>Installs</th><th>Naive</th><th>Actual</th><th>Saved</th><th>Ratio</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h3 class="combined-head">Top installers by bytes saved</h3>
+  <table id="bw-installers-table">
+    <thead><tr>
+      <th>Installer</th><th>Installs</th><th>File size</th><th>Bytes saved</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+</main>
+
+<dialog id="dlg-sub">
+  <form id="frm-sub">
+    <h2 id="dlg-sub-title">Add subscription</h2>
+    <label id="frm-sub-repo-row">Virtual repo
+      <select name="RepoId" id="frm-sub-repo" required>
+        <option value="main">main</option>
+      </select>
+      <small class="muted">Subscription will be added to this repo; defaults to the repo you were viewing.</small>
+    </label>
+    <label class="pkg-search">
+      <span>
+        <span>Package ID</span>
+        <small id="pkg-search-hint" class="muted">type to search the local upstream index</small>
+        <button type="button" id="btn-pkg-preview" class="ghost" disabled title="Open full details for the currently entered package ID">Preview</button>
+      </span>
+      <input name="PackageId" id="pkg-search-input" required autocomplete="off" spellcheck="false">
+      <label class="pkg-search-filter">
+        <input type="checkbox" id="pkg-search-show-i18n">
+        <span>Show non-English locale variants (e.g. .de, .fr, .ja)</span>
+      </label>
+      <div id="pkg-search-results" class="pkg-results" hidden></div>
+      <div id="pkg-hover-card" class="pkg-hover-card" hidden></div>
+    </label>
+    <label>Track
+      <select name="Track">
+        <option value="latest">latest</option>
+        <option value="pinned">pinned</option>
+      </select>
+    </label>
+    <label>Pinned version <input name="Version" placeholder="(only when track = pinned)"></label>
+    <label>Architecture <small class="muted" id="frm-sub-arch-hint">(pick a package first to see available architectures)</small>
+      <select id="frm-sub-arch" name="ArchPick" required disabled>
+        <option value="">(pick a package first)</option>
+      </select>
+    </label>
+    <label>Locale (comma-separated) <input name="Locale" value="en-US"></label>
+    <label>Retention <input name="Retention" type="number" min="1" value="2"></label>
+    <label>Binary hosting
+      <select name="BinaryMode">
+        <option value="">(inherit repo default)</option>
+        <option value="local">local (RepoFabric hosts installers; clients pull from your install URL)</option>
+        <option value="upstream">upstream (manifest only; clients pull from vendor CDN)</option>
+      </select>
+    </label>
+    <label>Notes <textarea name="Notes" maxlength="4096"></textarea></label>
+    <label class="check"><input type="checkbox" name="SyncNow" checked> Sync immediately after add</label>
+    <div id="dlg-sub-error" class="dlg-error" hidden></div>
+    <menu>
+      <button type="button" data-act="cancel">Cancel</button>
+      <button type="submit">Save</button>
+    </menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-pkg-preview">
+  <h2 id="pkg-preview-title">Package preview</h2>
+  <div id="pkg-preview-body" class="pkg-preview-body">loading...</div>
+  <menu>
+    <button type="button" data-act="pkg-preview-close">Close</button>
+    <button type="button" data-act="pkg-preview-pick" class="primary">Use this package</button>
+  </menu>
+</dialog>
+
+<dialog id="dlg-custom-edit">
+  <h2>Edit custom app</h2>
+  <p id="dlg-custom-edit-target" class="muted dlg-target"></p>
+  <p class="muted dlg-explainer">
+    Only the operator note is editable here. Publisher, PackageName, and version come
+    from the published manifest; change those by re-publishing.
+  </p>
+  <label>Notes
+    <textarea id="dlg-custom-edit-notes" rows="4" maxlength="4096" placeholder="Free-form notes shown in the table"></textarea>
+  </label>
+  <div id="dlg-custom-edit-error" class="dlg-error" hidden></div>
+  <menu>
+    <button type="button" data-act="custom-edit-cancel">Cancel</button>
+    <button type="button" data-act="custom-edit-save">Save</button>
+  </menu>
+</dialog>
+
+<dialog id="dlg-custom-del">
+  <h2>Remove custom app</h2>
+  <p id="dlg-custom-del-target" class="muted dlg-target"></p>
+  <p>What should happen to the manifests and installers in the winget repo for this custom app?</p>
+  <label class="check dlg-radio-row">
+    <input type="radio" name="custom-del-mode" value="clear" checked>
+    <span><strong>Clear from repo</strong> &mdash; unpublish manifests from Gitea and delete installer files. Clients lose access immediately.</span>
+  </label>
+  <label class="check dlg-radio-row">
+    <input type="radio" name="custom-del-mode" value="keep">
+    <span><strong>Keep in repo</strong> &mdash; orphan manifests and installer files. Clients can still install; the row just stops being tracked.</span>
+  </label>
+  <div id="dlg-custom-del-error" class="dlg-error" hidden></div>
+  <menu>
+    <button type="button" data-act="custom-del-cancel">Cancel</button>
+    <button type="button" data-act="custom-del-confirm" class="danger">Remove</button>
+  </menu>
+</dialog>
+
+<dialog id="dlg-custom-convert">
+  <h2>Convert custom app to subscription</h2>
+  <p class="muted">
+    This binary already exists in the public WinGet repo (upstream-hash match).
+    Convert the custom row to a managed subscription tracking the upstream package
+    instead, so the public repo stays the source of truth and your local catalog
+    has one entry per binary.
+  </p>
+  <p>From: <code id="dlg-custom-convert-from"></code></p>
+  <p>To: <code id="dlg-custom-convert-to"></code> (track: <code>latest</code>, defaults for arch/locale/retention)</p>
+  <p class="muted">
+    On confirm: a new managed subscription is added, the custom row is removed,
+    and the custom manifest + installer are cleared from Gitea and the nginx
+    installer host. Endpoints lose access to the custom binary immediately;
+    the next sync publishes the upstream binary in its place.
+  </p>
+  <div id="dlg-custom-convert-error" class="dlg-error" hidden></div>
+  <menu>
+    <button type="button" data-act="custom-convert-cancel">Cancel</button>
+    <button type="button" data-act="custom-convert-confirm" class="primary">Convert</button>
+  </menu>
+</dialog>
+
+<dialog id="dlg-sub-del">
+  <h2>Remove subscription</h2>
+  <p id="dlg-sub-del-target" class="muted dlg-target"></p>
+  <p>What should happen to the manifests and installers in the winget repo for this subscription?</p>
+  <label class="check dlg-radio-row">
+    <input type="radio" name="del-mode" value="clear" checked>
+    <span><strong>Clear from repo</strong> &mdash; unpublish manifests from Gitea and delete installer files. Clients lose access immediately.</span>
+  </label>
+  <label class="check dlg-radio-row">
+    <input type="radio" name="del-mode" value="keep">
+    <span><strong>Keep in repo</strong> &mdash; orphan manifests and installer files. Clients can still install; the rows just stop being tracked.</span>
+  </label>
+  <div id="dlg-sub-del-error" class="dlg-error" hidden></div>
+  <menu>
+    <button type="button" data-act="del-cancel">Cancel</button>
+    <button type="button" data-act="del-confirm" class="danger">Remove</button>
+  </menu>
+</dialog>
+
+<div id="toast" hidden></div>
+
+<script src="app.js" defer></script>
+</body>
+</html>

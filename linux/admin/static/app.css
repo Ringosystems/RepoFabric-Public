@@ -1,0 +1,897 @@
+:root {
+  --bg: #0f1115;
+  --panel: #1a1d24;
+  --panel-2: #232730;
+  --border: #2a2f3a;
+  --fg: #e6e8ec;
+  --fg-dim: #9aa3b2;
+  --accent: #4f9eff;
+  --accent-2: #3a7bd5;
+  --ok: #45c785;
+  --warn: #e8b73d;
+  --bad: #e74c4c;
+  --skip: #888;
+  --mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; height: 100%; font-family: var(--sans); background: var(--bg); color: var(--fg); font-size: 14px; }
+
+/* Global link styling so anchors throughout the admin are readable on
+   the dark panel. Browser default :link / :visited colors are far too
+   dark against var(--bg) and var(--panel-2); the operator could not
+   see InstallerUrl links in the detail drawer. */
+a, a:link, a:visited {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: rgba(79, 158, 255, 0.45);
+  text-underline-offset: 2px;
+}
+a:hover { color: var(--accent-2); text-decoration-color: var(--accent-2); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+header { display: flex; align-items: baseline; gap: 16px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); position: relative; }
+header h1 { margin: 0; font-size: 18px; color: var(--accent); }
+.meta { color: var(--fg-dim); font-family: var(--mono); font-size: 12px; flex: 1; }
+.actions { font-size: 13px; }
+.actions { display: flex; gap: 8px; align-items: center; }
+.actions a.signout,
+.actions a.header-link { color: var(--fg-dim); text-decoration: none; padding: 6px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; }
+.actions a.signout:hover,
+.actions a.header-link:hover { color: var(--fg); background: var(--panel-2); }
+
+nav#tabs { display: flex; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 12px; }
+nav#tabs button { background: transparent; color: var(--fg-dim); border: none; padding: 12px 18px; cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent; }
+nav#tabs button:hover { color: var(--fg); }
+nav#tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+main { padding: 20px; }
+.tab { display: none; }
+.tab.active { display: block; }
+
+.toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+.toolbar label { color: var(--fg-dim); }
+.toolbar input[type=number] { width: 60px; margin: 0 6px; }
+
+button { background: var(--accent); color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+button:hover { background: var(--accent-2); }
+button:disabled { background: #444; color: #888; cursor: not-allowed; }
+button.ghost { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); }
+button.ghost:hover { background: var(--border); }
+button.danger { background: var(--bad); }
+button.danger:hover { background: #c43030; }
+
+/* Row-level action buttons inside the Operator-added custom apps table.
+   Compact so the column does not steal width from PackageId / Notes. */
+td.custom-actions { white-space: nowrap; }
+td.custom-actions button { padding: 4px 10px; font-size: 12px; margin-right: 4px; }
+td.custom-actions button:last-child { margin-right: 0; }
+
+table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; font-family: var(--mono); font-size: 12.5px; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: var(--panel-2); color: var(--fg-dim); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; }
+tr.selected td { background: rgba(79,158,255,0.18); }
+tr:hover:not(.selected) td { background: rgba(255,255,255,0.03); cursor: pointer; }
+td.muted { color: var(--fg-dim); }
+
+.detail { margin-top: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 12px; }
+.detail pre { color: var(--fg); margin: 8px 0 0 0; font-family: var(--mono); font-size: 12px; overflow-x: auto; }
+
+/* Structured detail drawer (replaces the JSON dump). Opens for any
+   selected row across Managed / Custom / Untracked tables and renders
+   six stacked cards: Identity, Installers, Detection, Versions,
+   Source, Raw manifest. */
+.detail-body { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+.detail-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md, 5px);
+  padding: 12px 16px;
+}
+.detail-card h4 { margin: 0 0 10px 0; font-size: 13px; color: var(--accent); display: flex; align-items: baseline; gap: 8px; font-weight: 600; }
+.detail-card h4 small { color: var(--fg-dim); font-weight: normal; font-size: 11.5px; }
+.detail-card.detail-card-err { border-left-color: var(--error); }
+.detail-card.detail-card-err strong { color: var(--error); }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, max-content) 1fr;
+  gap: 4px 14px;
+  font-size: 12.5px;
+  margin: 0;
+}
+.detail-grid dt { color: var(--fg-dim); font-weight: 500; }
+.detail-grid dd { margin: 0; color: var(--fg); word-break: break-word; }
+.detail-grid code { background: rgba(0,0,0,0.25); padding: 1px 6px; border-radius: 3px; font-family: var(--mono); font-size: 11.5px; }
+.detail-mono { font-family: var(--mono); font-size: 11px; word-break: break-all; }
+
+.detail-installer {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.detail-installer:last-child { margin-bottom: 0; }
+.detail-installer-head { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+
+.detail-versions { margin: 0; padding-left: 18px; font-size: 12.5px; }
+.detail-versions li { margin-bottom: 3px; }
+
+.detail-card.detail-raw { background: var(--panel); border-left-color: var(--fg-dim); }
+.detail-card.detail-raw > summary { cursor: pointer; color: var(--fg-dim); font-size: 12.5px; }
+.detail-card.detail-raw pre { background: black; color: #cdd; padding: 10px; border-radius: 4px; font-family: var(--mono); font-size: 11px; max-height: 320px; overflow: auto; margin: 8px 0 0 0; }
+
+.op-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.op-btn { padding: 18px; font-size: 14px; text-align: left; line-height: 1.4; }
+.op-output { background: black; color: #cdd; font-family: var(--mono); padding: 12px; border-radius: 4px; min-height: 200px; white-space: pre-wrap; font-size: 12px; }
+
+.op-progress { background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 4px; padding: 12px 14px; margin-bottom: 12px; font-family: var(--sans); font-size: 13px; }
+.op-progress.done   { border-left-color: var(--ok); }
+.op-progress.failed { border-left-color: var(--bad); }
+.op-progress-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.op-progress-title { font-weight: 600; color: var(--fg); }
+.op-progress-elapsed { font-family: var(--mono); font-size: 12px; }
+.op-progress-bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.op-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.4s ease; width: 0; }
+.op-progress.done   .op-progress-fill { background: var(--ok); }
+.op-progress.failed .op-progress-fill { background: var(--bad); }
+.op-progress-line { display: flex; gap: 10px; align-items: baseline; font-size: 12px; }
+.op-progress-phase { font-family: var(--mono); font-size: 11px; padding: 1px 6px; background: rgba(79,158,255,0.18); color: var(--accent); border-radius: 3px; font-weight: 600; }
+.op-progress.done   .op-progress-phase { background: rgba(69,199,133,0.18); color: var(--ok); }
+.op-progress.failed .op-progress-phase { background: rgba(231,76,76,0.14); color: var(--bad); }
+.op-progress-msg { color: var(--fg-dim); }
+.op-progress-counts { margin-top: 6px; font-family: var(--mono); font-size: 11px; }
+
+.cfg { background: black; color: var(--fg); padding: 16px; font-family: var(--mono); font-size: 12px; border-radius: 4px; max-height: 50vh; overflow: auto; }
+.cfg-warning { background: rgba(232,183,61,0.10); border: 1px solid rgba(232,183,61,0.45); color: var(--warn); padding: 10px 14px; border-radius: 4px; font-size: 12px; margin-bottom: 12px; line-height: 1.45; }
+.cfg-warning code { background: rgba(255,255,255,0.06); padding: 1px 4px; border-radius: 2px; font-family: var(--mono); }
+
+/* Settings -> About: product header + license / third-party notice text blocks. */
+.about-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.about-head h2 { margin: 0; }
+.about-text { white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+.about-tm { margin-top: 18px; font-size: 11px; line-height: 1.5; opacity: 0.8; }
+
+/* Settings: structured GUI form */
+.cfg-form { display: flex; flex-direction: column; gap: 18px; margin-bottom: 18px; }
+.cfg-form .cfg-section { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
+.cfg-form .cfg-section h3 { margin: 0 0 12px 0; font-size: 14px; color: var(--accent); display: flex; align-items: baseline; gap: 10px; }
+.cfg-form .cfg-section h3 small { font-family: var(--mono); font-size: 11px; color: var(--fg-dim); font-weight: normal; }
+.cfg-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px 18px; }
+.cfg-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--fg-dim); }
+.cfg-field .cfg-label-row { display: flex; align-items: center; gap: 6px; cursor: default; }
+.cfg-field .cfg-label { color: var(--fg-dim); font-weight: 500; }
+.cfg-field .cfg-help { color: var(--fg-dim); cursor: help; font-size: 13px; line-height: 1; opacity: 0.7; }
+.cfg-field .cfg-help:hover, .cfg-field .cfg-help:focus { color: var(--accent); opacity: 1; outline: none; }
+.cfg-field .cfg-help-text { color: var(--fg-dim); font-size: 11px; line-height: 1.4; margin-top: 2px; opacity: 0.75; font-style: italic; }
+.cfg-field .multi-bool { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 4px 0; }
+.cfg-field .multi-bool .multi-bool-opt { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--fg); font-family: var(--mono); }
+.cfg-field .multi-bool .multi-bool-opt input[type=checkbox] { margin: 0; }
+.cfg-field .multi-bool .multi-bool-opt:has(input:disabled) { opacity: 0.65; cursor: not-allowed; }
+.cfg-field input[type=text], .cfg-field input[type=number], .cfg-field input[type=email], .cfg-field select, .cfg-field textarea {
+  background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px; font-family: var(--mono); font-size: 12px;
+}
+.cfg-field input[readonly], .cfg-field textarea[readonly], .cfg-field select[disabled], .cfg-field input[disabled] { opacity: 0.65; cursor: not-allowed; }
+
+/* Custom-painted bright-green checkbox + radio for the Settings tab.
+   accent-color alone was not winning in some browsers + dark-mode
+   stacks; this paints the control ourselves so the multi-bool arch /
+   locale pickers in Subscription defaults are unmistakably visible
+   against the dark panel background.
+
+   Unchecked: hollow box with the panel-2 fill so it does not blend
+   into the section background.
+   Checked:   bright OK-green fill with a white check glyph rendered
+              via the linear-gradient trick (browser-independent, no
+              SVG asset needed).
+   Indeterminate / focus rings stay at browser defaults for a11y. */
+.cfg-field input[type=checkbox],
+.cfg-field input[type=radio] {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 2px 0;
+  width: 18px;
+  height: 18px;
+  background: var(--panel-2);
+  border: 1px solid var(--border-strong, #3a4050);
+  border-radius: 3px;
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background-color 0.1s, border-color 0.1s;
+}
+.cfg-field input[type=radio] { border-radius: 50%; }
+.cfg-field input[type=checkbox]:hover,
+.cfg-field input[type=radio]:hover {
+  border-color: var(--ok);
+}
+.cfg-field input[type=checkbox]:checked,
+.cfg-field input[type=radio]:checked {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+.cfg-field input[type=checkbox]:checked::before {
+  /* White checkmark drawn as a CSS pseudo-element. The unicode glyph
+     keeps things simple; sized to fit the 18px box. */
+  content: '';
+  width: 10px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+.cfg-field input[type=radio]:checked::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+.cfg-field input[type=checkbox]:focus-visible,
+.cfg-field input[type=radio]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cfg-field input[type=checkbox]:disabled,
+.cfg-field input[type=radio]:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.cfg-field textarea { resize: vertical; min-height: 60px; line-height: 1.4; }
+
+/* Settings: Advanced disclosure (collapses 5 rarely-touched sections). */
+.cfg-advanced { padding: 0; }
+.cfg-advanced > summary {
+  cursor: pointer;
+  padding: 14px 16px;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.cfg-advanced > summary::-webkit-details-marker { display: none; }
+.cfg-advanced > summary::before {
+  content: "▸";
+  color: var(--fg-dim);
+  font-size: 12px;
+  display: inline-block;
+  transition: transform 0.15s;
+}
+.cfg-advanced[open] > summary::before { transform: rotate(90deg); }
+.cfg-advanced-title { color: var(--accent); font-size: 14px; font-weight: 600; }
+.cfg-advanced-sub { color: var(--fg-dim); font-size: 12px; font-weight: 400; }
+.cfg-advanced-body { display: flex; flex-direction: column; gap: 18px; padding: 0 16px 16px 16px; }
+
+/* Settings: Intune policy export card. CTA only, no fields. */
+.cfg-intune-card .cfg-intune-body { color: var(--fg-dim); font-size: 13px; line-height: 1.5; margin: 0 0 10px 0; }
+.cfg-intune-card .cfg-intune-cta { margin: 0; }
+.cfg-intune-card .cfg-intune-cta a.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-fg, white);
+  padding: 8px 14px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cfg-intune-card .cfg-intune-cta a.btn:hover { background: var(--accent-2); }
+
+/* System card inside Advanced disclosure. CTA-only; houses operator
+   actions that do not fit the form-based config sections. */
+.cfg-system-card .cfg-system-row { display: flex; align-items: flex-start; gap: 14px; margin: 0; flex-wrap: wrap; }
+.cfg-system-card .cfg-system-row button { flex: 0 0 auto; }
+.cfg-system-card .cfg-system-hint { color: var(--fg-dim); font-size: 12px; line-height: 1.45; flex: 1 1 280px; }
+
+/* Phase 5 sweep: small utility classes that replace the last
+   one-off inline style="..." attributes scattered across the static
+   HTML. Keeping them tiny and named so future code can reuse them
+   instead of reinventing inline values. */
+.u-spacer-r-right    { margin-left: auto; }
+.u-edit-hint         { margin-left: 8px; font-size: 12px; }
+.u-button-spaced     { margin-left: 6px; }
+.dlg-target          { margin-bottom: 8px; }
+.dlg-explainer       { font-size: 12px; margin: 0 0 8px 0; }
+.dlg-radio-row       { margin-top: 6px; }
+.pc-advanced-fields  { margin-top: 8px; }
+
+/* Settings: shown when /api/config fails (publisher unreachable). The form
+   would otherwise be silently empty; this gives the operator a clear
+   reason and an in-place Retry button. */
+.cfg-unavailable {
+  background: var(--surface-1, var(--panel));
+  border: 1px solid var(--warn);
+  border-left: 3px solid var(--warn);
+  padding: 14px 18px;
+  border-radius: var(--r-md, 5px);
+  color: var(--text, var(--fg));
+}
+.cfg-unavailable strong { color: var(--warn); }
+.cfg-unavailable p { margin: 8px 0 0 0; line-height: 1.5; }
+.cfg-unavailable code {
+  background: rgba(0,0,0,0.25);
+  padding: 1px 6px;
+  border-radius: var(--r-sm, 3px);
+  font-family: var(--font-mono, var(--mono));
+  font-size: 12px;
+}
+
+.status-ok { color: var(--ok); }
+.status-fail { color: var(--bad); }
+.status-warn { color: var(--warn); }
+.status-skip { color: var(--skip); }
+
+dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 20px; min-width: 540px; max-width: min(740px, 90vw); }
+dialog::backdrop { background: rgba(0,0,0,0.65); }
+dialog h2 { margin-top: 0; color: var(--accent); }
+dialog form label { display: block; margin: 12px 0; color: var(--fg-dim); }
+dialog form input, dialog form select, dialog form textarea { display: block; width: 100%; margin-top: 4px; padding: 6px 8px; background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 3px; font-family: var(--mono); }
+dialog form label.check { display: flex; align-items: center; gap: 8px; }
+dialog form textarea { height: 60px; resize: vertical; }
+dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 16px 0 0 0; padding: 0; }
+
+#toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 4px; font-size: 13px; max-width: 400px; }
+#toast.ok { border-left-color: var(--ok); }
+#toast.bad { border-left-color: var(--bad); }
+
+/* Activity tab.
+   Merger of the old Operations + Runs tabs. The action grid (Sync all,
+   Sync force, etc.) lives at the top and reuses .op-grid / .op-btn.
+   Bridge status surfaces only as a small dot next to the nav label and
+   a banner that appears after >=3 consecutive failed probes. */
+
+nav#tabs button .nav-bridge-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  vertical-align: middle;
+}
+nav#tabs button .nav-bridge-dot.is-ok    { background: var(--ok); }
+nav#tabs button .nav-bridge-dot.is-warn  { background: var(--warn); }
+nav#tabs button .nav-bridge-dot.is-error { background: var(--error); }
+
+.bridge-banner {
+  background: var(--error-bg);
+  color: var(--error);
+  border: 1px solid var(--error);
+  border-radius: var(--r-md, 5px);
+  padding: 10px 14px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+/* A class selector outranks the browser's default [hidden] { display: none }
+   rule, so the bridge banner used to stay on screen even when its hidden
+   attribute was set. This explicit override restores the expected toggle
+   behavior so setBridgeIndicator('ok') hides the banner cleanly. */
+.bridge-banner[hidden] { display: none; }
+.bridge-banner-state  { font-weight: 600; }
+.bridge-banner-detail { color: var(--text); flex: 1; }
+.bridge-banner-restart { margin-left: auto; }
+
+.op-cancel-hint   { margin-left: 8px; font-size: 12px; }
+
+/* Activity feed toolbar (filter chips + last-N + refresh). */
+.activity-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 10px 0;
+}
+.toolbar-spacer { flex: 1; }
+.activity-filters { display: flex; gap: 6px; }
+.activity-filter {
+  background: transparent;
+  color: var(--text-dim, var(--fg-dim));
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.activity-filter:hover { color: var(--text, var(--fg)); }
+.activity-filter.is-active {
+  background: var(--info-bg, rgba(79,158,255,0.18));
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.activity-last input {
+  width: 60px;
+  margin: 0 4px;
+}
+
+/* Activity table: same primitives as #sub-table / #custom-table. */
+#activity-table { width: 100%; }
+#activity-table code {
+  background: var(--surface-2, var(--panel-2));
+  padding: 1px 6px;
+  border-radius: var(--r-sm, 3px);
+  font-size: 11.5px;
+}
+
+/* Inline error banner for the Add/Edit subscription dialog. Stays visible
+   until the operator edits a field, so they don't miss it like a toast. */
+.dlg-error { background: rgba(231,76,76,0.10); border: 1px solid rgba(231,76,76,0.45); color: var(--bad); padding: 8px 10px; border-radius: 4px; font-family: var(--mono); font-size: 12px; margin: 12px 0 0 0; white-space: pre-wrap; }
+
+/* Package-search typeahead */
+dialog form label.pkg-search { position: relative; }
+dialog form label.pkg-search-filter { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--fg-dim); cursor: pointer; }
+dialog form label.pkg-search-filter input { width: auto; margin: 0; }
+dialog form label.pkg-search-filter span { -webkit-user-select: none; user-select: none; }
+dialog form label.pkg-search > span { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: nowrap; }
+dialog form label.pkg-search > span > span:first-child { flex-shrink: 0; }
+dialog form label.pkg-search > span small { font-weight: normal; flex: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+dialog form label.pkg-search > span button.ghost { flex-shrink: 0; padding: 4px 12px; font-size: 12px; background: transparent; color: var(--fg-dim); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; }
+dialog form label.pkg-search > span button.ghost:not(:disabled):hover { color: var(--fg); background: var(--panel-2); }
+dialog form label.pkg-search > span button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+.pkg-results { position: absolute; left: 0; right: 0; top: 100%; z-index: 10; max-height: 260px; overflow-y: auto; background: var(--panel-2); border: 1px solid var(--border); border-radius: 0 0 4px 4px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); }
+.pkg-results .row { padding: 8px 10px; cursor: pointer; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: 12px; row-gap: 2px; font-family: var(--mono); font-size: 12px; }
+.pkg-results .row:last-child { border-bottom: none; }
+.pkg-results .row:hover, .pkg-results .row.active { background: rgba(79,158,255,0.18); }
+.pkg-results .row.row-fit { box-shadow: inset 3px 0 0 var(--ok); }
+.pkg-results .row .pid { color: var(--fg); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pkg-results .row.row-fit .pid { color: var(--ok); }
+.pkg-results .row .badges { justify-self: end; display: flex; gap: 3px; flex-shrink: 0; }
+.pkg-results .row .pname { color: var(--fg-dim); font-family: var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pkg-results .row .pver { color: var(--accent); text-align: right; }
+.pkg-results .empty { padding: 12px; color: var(--fg-dim); text-align: center; }
+
+/* Matrix badges: green for present, red for absent. Always visible so the
+   operator can scan four binary signals at a glance. */
+.badge { display: inline-block; font-family: var(--mono); font-size: 10px; padding: 1px 6px; border-radius: 3px; line-height: 1.4; border: 1px solid transparent; font-weight: 600; }
+.badge.on  { color: var(--ok);  background: rgba(69,199,133,0.18); border-color: rgba(69,199,133,0.45); }
+.badge.off { color: var(--bad); background: rgba(231,76,76,0.14);  border-color: rgba(231,76,76,0.40); }
+.badge.archive { color: var(--warn); background: rgba(232,183,61,0.16); border-color: rgba(232,183,61,0.50); }
+/* Popularity hint: rendered only on rows in the top 20% of the
+   current search result set's score distribution, so it signals
+   "this one stands out" rather than competing with the fitness
+   badges visually. */
+.badge.badge-popular { color: var(--accent); background: rgba(99,176,255,0.14); border-color: rgba(99,176,255,0.45); }
+/* Drift banner: surfaces Gitea commits made outside RepoFabric. Sits
+   above the Catalog so operators see uninvited writes quickly. */
+.drift-banner { background: rgba(232,183,61,0.12); border: 1px solid rgba(232,183,61,0.50); color: var(--fg); padding: 10px 14px; margin: 0 0 12px 0; border-radius: 4px; font-size: 13px; }
+.drift-banner .drift-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.drift-banner .drift-title { color: var(--warn); font-weight: 600; }
+.drift-banner ul { margin: 6px 0 0 0; padding-left: 18px; }
+.drift-banner li { margin-bottom: 2px; }
+.drift-banner code { font-size: 11px; }
+.drift-banner .drift-ack { margin-left: 8px; }
+
+.fit-all { color: var(--ok); font-weight: 600; margin-left: 8px; }
+.fit-partial { color: var(--warn); margin-left: 8px; }
+
+/* Hover-preview floating card. Anchored to the dropdown's right edge so it
+   floats next to the row the operator's cursor is on. */
+.pkg-hover-card { position: absolute; left: 100%; margin-left: 12px; top: 0; width: 380px; max-height: 460px; overflow-y: auto; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 12px 28px rgba(0,0,0,0.55); padding: 12px 14px; z-index: 20; font-family: var(--mono); font-size: 11px; color: var(--fg); }
+.pkg-hover-card .hover-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.pkg-hover-card .hover-title { color: var(--accent); font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pkg-hover-card .hover-fit { flex-shrink: 0; display: flex; align-items: center; gap: 4px; }
+.pkg-hover-card .hover-meta { display: grid; grid-template-columns: 80px 1fr; gap: 2px 10px; margin: 0 0 10px 0; }
+.pkg-hover-card .hover-meta dt { color: var(--fg-dim); }
+.pkg-hover-card .hover-meta dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pkg-hover-card .hover-versions { width: 100%; border-collapse: collapse; }
+.pkg-hover-card .hover-versions th { text-align: left; padding: 3px 6px; color: var(--fg-dim); border-bottom: 1px solid var(--border); font-weight: normal; }
+.pkg-hover-card .hover-versions td { padding: 3px 6px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.pkg-hover-card .hover-versions td.ver { color: var(--accent); }
+.pkg-hover-card .hover-more { margin-top: 8px; font-size: 10px; text-align: center; }
+
+#dlg-pkg-preview { min-width: 560px; max-width: 800px; }
+.pkg-preview-body { font-family: var(--mono); font-size: 12px; color: var(--fg); max-height: 60vh; overflow-y: auto; }
+.pkg-preview-body .summary { background: var(--panel-2); padding: 10px 12px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 12px; }
+.pkg-preview-body .summary dl { display: grid; grid-template-columns: 130px 1fr; gap: 4px 12px; margin: 0; }
+.pkg-preview-body .summary dt { color: var(--fg-dim); }
+.pkg-preview-body .summary dd { margin: 0; }
+.pkg-preview-body table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pkg-preview-body th { text-align: left; padding: 6px 8px; color: var(--fg-dim); border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--panel); }
+.pkg-preview-body td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.pkg-preview-body td.ver { color: var(--accent); font-weight: 600; }
+dialog menu button.primary { background: var(--accent); color: white; border: 1px solid var(--accent-2); padding: 6px 14px; cursor: pointer; border-radius: 3px; }
+dialog menu button.primary:hover { background: var(--accent-2); }
+
+/* Virtual repo modal (Phase C) */
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* Multi-repo upgrade nudge shown in the Sandbox (no Docker socket): the add /
+ * reconcile buttons open this instead of the non-functional multi-repo flow. */
+.upgrade-modal-body { max-width: 34rem; line-height: 1.55; }
+.upgrade-modal-body h3 { margin-top: 0; }
+
+/* "FREE" emphasis: a prominent green banner + inline green text. */
+.free-banner { margin: 6px 0 14px; padding: 11px 13px; background: rgba(74,222,128,.12); border: 1px solid rgba(74,222,128,.45); border-radius: 8px; color: #7ef0a8; font-size: 1.02rem; }
+.free-banner strong { color: #4ade80; letter-spacing: .02em; }
+.free-text { color: #4ade80; }
+
+/* Header "Sandbox vs Recommended" compare button (sandbox only). Absolutely
+ * centred on the header line (middle of the screen), independent of the brand
+ * and the right-hand actions. */
+.header-compare { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); cursor: pointer; font: inherit; font-size: .82rem; font-weight: 600; padding: .35rem .7rem; border-radius: 6px; border: 1px solid rgba(74,222,128,.55); background: rgba(74,222,128,.15); color: #8ff3b3; white-space: nowrap; }
+.header-compare:hover { background: rgba(74,222,128,.25); border-color: rgba(74,222,128,.8); }
+
+/* Sandbox vs Recommended comparison modal. The global `dialog` rule caps every
+ * dialog at min(740px, 90vw); override that here so the FRAME itself is large
+ * (fills most of the screen). Scroll lives on the dialog, so there is a single
+ * scrollbar instead of a narrow inner frame with nested scrollbars. */
+#compare-modal { width: min(92vw, 84rem); max-width: 92vw; max-height: 88vh; overflow-y: auto; }
+.compare-modal-body { line-height: 1.5; }
+.compare-modal-body h3 { margin-top: 0; }
+.cmp-cat { margin: 20px 0 6px; font-size: 1rem; }
+/* table-layout: fixed + identical column widths on every category table so the
+ * Sandbox / Recommended columns line up across all three (the green column no
+ * longer shifts left/right per table). */
+.cmp-table { width: 100%; border-collapse: collapse; font-size: .87rem; table-layout: fixed; }
+.cmp-table th, .cmp-table td { text-align: left; padding: 7px 9px; border-bottom: 1px solid rgba(255,255,255,.08); vertical-align: top; overflow-wrap: anywhere; }
+.cmp-table th:first-child,  .cmp-table td:first-child  { width: 20%; }
+.cmp-table th:nth-child(2), .cmp-table td:nth-child(2) { width: 38%; }
+.cmp-table th:nth-child(3), .cmp-table td:nth-child(3) { width: 42%; }
+.cmp-table thead th { color: #9aa2b1; font-weight: 600; font-size: .8rem; }
+.cmp-table tbody th { color: #cfd6e4; font-weight: 600; }
+.cmp-table td.cmp-sandbox { color: #8a93a3; }
+.cmp-table td.cmp-rec { background: rgba(74,222,128,.09); color: #e3f7ea; }
+.cmp-table td.cmp-rec strong { color: #7ef0a8; }
+
+/* Per-package "Install with WinGet" card in the detail drawer. */
+.winget-source-cmd { margin: 4px 0 12px; padding: 8px 10px; background: rgba(0,0,0,.25); color: #b7becb; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .82rem; white-space: pre-wrap; word-break: break-all; }
+.winget-install-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Shrink-wrap the command box to its text so the copy button sits just after the
+   command, not pushed to the far right of the row. max-width keeps a long command
+   from overflowing (it wraps within the box instead). */
+.winget-install-cmd { flex: 0 1 auto; max-width: 100%; padding: 8px 10px; background: rgba(0,0,0,.35); border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .85rem; cursor: pointer; word-break: break-all; }
+.winget-install-cmd:hover { outline: 1px solid #4fa3ff; }
+.winget-copy-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; padding: 7px; line-height: 0; }
+.winget-copy-btn svg { display: block; }
+
+/* ============================================================================
+ * Catalog layout (Phase C.f UX): sidebar with virtual repo list on the left,
+ * package tables for the selected repo on the right. Replaces the standalone
+ * "Virtual repos" tab; all repo CRUD plus reconcile lives in the sidebar now.
+ * ============================================================================ */
+.catalog-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.catalog-sidebar {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 80px);
+}
+.catalog-side-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-2);
+  border-radius: 4px 4px 0 0;
+}
+.catalog-side-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.catalog-side-add {
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  width: 22px;
+  height: 22px;
+  line-height: 1;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+}
+.catalog-side-add:hover { color: var(--accent); border-color: var(--accent); }
+.catalog-side-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+.catalog-side-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--fg);
+  border-left: 2px solid transparent;
+  font-size: 13px;
+  gap: 8px;
+}
+.catalog-side-item:hover { background: var(--panel-2); }
+.catalog-side-item.is-active {
+  border-left-color: var(--accent);
+  background: var(--panel-2);
+  color: var(--accent);
+  font-weight: 600;
+}
+.catalog-side-item.is-archived { opacity: 0.55; }
+.catalog-side-item .name { font-family: var(--mono); }
+.catalog-side-item .count {
+  font-size: 11px;
+  color: var(--fg-dim);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+  min-width: 22px;
+  text-align: center;
+}
+.catalog-side-item.is-active .count { color: var(--accent); border-color: var(--accent); }
+.catalog-side-footer {
+  border-top: 1px solid var(--border);
+  padding: 8px 12px;
+  background: var(--panel-2);
+  border-radius: 0 0 4px 4px;
+}
+.catalog-side-reconcile { width: 100%; font-size: 12px; }
+
+.catalog-main { min-width: 0; }
+.catalog-main-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 16px;
+}
+.catalog-main-title {
+  margin: 0 0 2px 0;
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--fg);
+}
+.catalog-main-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ============================================================================
+ * Arch picker (Subscription dialog). Renders the WinGet architecture
+ * vocabulary as chip-style checkboxes; operator preferences from
+ * service.defaults.preferred_architectures float to the top, non-preferred
+ * arches fade to indicate they fall outside the configured policy but are
+ * still selectable for edge cases.
+ * ============================================================================ */
+.arch-block { display: block; }
+.arch-checks {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.arch-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel-2);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 12px;
+  user-select: none;
+}
+.arch-check input { margin: 0; cursor: pointer; }
+.arch-check:hover { border-color: var(--accent); }
+.arch-check.is-checked { border-color: var(--accent); color: var(--accent); }
+.arch-check-other { opacity: 0.55; }
+.arch-check-other:hover { opacity: 1; }
+.arch-check-other-marker {
+  font-size: 10px;
+  color: var(--fg-dim);
+  margin-left: 4px;
+}
+
+/* Promotion modal: version checkbox list. Mirrors the arch picker chip
+ * style so the dialog reads consistently across multi-select widgets. */
+.promo-versions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel-2);
+}
+.promo-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 12px;
+  user-select: none;
+}
+.promo-version input { margin: 0; cursor: pointer; }
+.promo-version:hover { border-color: var(--accent); }
+.promo-version.is-checked { border-color: var(--accent); color: var(--accent); }
+.promo-versions-empty {
+  font-style: italic;
+  color: var(--fg-dim);
+  padding: 6px;
+}
+
+/* Arch picker: italic style for options NOT in the operator's
+ * preferred_architectures (Settings policy). Native <option> styling
+ * is constrained across browsers; font-style: italic is the most
+ * portable signal. */
+#frm-sub-arch option.arch-off-policy { font-style: italic; }
+
+/* Bandwidth dashboard (0.8.0 Wave 16c) */
+.bw-headline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 12px 0 24px 0;
+}
+.bw-tile {
+  background: var(--surface-2, #f6f8fa);
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+.bw-tile-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted, #57606a);
+}
+.bw-tile-value {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 4px 0;
+  word-break: break-all;
+}
+.bw-tile-sub {
+  font-size: 12px;
+  color: var(--muted, #57606a);
+}
+.bw-chart {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+  margin: var(--s-3) 0 var(--s-6);
+  min-height: 240px;
+}
+.bw-chart-svg { width: 100%; height: auto; display: block; font-family: var(--font-ui); }
+.bw-chart-grid     { stroke: var(--border); stroke-dasharray: 2 5; stroke-width: 1; }
+.bw-chart-baseline { stroke: var(--border-strong); stroke-width: 1; }
+.bw-chart-axis     { font-size: var(--fs-xs); font-family: var(--font-mono); fill: var(--text-dim); }
+.bw-chart-xaxis    { font-size: var(--fs-xs); font-family: var(--font-ui);   fill: var(--text-dim); }
+/* bars: egress = calm recessive slate, saved = soft brand-green (the hero) */
+.bw-chart-egress   { fill: var(--bw-egress); }
+.bw-chart-saved    { fill: url(#bwGradSaved); }
+.bw-chart-seam     { stroke: var(--surface-1); stroke-width: 1; }
+.bw-chart-cap      { stroke: var(--border-strong); stroke-width: 1; }
+.bw-chart-hit      { fill: transparent; }
+/* per-bar hover: gently dim the rest so the focused day stands out */
+.bw-chart-bar { transition: opacity .12s ease; }
+.bw-chart-svg:hover .bw-chart-bar { opacity: .5; }
+.bw-chart-svg .bw-chart-bar:hover { opacity: 1; }
+.bw-chart-empty   { padding: 80px 0; text-align: center; color: var(--text-dim); }
+@media (prefers-reduced-motion: reduce) { .bw-chart-bar { transition: none; } }
+
+/* legend chips in the chart heading */
+.bw-legend       { display: inline-flex; gap: var(--s-4); margin-left: var(--s-4);
+                   font-size: var(--fs-sm); font-weight: 400; color: var(--text-dim);
+                   vertical-align: middle; }
+.bw-legend-item  { display: inline-flex; align-items: center; gap: var(--s-1); }
+.bw-swatch       { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.bw-swatch-saved  { background: var(--ok); }
+.bw-swatch-egress { background: var(--bw-egress); }
+#bw-subnets-table, #bw-installers-table { width: 100%; margin-bottom: 24px; }
+#bw-subnets-table th, #bw-installers-table th,
+#bw-subnets-table td, #bw-installers-table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border, #d0d7de);
+}
+#bw-subnets-table th, #bw-installers-table th { background: var(--surface-2, #f6f8fa); }
+button[data-bw-window].active { background: var(--accent, #0969da); color: #fff; }
+
+/* ===================== Inventory tab ===================== */
+.inv-toolbar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.inv-toolbar label { font-size: 12px; color: var(--fg-dim, #8b949e); display: inline-flex; align-items: center; gap: 6px; }
+.inv-toolbar select { font-size: 13px; }
+.inv-toolbar .inv-filter-orphans { cursor: pointer; }
+.inv-summary {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 12px; margin-bottom: 12px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
+  font-size: 13px;
+}
+.inv-compare { font-size: 12px; color: var(--fg-dim, #8b949e); }
+#inv-table td.inv-vers { line-height: 2; }
+
+/* Version chips — shared by Inventory + Reconcile preview. */
+.ver {
+  display: inline-block; padding: 1px 6px; margin: 1px 0; border-radius: 3px;
+  font-family: ui-monospace, monospace; font-size: 11px;
+  border: 1px solid var(--border);
+}
+.ver-keep   { background: rgba(69,199,133,0.14); border-color: rgba(69,199,133,0.45); color: var(--ok); }
+.ver-drop   { background: rgba(231,76,76,0.12);  border-color: rgba(231,76,76,0.45);  color: var(--bad); }
+.ver-orphan { background: rgba(232,183,61,0.14); border-color: rgba(232,183,61,0.55); color: var(--warn); text-decoration: line-through; }
+.ver-nodisk { background: var(--panel-2); border-style: dashed; color: var(--fg-dim, #8b949e); }
+.ver-pinned { box-shadow: inset 0 0 0 1px var(--fg); font-weight: 600; }
+.ver-drop-text { color: var(--bad); }
+
+/* Per-version delete (✕) inside a version chip, and the Inventory Actions column. */
+.ver .ver-del {
+  border: none; background: transparent; color: inherit; cursor: pointer;
+  font-size: 10px; line-height: 1; padding: 0; margin-left: 4px; opacity: 0.4;
+}
+.ver:hover .ver-del { opacity: 0.85; }
+.ver .ver-del:hover { opacity: 1; color: var(--bad); }
+.inv-actions { white-space: nowrap; }
+.inv-actions .inv-btn { padding: 3px 9px; font-size: 12px; }
+
+/* Sandbox -> Recommended upgrade panel (Settings tab, sandbox only). */
+.upgrade-card { background: var(--panel); border: 1px solid var(--accent); border-left: 3px solid var(--accent); border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; }
+.upgrade-card > h3 { margin-top: 0; }
+.upgrade-checks { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.upgrade-check { display: flex; gap: 10px; align-items: flex-start; background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; padding: 10px 12px; }
+.upgrade-check .inv-pill { flex: 0 0 auto; margin-top: 1px; }
+.upgrade-check-body { flex: 1 1 auto; }
+.upgrade-check-label { font-weight: 600; margin-bottom: 2px; }
+.upgrade-fix { margin-top: 6px; font-size: 12.5px; }
+.upgrade-fix .btn { margin-left: 8px; padding: 2px 10px; }
+.upgrade-confirm { display: inline-flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 12.5px; color: var(--fg-dim); cursor: pointer; }
+
+/* Status pills. */
+.inv-pill {
+  display: inline-block; padding: 1px 7px; border-radius: 10px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.inv-ahead       { background: rgba(69,199,133,0.16); color: var(--ok); }
+.inv-behind      { background: rgba(231,76,76,0.14);  color: var(--bad); }
+.inv-diverged    { background: rgba(232,183,61,0.16); color: var(--warn); }
+.inv-insync      { background: var(--panel-2); color: var(--fg-dim, #8b949e); }
+.inv-onlyhere    { background: rgba(69,199,133,0.12); color: var(--ok); }
+.inv-missinghere { background: rgba(231,76,76,0.12);  color: var(--bad); }
+.inv-primary     { background: var(--panel-2); color: var(--fg); }
+.inv-orphan      { background: rgba(232,183,61,0.16); color: var(--warn); }
+
+/* ===================== Reconcile preview modal ===================== */
+#dlg-reconcile { min-width: 480px; max-width: 720px; }
+.reconcile-body { max-height: 55vh; overflow-y: auto; margin: 8px 0 4px; }
+.reconcile-summary { margin-bottom: 10px; font-size: 13px; }
+.reconcile-body h4 { margin: 14px 0 6px; font-size: 13px; }
+.reconcile-tbl { width: 100%; font-size: 12px; border-collapse: collapse; }
+.reconcile-tbl th, .reconcile-tbl td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.reconcile-note { font-size: 11px; margin-top: 12px; }
+.bad-text { color: var(--bad); }
+.ok-text  { color: var(--ok); }

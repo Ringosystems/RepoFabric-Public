@@ -1,0 +1,11 @@
+# linux/.dockerignore
+# The build context is ./linux; .git/.env live at the repo root and are
+# already outside the context. This keeps local dev cruft out of image layers.
+**/node_modules
+**/*.log
+**/*.peerdist
+**/*.peerdist.tmp
+**/.DS_Store
+**/Thumbs.db
+**/*.bak-*
+**/*.stale-*

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RepoFabric comparison one-pager</title>
+<style>
+  /* ---- Page ---- */
+  @page { size: Letter; margin: 0.34in; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy:   #0B2545;
+    --navy-2: #133b6b;
+    --teal:   #1FB6A6;
+    --teal-d: #0E8C80;
+    --teal-bg:#E9F9F7;
+    --ink:    #1c2733;
+    --dim:    #5b6b7b;
+    --line:   #e2e8ee;
+    --panel:  #F5F7F9;
+    --mono:   "Cascadia Code", Consolas, ui-monospace, monospace;
+    --sans:   -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  html, body { font-family: var(--sans); color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { width: 7.82in; }
+  .mono { font-family: var(--mono); font-size: 0.93em; }
+
+  /* ---- Header band ---- */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+    color: #fff; border-radius: 12px; padding: 18px 22px 16px;
+    position: relative; overflow: hidden;
+  }
+  .hero::after {
+    content: ""; position: absolute; right: -60px; top: -60px;
+    width: 220px; height: 220px; border-radius: 50%;
+    background: radial-gradient(circle at center, rgba(31,182,166,.30), transparent 70%);
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; }
+  .brand .name { font-size: 19px; font-weight: 800; letter-spacing: .2px; }
+  .brand .name b { color: var(--teal); font-weight: 800; }
+  .brand .by { font-size: 10.5px; color: #b9c6d8; }
+  h1 { font-size: 26px; line-height: 1.08; font-weight: 800; margin: 9px 0 6px; max-width: 86%; }
+  .sub { font-size: 11px; line-height: 1.42; color: #d6deea; max-width: 92%; }
+
+  /* ---- Proof band: tagline + stats + motif ---- */
+  .band { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-top: 12px; align-items: stretch; }
+  .proof { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--teal); border-radius: 10px; padding: 12px 14px; }
+  .proof h2 { font-size: 14.5px; color: var(--navy); margin-bottom: 7px; }
+  .stats { display: flex; gap: 14px; }
+  .stat .v { font-size: 21px; font-weight: 800; color: var(--teal-d); line-height: 1; }
+  .stat .l { font-size: 8.6px; color: var(--dim); line-height: 1.3; margin-top: 4px; display: block; }
+  .foot-note { font-size: 7.6px; color: #93a1b0; margin-top: 9px; line-height: 1.3; }
+
+  .motif { background: var(--navy); border-radius: 10px; padding: 8px 10px 4px; color: #cfe9e6; }
+  .motif .cap { font-size: 9px; color: #9fb3c8; text-align: center; margin-top: 2px; }
+  .motif svg { width: 100%; height: auto; display: block; }
+
+  /* ---- Cards ---- */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+  .card { background: #fff; border: 1px solid var(--line); border-top: 3px solid var(--teal); border-radius: 9px; padding: 10px 11px; }
+  .card h3 { font-size: 11px; color: var(--navy); margin-bottom: 5px; }
+  .card p { font-size: 8.7px; line-height: 1.4; color: var(--dim); }
+
+  /* ---- Matrix ---- */
+  .matx-h { display: flex; align-items: baseline; gap: 8px; margin: 14px 0 6px; }
+  .matx-h h2 { font-size: 14px; color: var(--navy); }
+  .matx-h span { font-size: 9px; color: var(--dim); }
+  table { width: 100%; border-collapse: collapse; border-radius: 9px; overflow: hidden; border: 1px solid var(--line); }
+  th, td { text-align: left; vertical-align: top; padding: 5px 8px; font-size: 8.4px; line-height: 1.32; }
+  thead th { background: var(--navy); color: #fff; font-size: 8.8px; font-weight: 700; }
+  thead th.rf { background: var(--teal-d); }
+  th.feat, td.feat { width: 20%; font-weight: 700; color: var(--navy); background: #fbfcfd; }
+  td.std, td.rew { width: 26.6%; color: var(--dim); border-left: 1px solid var(--line); }
+  td.rf { width: 26.8%; background: var(--teal-bg); color: #134e48; border-left: 1px solid #cdeae6; font-weight: 500; }
+  tbody tr { border-top: 1px solid var(--line); }
+  tbody tr:first-child td { border-top: none; }
+  .star { color: var(--teal-d); font-weight: 800; }
+
+</style>
+</head>
+<body>
+
+  <header class="hero">
+    <div class="brand"><span class="name">Repo<b>Fabric</b></span></div>
+    <h1>Stop downloading the same installer a thousand times.</h1>
+    <p class="sub">RepoFabric is a private <span class="mono">winget</span> source platform that cuts repeat-download bandwidth, speeds fleet rollouts, and gives you an Entra-attributed audit trail with Intune and GPO policy export, all from one deployment.</p>
+  </header>
+
+  <section class="band">
+    <div class="proof">
+      <h2>Download once. Reuse across the subnet.</h2>
+      <div class="stats">
+        <div class="stat"><span class="v">Anywhere</span><span class="l">any cloud or on-prem,<br>fits your stack</span></div>
+        <div class="stat"><span class="v">&asymp;1&times;</span><span class="l">WAN transfer per app<br>per subnet, not per device*</span></div>
+      </div>
+      <p class="foot-note">*After the first endpoint on a subnet pulls an installer, the rest fetch it from a LAN peer over BranchCache and Delivery Optimization. Real WAN optimization either way, whether RepoFabric runs in any cloud or on-prem. Best case, peer-dependent.</p>
+    </div>
+
+    <div class="motif">
+      <svg viewBox="0 0 360 104" role="img" aria-label="The first device downloads from the server once; the rest pull from a LAN peer.">
+        <defs>
+          <marker id="ah" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#1FB6A6"/>
+          </marker>
+          <marker id="ahf" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#6b7f96"/>
+          </marker>
+        </defs>
+        <!-- server / WAN -->
+        <rect x="8" y="26" width="60" height="30" rx="6" fill="#10243f" stroke="#33506f"/>
+        <text x="38" y="45" fill="#9fb3c8" font-size="8.5" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif">Server / WAN</text>
+        <!-- the one full download to device 1 (faded) -->
+        <line x1="70" y1="41" x2="120" y2="41" stroke="#6b7f96" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#ahf)"/>
+        <text x="95" y="33" fill="#8aa0b6" font-size="7" text-anchor="middle">1 pull</text>
+        <!-- devices -->
+        <g fill="#0e3a36" stroke="#1FB6A6" stroke-width="1.4">
+          <rect x="124" y="30" width="30" height="20" rx="3"/>
+          <rect x="206" y="30" width="30" height="20" rx="3"/>
+          <rect x="262" y="30" width="30" height="20" rx="3"/>
+          <rect x="318" y="30" width="30" height="20" rx="3"/>
+        </g>
+        <g fill="#7fdcd2" font-size="7" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif">
+          <text x="139" y="64">1st</text>
+          <text x="221" y="64">peer</text>
+          <text x="277" y="64">peer</text>
+          <text x="333" y="64">peer</text>
+        </g>
+        <!-- peer links (teal, solid) -->
+        <g fill="none" stroke="#1FB6A6" stroke-width="1.8">
+          <path d="M154 40 q26 -22 52 0" marker-end="url(#ah)"/>
+          <path d="M236 40 q13 -16 26 0" marker-end="url(#ah)"/>
+          <path d="M292 40 q13 -16 26 0" marker-end="url(#ah)"/>
+        </g>
+        <text x="250" y="92" fill="#cfe9e6" font-size="8.5" text-anchor="middle" font-family="-apple-system,Segoe UI,sans-serif">peers serve each other on the LAN</text>
+      </svg>
+      <div class="cap">One download enters the subnet. The rest stay local.</div>
+    </div>
+  </section>
+
+  <section class="cards">
+    <div class="card"><h3>Azure-native control</h3><p>Admins sign in with Microsoft Entra ID, and every publish, sync, and service action is attributed to their UPN (SYSTEM for scheduled jobs). An audit trail of who did what, with no extra tooling.</p></div>
+    <div class="card"><h3>Intune-ready in one click</h3><p>Export an Intune Settings Catalog policy for the <span class="mono">DesktopAppInstaller</span> CSP and a matching Group Policy script. Point and lock endpoints at your private source in minutes.</p></div>
+    <div class="card"><h3>Curated, and safe by default</h3><p>Subscribe to the apps you approve, and new versions auto-sync from the public <span class="mono">winget</span> repo into your private source. Pair it with the policy export to block the public repo, so endpoints install only vetted builds.</p></div>
+    <div class="card"><h3>Fits your stack, fills the gaps</h3><p>RepoFabric plugs into the services you already run and stands up the ones you are missing, in any cloud or on-prem. Guided setup, scheduled sync, and a web GUI keep day-two simple.</p></div>
+  </section>
+
+  <div class="matx-h">
+    <h2>How it compares</h2>
+    <span>Differentiators first. <span class="star">&#9733;</span> marks capabilities the alternatives cannot do out of the box.</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th class="feat">Capability</th>
+        <th>Standard <span class="mono">winget</span> REST server</th>
+        <th>Standalone rewinged</th>
+        <th class="rf">RepoFabric</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="feat"><span class="star">&#9733;</span> WAN bandwidth savings (LAN peer-caching)</td>
+        <td class="std">No <span class="mono">PeerDist</span> hashes advertised, so installers are not peer-cached out of the box, and no savings reporting.</td>
+        <td class="rew">No <span class="mono">PeerDist</span> hashes advertised, so installers are not peer-cached out of the box, and no savings reporting.</td>
+        <td class="rf">Advertises <span class="mono">PeerDist</span> (MS-PCCRC) hashes so BranchCache and Delivery Optimization pull from a LAN peer, with a dashboard of savings per subnet and per installer over 7 / 30 / 90 days.</td>
+      </tr>
+      <tr>
+        <td class="feat"><span class="star">&#9733;</span> Curated auto-update from public <span class="mono">winget</span></td>
+        <td class="std">Mirror upstream by hand. No approval gate, and endpoints can still reach the public repo.</td>
+        <td class="rew">Mirror upstream by hand. No approval gate.</td>
+        <td class="rf">Auto-syncs new versions of approved apps from the public <span class="mono">winget</span> repo into your private source, so you can block the public repo and serve only vetted builds.</td>
+      </tr>
+      <tr>
+        <td class="feat">Azure / Entra ID admin sign-in</td>
+        <td class="std">Not built in. Add your own auth.</td>
+        <td class="rew">No admin UI to sign in to.</td>
+        <td class="rf">Admin signs in with Entra ID. Every action attributed to the user UPN, SYSTEM for scheduled jobs.</td>
+      </tr>
+      <tr>
+        <td class="feat">Intune / MDM endpoint policy</td>
+        <td class="std">Possible by hand. Author the CSP yourself.</td>
+        <td class="rew">Possible by hand. No generator.</td>
+        <td class="rf">One-click Intune Settings Catalog export for the <span class="mono">DesktopAppInstaller</span> CSP, plus a matching GPO script.</td>
+      </tr>
+      <tr>
+        <td class="feat">Client configuration</td>
+        <td class="std">Configure trusted source, silent defaults, and caching on every device yourself.</td>
+        <td class="rew">Configure every client yourself.</td>
+        <td class="rf">Generated per-repo PowerShell registers the source as Trusted, sets silent defaults, enables BranchCache / BITS / Delivery Optimization.</td>
+      </tr>
+      <tr>
+        <td class="feat">Custom / in-house apps</td>
+        <td class="std">Hand-author manifests on disk.</td>
+        <td class="rew">Hand-author manifests on disk.</td>
+        <td class="rf">Upload-first wizard auto-fills metadata, detects silent switches, supports multiple installer types.</td>
+      </tr>
+      <tr>
+        <td class="feat">Ongoing management</td>
+        <td class="std">No GUI. Manage by hand.</td>
+        <td class="rew">Edit files on disk. No GUI.</td>
+        <td class="rf">Web GUI: subscriptions, activity feed, service controls, and dashboards.</td>
+      </tr>
+      <tr>
+        <td class="feat">Deployment &amp; multi-repo</td>
+        <td class="std">Assemble the API and a backing store yourself, for example the reference source historically backed by Azure Functions and Cosmos DB.</td>
+        <td class="rew">Single binary you install and configure.</td>
+        <td class="rf">Deploys in any cloud or on-prem, brings the supporting services you are missing, guided web setup, isolated multi-repo with automatic port allocation.</td>
+      </tr>
+    </tbody>
+  </table>
+
+
+</body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "_comment": "OMA-URI settings for the 'RepoFabric - Peer caching' Custom Configuration Profile in Intune. Create one Custom profile (Windows 10+, Templates -> Custom) and add one row per entry below. See deploy/intune/README.md section 'BranchCache + BITS + DO endpoint configuration' for the step-by-step. Required for 0.8.0 PeerDist peer caching to work on managed Windows endpoints. Operated by RingoSystems Heavy Industries.",
+  "omaSettings": [
+    {
+      "name": "BranchCache: Enable",
+      "description": "Turns on the BranchCache service on the endpoint. Required.",
+      "omaUri": "./Vendor/MSFT/Policy/Config/BranchCache/EnableBranchCache",
+      "dataType": "Integer",
+      "value": 1
+    },
+    {
+      "name": "BranchCache: Distributed Cache mode",
+      "description": "Sets BranchCache to peer-to-peer (Distributed) mode instead of Hosted (which would need a central cache server). 0.8.0 design relies on Distributed.",
+      "omaUri": "./Vendor/MSFT/Policy/Config/BranchCache/SetBranchCacheDistributedCacheMode",
+      "dataType": "Integer",
+      "value": 1
+    },
+    {
+      "name": "BranchCache: Cache age in days",
+      "description": "How long cached blocks survive on the endpoint. Default in Windows is 28 days; we extend to 90 because installer files rotate more slowly than typical SMB content.",
+      "omaUri": "./Vendor/MSFT/Policy/Config/BranchCache/SetAgeForSegmentsInDataCache",
+      "dataType": "Integer",
+      "value": 90
+    },
+    {
+      "name": "Delivery Optimization: Download Mode",
+      "description": "Mode 1 = HTTP blended with peering behind the same NAT. Mode 2 = HTTP blended with peering across a private group. Mode 1 is the safe default; switch to 2 if your subnet spans multiple offices behind the same DO Group ID.",
+      "omaUri": "./Vendor/MSFT/Policy/Config/DeliveryOptimization/DODownloadMode",
+      "dataType": "Integer",
+      "value": 1
+    },
+    {
+      "name": "Delivery Optimization: Minimum file size for peering (MB)",
+      "description": "Files smaller than this skip the peer-discovery dance. Default is 10 MB; we keep it at 10 so small installers (zip-only, snippet apps) bypass peer caching while large MSIs benefit.",
+      "omaUri": "./Vendor/MSFT/Policy/Config/DeliveryOptimization/DOMinFileSizeToCache",
+      "dataType": "Integer",
+      "value": 10
+    }
+  ],
+  "bitsPeercaching": {
+    "_comment": "BITS Peercaching is ADMX-backed (not pure OMA-URI). Use the Settings Catalog path: 'Administrative Templates -> Network -> Background Intelligent Transfer Service (BITS) -> Allow BITS Peercaching = Enabled'. Without this, BITS will not participate in BranchCache and the entire PeerDist plan silently no-ops. See README for the Settings Catalog walkthrough."
+  },
+  "firewall": {
+    "_comment": "BranchCache needs two inbound Windows Defender Firewall rule groups: 'BranchCache - Content Retrieval (HTTP-In)' on TCP 80 and 'BranchCache - Peer Discovery (WSD-In)' on UDP 3702. Both are built-in groups in the firewall ruleset; enable them via the Endpoint Security -> Firewall profile in Intune, NOT via this Configuration Profile."
+  }
+}

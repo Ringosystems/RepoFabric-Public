@@ -1,0 +1,33 @@
+name: ✨ Feature request
+description: Suggest a new feature or enhancement for RepoFabric
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For features that belong to **ConfigFabric**, please file them in ConfigFabric directly.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this feature solve? Who is it for?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: cross-repo
+    attributes:
+      label: Cross-project considerations
+      options:
+        - label: This feature interacts with **ConfigFabric** (integration surface)
+        - label: This feature is only meaningful when both projects ship together

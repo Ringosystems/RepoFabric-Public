@@ -1,0 +1,198 @@
+# RepoFabric — one-command turnkey stack (multi-instance capable).
+#
+#   GREENFIELD host (this box does the TLS):
+#     cp .env.example .env   # set REPOFABRIC_DOMAIN + REPOFABRIC_ACME_EMAIL
+#     docker compose --profile proxy up -d
+#     open https://<your-domain>/setup/
+#
+#   SIDE-BY-SIDE / behind an existing proxy (e.g. you already run NPM on 80/443):
+#     set REPOFABRIC_INSTANCE + distinct ports + paths in .env, then:
+#     docker compose up -d            # NOTE: no --profile proxy (skips Caddy/80/443)
+#     ...and point your existing proxy at this instance's ports.
+#     Full walkthrough: linux/admin/static/docs/deploy-sidebyside.md
+#
+# This single file supersedes the deploy/ + linux/ two-file split (those remain
+# for advanced/legacy use). Everything is env-driven; an operator who sets only
+# REPOFABRIC_DOMAIN + REPOFABRIC_ACME_EMAIL on a fresh UNRAID-style host gets the
+# previous layout, plus automatic HTTPS.
+#
+# ---------------------------------------------------------------------------
+# MULTI-INSTANCE: every container name, the docker network, the spawned per-repo
+# Rewinged containers, and the host ports derive from ${REPOFABRIC_INSTANCE}
+# (default "repofabric"). Set REPOFABRIC_INSTANCE=repofabric-test (plus distinct
+# *_HOST_PORT and *_ROOT values) in a second instance's .env to run it ALONGSIDE
+# your production stack on the same host with zero collisions. See .env.example.
+# ---------------------------------------------------------------------------
+
+name: ${REPOFABRIC_INSTANCE:-repofabric}
+
+services:
+  # ---- Manifest git host ---------------------------------------------------
+  gitea:
+    image: gitea/gitea:1
+    container_name: ${REPOFABRIC_INSTANCE:-repofabric}-gitea
+    restart: unless-stopped
+    environment:
+      USER_UID: "99"
+      USER_GID: "100"
+      # Public identity only affects rendered links; internal traffic reaches
+      # Gitea by container name on this instance's network.
+      GITEA__server__DOMAIN: ${GITEA_DOMAIN:-gitea.example.com}
+      GITEA__server__ROOT_URL: ${GITEA_ROOT_URL:-https://gitea.example.com/}
+      GITEA__server__SSH_DOMAIN: ${GITEA_DOMAIN:-gitea.example.com}
+      GITEA__server__DISABLE_SSH: "true"
+      GITEA__server__OFFLINE_MODE: "true"
+      GITEA__database__DB_TYPE: sqlite3
+      GITEA__service__DISABLE_REGISTRATION: "true"
+      GITEA__service__REQUIRE_SIGNIN_VIEW: "false"
+      GITEA__repository__DEFAULT_BRANCH: main
+      # Headless: lock the web installer; the gitea-provision one-shot below
+      # creates the publisher admin and mints the access token, so there is no
+      # install screen and no manual PAT.
+      GITEA__security__INSTALL_LOCK: "true"
+    volumes:
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/gitea:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "${REPOFABRIC_GITEA_HOST_PORT:-3030}:3000"
+    networks: [repofabric]
+
+  # ---- One-shot headless Gitea provisioning --------------------------------
+  # Creates the publisher admin user and mints a scoped access token into the
+  # shared gitea-token volume (reused on re-runs). RepoFabric reads the token
+  # from that volume (REPOFABRIC_GITEA_PAT_FILE), so the operator never opens
+  # Gitea or pastes a PAT. Runs in the gitea image for the `gitea` CLI + shared
+  # /data, then exits. The winget-manifests repo is created by RepoFabric's
+  # publisher on first publish, using this token.
+  gitea-provision:
+    image: gitea/gitea:1
+    container_name: ${REPOFABRIC_INSTANCE:-repofabric}-gitea-provision
+    restart: "no"
+    user: "0:0"
+    depends_on: [gitea]
+    entrypoint: ["/bin/sh", "/usr/local/bin/gitea-provision.sh"]
+    environment:
+      REPOFABRIC_GITEA_USER: "${REPOFABRIC_GITEA_USER:-repofabric-publisher}"
+      REPOFABRIC_GITEA_PAT_FILE: "/provision/pat"
+    volumes:
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/gitea:/data
+      - gitea-token:/provision
+      - ./deploy/gitea-provision.sh:/usr/local/bin/gitea-provision.sh:ro
+    networks: [repofabric]
+
+  # ---- WinGet REST API for the default 'main' repo -------------------------
+  rewinged:
+    image: ghcr.io/jantari/rewinged:latest
+    container_name: ${REPOFABRIC_INSTANCE:-repofabric}-rewinged
+    restart: unless-stopped
+    user: "99:100"
+    volumes:
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/manifests:/manifests:ro
+    command: ["-manifestPath", "/manifests/manifests", "-listen", "0.0.0.0:8080", "-logLevel", "info"]
+    ports:
+      - "${REPOFABRIC_REWINGED_HOST_PORT:-8090}:8080"
+    networks: [repofabric]
+
+  # ---- Admin UI + setup wizard + publisher + cron + installer server -------
+  repofabric-linux:
+    build:
+      context: ./linux
+    image: ${REPOFABRIC_INSTANCE:-repofabric}-linux:latest
+    container_name: ${REPOFABRIC_INSTANCE:-repofabric}-linux
+    restart: unless-stopped
+    user: "0:0"          # entrypoint chowns then drops via supervisord
+    # Single-file config: the container reads its secrets from the SAME ./.env
+    # that docker compose auto-loads for substitution, so there is one file to
+    # edit. Override REPOFABRIC_ENV_FILE to keep secrets elsewhere (e.g. the
+    # UNRAID /mnt/cache/appdata/repofabric-linux/.env path used by the legacy
+    # two-file compose).
+    env_file:
+      - ${REPOFABRIC_ENV_FILE:-.env}
+    environment:
+      REPOFABRIC_UID: "99"
+      REPOFABRIC_GID: "100"
+      REPOFABRIC_PUBLISHER_URL: "http://127.0.0.1:8085"
+      REPOFABRIC_MANIFEST_CACHE_DIR: "/var/cache/repofabric/manifests"
+      REPOFABRIC_STATE_DIR: "/var/lib/repofabric"
+      REPOFABRIC_MANIFEST_HOST_ROOT: "${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/manifests"
+      # Instance-scoped: spawned per-repo Rewinged containers join THIS network
+      # and are named ${REPOFABRIC_INSTANCE}-rewinged-<repoId>, so two instances
+      # never collide.
+      REPOFABRIC_DOCKER_NETWORK: "${REPOFABRIC_INSTANCE:-repofabric}"
+      REPOFABRIC_CONTAINER_PREFIX: "${REPOFABRIC_INSTANCE:-repofabric}"
+      REPOFABRIC_REWINGED_IMAGE: "ghcr.io/jantari/rewinged:latest"
+      # Internal service endpoints, addressed by this instance's container names.
+      REPOFABRIC_GITEA_BASE_URL: "http://${REPOFABRIC_INSTANCE:-repofabric}-gitea:3000"
+      # Auto-minted Gitea token from the gitea-provision volume. The publisher
+      # reads it from here, so no PAT is needed in .env or solution.yaml. An
+      # explicit REPOFABRIC_GITEA_PAT / solution.yaml value still wins.
+      REPOFABRIC_GITEA_PAT_FILE: "/run/secrets/gitea/pat"
+      REPOFABRIC_REWINGED_URL: "http://${REPOFABRIC_INSTANCE:-repofabric}-rewinged:8080"
+      # Public origin. Behind a proxy this is https://<domain>/admin; drives the
+      # Entra redirect URI and per-repo subdir source URLs. An explicit value in
+      # the env_file still wins.
+      REPOFABRIC_ADMIN_PUBLIC_URL: "${REPOFABRIC_ADMIN_PUBLIC_URL:-https://${REPOFABRIC_DOMAIN:-winget.example.com}/admin}"
+      REPOFABRIC_COOKIE_SECURE: "${REPOFABRIC_COOKIE_SECURE:-true}"
+      CONFIGFABRIC_ENABLED: "false"
+      CONFIGFABRIC_PUBLISHER_URL: "http://127.0.0.1:8089"
+      CONFIGFABRIC_STATE_DIR: "/var/lib/configfabric"
+    volumes:
+      - ${REPOFABRIC_STATE_ROOT:-/mnt/cache/appdata/repofabric-linux}/state:/var/lib/repofabric
+      - ${REPOFABRIC_STATE_ROOT:-/mnt/cache/appdata/repofabric-linux}/cache:/var/lib/repofabric/cache
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/manifests:/var/cache/repofabric/manifests
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/installers:/var/cache/repofabric/installers
+      - ${REPOFABRIC_STATE_ROOT:-/mnt/cache/appdata/repofabric-linux}/configfabric-state:/var/lib/configfabric
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Auto-minted Gitea token (read-only; written by the gitea-provision service).
+      - gitea-token:/run/secrets/gitea:ro
+    group_add:
+      - "${REPOFABRIC_DOCKER_GID:-281}"
+    ports:
+      - "${REPOFABRIC_ADMIN_HOST_PORT:-8086}:8086"
+      - "${REPOFABRIC_INSTALLERS_HOST_PORT:-8091}:8091"
+    networks: [repofabric]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8086/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---- Bundled reverse proxy: automatic HTTPS (OPT-IN via --profile proxy) --
+  # Only starts with `docker compose --profile proxy up -d`. Use it on a
+  # greenfield host where this box owns ports 80/443. On a host that already has
+  # a reverse proxy (NPM/Traefik) — including the side-by-side test scenario —
+  # leave the profile OFF and point your existing proxy at this instance's ports.
+  caddy:
+    image: caddy:2-alpine
+    container_name: ${REPOFABRIC_INSTANCE:-repofabric}-caddy
+    restart: unless-stopped
+    profiles: ["proxy"]
+    depends_on: [repofabric-linux, rewinged, gitea]
+    environment:
+      REPOFABRIC_DOMAIN: ${REPOFABRIC_DOMAIN:?set REPOFABRIC_DOMAIN in .env (e.g. winget.example.com)}
+      REPOFABRIC_ACME_EMAIL: ${REPOFABRIC_ACME_EMAIL:?set REPOFABRIC_ACME_EMAIL in .env (Let's Encrypt account email)}
+      REPOFABRIC_INSTALLERS_HOST: ${REPOFABRIC_INSTALLERS_HOST:-installers.${REPOFABRIC_DOMAIN:-winget.example.com}}
+      GITEA_PUBLIC_HOST: ${GITEA_PUBLIC_HOST:-${GITEA_DOMAIN:-gitea.example.com}}
+      # Caddy resolves upstreams by this instance's container-name prefix.
+      REPOFABRIC_INSTANCE: ${REPOFABRIC_INSTANCE:-repofabric}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/caddy/data:/data
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/caddy/config:/config
+    ports:
+      - "${REPOFABRIC_HTTP_PORT:-80}:80"
+      - "${REPOFABRIC_HTTPS_PORT:-443}:443"
+    networks: [repofabric]
+
+volumes:
+  # Private volume carrying the auto-minted Gitea token from gitea-provision to
+  # repofabric-linux (mounted read-only there). Not on the appdata bind mount.
+  gitea-token:
+    name: ${REPOFABRIC_INSTANCE:-repofabric}-gitea-token
+
+networks:
+  repofabric:
+    name: ${REPOFABRIC_INSTANCE:-repofabric}
+    driver: bridge

@@ -1,0 +1,125 @@
+# RepoFabric bundled reverse proxy — automatic HTTPS (Let's Encrypt).
+#
+# Used only when you start the stack with `--profile proxy` on a greenfield host
+# that owns ports 80/443. Caddy obtains and renews TLS automatically the first
+# time a request arrives for a configured hostname — no cert wizard, no manual
+# proxy-host clicking. If you already run a reverse proxy (NPM/Traefik), DON'T
+# use this; see linux/admin/static/docs/reverse-proxy-npm.md.
+#
+# Env (set in ./.env, passed through by docker-compose):
+#   REPOFABRIC_DOMAIN          primary host, e.g. winget.example.com
+#   REPOFABRIC_ACME_EMAIL      Let's Encrypt account email
+#   REPOFABRIC_INSTALLERS_HOST installer host, default installers.<REPOFABRIC_DOMAIN>
+#   GITEA_PUBLIC_HOST          optional Gitea browse host
+#   REPOFABRIC_INSTANCE        container-name prefix (default repofabric); lets a
+#                              second instance's Caddy reach ITS own containers
+#
+# Upstreams are reached by container name on this instance's network; Caddy
+# resolves them via Docker's embedded DNS at request time.
+
+{
+	email {$REPOFABRIC_ACME_EMAIL}
+	# Test against the staging CA first (avoids burning rate limits) by
+	# uncommenting, `docker compose --profile proxy up -d`, then re-commenting
+	# and `docker compose restart caddy` for real certs:
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# ===========================================================================
+# Primary host: admin UI, setup wizard, the 'main' + per-repo WinGet REST APIs,
+# and the cross-fabric M2M bridge legs. Caddy auto-issues a cert on first hit.
+# ===========================================================================
+{$REPOFABRIC_DOMAIN} {
+	# Keep the proxy cap ABOVE the admin's own 2 GiB upload limit so the
+	# upstream is the binding one (go-humanize 2GB ~= 1.86 GiB, so use 3GB).
+	request_body {
+		max_size 3GB
+	}
+
+	# --- Cross-fabric M2M legs (most specific FIRST; live on the admin, NOT
+	#     rewinged, and must out-match the /api default below). --------------
+	@m2m path /api/v1/catalog/* /api/audit/events
+	handle @m2m {
+		reverse_proxy {$REPOFABRIC_INSTANCE:repofabric}-linux:8086 {
+			header_up Host {host}
+			header_up X-Forwarded-Host {host}
+			header_up X-Forwarded-Proto https
+		}
+	}
+
+	# --- Admin SPA + /admin/api + Entra redirect, setup wizard, docs, health -
+	@admin path /admin /admin/* /setup /setup/* /docs /docs/* /healthz
+	handle @admin {
+		reverse_proxy {$REPOFABRIC_INSTANCE:repofabric}-linux:8086 {
+			header_up Host {host}
+			header_up X-Forwarded-Proto https
+		}
+	}
+
+	# --- 'main' repo subdir form /main/api/* -> the core rewinged container
+	#     (named <prefix>-rewinged, NOT -rewinged-main; schemas/021). Strip the
+	#     /main segment. Declared before the generic /<repoId>/api rule. -------
+	@mainsubdir path /main/api /main/api/*
+	handle @mainsubdir {
+		uri strip_prefix /main
+		reverse_proxy {$REPOFABRIC_INSTANCE:repofabric}-rewinged:8080 {
+			header_up Host {host}
+			header_up X-Forwarded-Proto https
+		}
+	}
+
+	# --- 'main' repo bare form /api/* (back-compat with the legacy NPM route) -
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy {$REPOFABRIC_INSTANCE:repofabric}-rewinged:8080 {
+			header_up Host {host}
+			header_up X-Forwarded-Proto https
+		}
+	}
+
+	# --- Per-repo WinGet REST /<repoId>/api/* -> that repo's spawned container
+	#     <prefix>-rewinged-<repoId>:8080. repoId is [a-z0-9-] (DB CHECK), so the
+	#     capture can't smuggle a hostname. Resolved via Docker DNS at request
+	#     time, so new repos work with no Caddy reload. --------------------------
+	@perrepo path_regexp repo ^/([a-z0-9-]+)/api(/.*)?$
+	handle @perrepo {
+		uri strip_prefix /{re.repo.1}
+		reverse_proxy {$REPOFABRIC_INSTANCE:repofabric}-rewinged-{re.repo.1}:8080 {
+			header_up Host {host}
+			header_up X-Forwarded-Proto https
+		}
+	}
+
+	# --- Everything else -> the admin (it redirects / -> /admin or /setup). ---
+	handle {
+		reverse_proxy {$REPOFABRIC_INSTANCE:repofabric}-linux:8086 {
+			header_up Host {host}
+			header_up X-Forwarded-Proto https
+		}
+	}
+}
+
+# ===========================================================================
+# Installer downloads: installers.<domain> -> the Express server on :8091.
+# ===========================================================================
+{$REPOFABRIC_INSTALLERS_HOST:installers.example.com} {
+	reverse_proxy {$REPOFABRIC_INSTANCE:repofabric}-linux:8091 {
+		header_up Host {host}
+		header_up X-Forwarded-Proto https
+		flush_interval -1
+	}
+}
+
+# ===========================================================================
+# Gitea web UI (optional): gitea.<domain>. Delete this block if you never expose
+# Gitea publicly (internal traffic uses the container name regardless).
+# ===========================================================================
+{$GITEA_PUBLIC_HOST:gitea.example.com} {
+	request_body {
+		max_size 50MB
+	}
+	reverse_proxy {$REPOFABRIC_INSTANCE:repofabric}-gitea:3000 {
+		header_up Host {host}
+		header_up X-Forwarded-Proto https
+	}
+}

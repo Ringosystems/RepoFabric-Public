@@ -1,0 +1,21 @@
+name: 📖 Documentation issue
+description: Report missing, wrong, or unclear documentation in RepoFabric
+title: "[Docs]: "
+labels: ["documentation", "triage"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Where (file path or URL)
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's wrong or missing?
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested fix

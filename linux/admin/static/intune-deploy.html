@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Intune policy export, RingoSystems Heavy Industries</title>
+  <link rel="stylesheet" href="./repofabric-tokens.css">
+  <link rel="stylesheet" href="./setup/setup.css">
+  <link rel="stylesheet" href="./app-linux.css">
+  <style>
+    main.intune-wizard {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .iw-section {
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.02);
+      padding: 10px 14px;
+    }
+    .iw-section-head {
+      display: flex; align-items: center; gap: 10px;
+      margin: -2px -4px 8px -4px; padding: 2px 4px;
+    }
+    .iw-section-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+    .iw-section-head .iw-counter { font-size: 11px; color: #888; margin-left: auto; }
+    .iw-status-pill {
+      display: inline-block; min-width: 14px; height: 14px; border-radius: 7px;
+      background: #555; border: 1px solid #222;
+    }
+    .iw-status-pill.ok    { background: #2c7a3a; }
+    .iw-status-pill.warn  { background: #b88a1c; }
+    .iw-status-pill.error { background: #b8201c; }
+
+    .iw-fields { display: grid; grid-template-columns: 1fr; gap: 6px; }
+    @media (min-width: 800px) {
+      .iw-fields { grid-template-columns: 1fr 1fr; }
+      .iw-fields .full { grid-column: 1 / -1; }
+    }
+    .iw-fields label {
+      display: grid; grid-template-columns: 180px 1fr 22px; align-items: center;
+      gap: 6px; font-size: 13px;
+    }
+    .iw-fields label .lbl   { color: #ccc; }
+    .iw-fields label .lbl.req::after { content: ' *'; color: #d04742; }
+    .iw-fields label .ind   { text-align: center; font-size: 14px; }
+    .iw-fields label .ind.ok    { color: #4caf50; }
+    .iw-fields label .ind.warn  { color: #d6a834; }
+    .iw-fields label .ind.error { color: #f04742; }
+
+    .iw-policy {
+      border: 1px solid #2f2f2f; border-radius: 6px;
+      background: rgba(0,0,0,0.15);
+      padding: 8px 10px;
+      margin-bottom: 8px;
+    }
+    .iw-policy-head {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .iw-policy-head strong { font-size: 13px; }
+    .iw-policy-head .iw-policy-tag {
+      font-size: 11px; color: #aaa; padding: 1px 6px;
+      border-radius: 3px; background: rgba(255,255,255,0.06);
+    }
+    .iw-policy-head .iw-policy-tag.rec-en { background: rgba(44,122,58,0.25); color: #aef0ba; }
+    .iw-policy-head .iw-policy-tag.rec-di { background: rgba(184,32,28,0.25); color: #f5cfce; }
+    .iw-policy-head .iw-policy-tag.rec-nc { background: rgba(184,138,28,0.25); color: #f5e2ad; }
+    .iw-policy-head .iw-state {
+      display: flex; gap: 8px; margin-left: auto; font-size: 12px; color: #ccc;
+    }
+    .iw-policy-head .iw-state label { cursor: pointer; }
+    .iw-policy-head .iw-state input { margin-right: 3px; vertical-align: middle; }
+
+    .iw-policy-consequences {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 12px;
+      color: #cfd5dc;
+    }
+    @media (max-width: 700px) {
+      .iw-policy-consequences { grid-template-columns: 1fr; }
+    }
+    .iw-conseq {
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      padding: 6px 8px;
+      background: rgba(255,255,255,0.02);
+    }
+    .iw-conseq.en { border-left: 3px solid #2c7a3a; }
+    .iw-conseq.di { border-left: 3px solid #b8201c; }
+    .iw-conseq strong { display: block; font-size: 11px; color: #9bb; margin-bottom: 3px; letter-spacing: 0.5px; text-transform: uppercase; }
+    .iw-conseq.is-active { background: rgba(255,255,255,0.05); }
+    .iw-conseq.is-active strong { color: #fff; }
+
+    .iw-int-input {
+      border: 1px solid #2f2f2f; border-radius: 6px;
+      background: rgba(0,0,0,0.15);
+      padding: 8px 10px;
+    }
+    .iw-int-input label {
+      display: grid; grid-template-columns: 180px 110px 22px 1fr;
+      gap: 6px; align-items: center; font-size: 13px;
+    }
+    .iw-int-input input { width: 100px; }
+
+    .iw-preview {
+      display: grid; grid-template-columns: 1fr; gap: 8px;
+    }
+    @media (min-width: 1000px) {
+      .iw-preview { grid-template-columns: 1fr 1fr; }
+    }
+    pre.iw-output {
+      background: rgba(0,0,0,0.25); padding: 8px; border-radius: 4px;
+      font-size: 11px; max-height: 320px; overflow: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .iw-oma-table {
+      width: 100%; border-collapse: collapse; font-size: 11px;
+    }
+    .iw-oma-table th, .iw-oma-table td {
+      border: 1px solid #2a2a2a; padding: 4px 6px; text-align: left;
+      vertical-align: top;
+      word-break: break-all;
+    }
+    .iw-oma-table th { background: rgba(255,255,255,0.04); }
+
+    .iw-actions { display: flex; gap: 10px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+    .iw-actions .muted { font-size: 12px; }
+
+    .iw-callout {
+      background: rgba(91,155,255,0.08);
+      border-left: 3px solid #5b9bff;
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #cfd5dc;
+      margin-bottom: 8px;
+    }
+    .iw-callout code { background: rgba(0,0,0,0.25); padding: 1px 4px; border-radius: 3px; }
+    .iw-callout p { margin: 4px 0; }
+    .iw-callout.iw-callout-dim { background: rgba(255,255,255,0.04); border-left-color: #888; }
+    .iw-mt-8  { margin-top: 8px; }
+    .iw-mt-10 { margin-top: 10px; }
+    .iw-pane-head { margin: 4px 0; font-size: 13px; }
+    .iw-callout.iw-callout-hint { margin: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Intune policy export</h1>
+    <p class="muted">
+      Generates a Microsoft Intune Settings Catalog JSON file that locks managed
+      Windows endpoints onto this WinGet REST source and shuts off the public
+      community + Microsoft Store sources. The file downloads to your machine.
+      Hand it to an Intune admin (or import it yourself via Graph) under their
+      own credentials. <a href="./">back to admin</a>
+    </p>
+  </header>
+
+  <main class="intune-wizard">
+
+    <div class="iw-callout">
+      <p>
+        <strong>Export only.</strong> This tool does not push to Intune. The minimum
+        write scope Microsoft offers for the configurationPolicies endpoint is
+        <code>DeviceManagementConfiguration.ReadWrite.All</code>, which grants
+        write across every device-config policy in the tenant. We deliberately do
+        not hold that scope inside a single-purpose lockdown tool. The Intune
+        admin imports the JSON file in their own context.
+      </p>
+      <p>
+        <strong>Assignment is out of scope.</strong> After import, the Intune admin
+        assigns the policy to a device or group through the Intune portal.
+      </p>
+    </div>
+
+    <!-- Section 0: Identity + source -->
+    <section class="iw-section">
+      <div class="iw-section-head">
+        <span class="iw-status-pill" id="pill-meta"></span>
+        <h2>Policy and source</h2>
+        <span class="iw-counter" id="counter-meta"></span>
+      </div>
+      <div class="iw-fields">
+        <label class="full">
+          <span class="lbl req">Virtual repo</span>
+          <select id="repo_id" data-required>
+            <option value="">(loading repos...)</option>
+          </select>
+          <span class="ind" data-ind-for="repo_id"></span>
+        </label>
+        <p class="muted iw-callout iw-callout-dim iw-callout-hint full" id="repo_hint">
+          Pick which virtual repo this policy targets. The REST source URL,
+          source name, and source identifier below auto-fill from the selected
+          repo's hostname and Repo ID. Edit them only if you need to override
+          the defaults.
+        </p>
+        <label class="full">
+          <span class="lbl req">Policy name</span>
+          <input type="text" id="policy_name" placeholder="RingoSystems - WinGet Lockdown" data-required>
+          <span class="ind" data-ind-for="policy_name"></span>
+        </label>
+        <label class="full">
+          <span class="lbl">Description</span>
+          <input type="text" id="description"
+                 placeholder="Generated by RepoFabric (RingoSystems Heavy Industries). Locks the DesktopAppInstaller surface and pins clients to the private REST source.">
+          <span class="ind"></span>
+        </label>
+        <label>
+          <span class="lbl req">REST source URL</span>
+          <input type="url" id="source_url" placeholder="https://winget.example.com/api/" data-required>
+          <span class="ind" data-ind-for="source_url"></span>
+        </label>
+        <label>
+          <span class="lbl">Source name</span>
+          <input type="text" id="source_name" value="repofabric">
+          <span class="ind"></span>
+        </label>
+        <label>
+          <span class="lbl">Source identifier</span>
+          <input type="text" id="source_identifier" value="RfPrivate">
+          <span class="ind"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Section 1: Client surface (is the winget tool itself available?) -->
+    <section class="iw-section" data-section="client">
+      <div class="iw-section-head">
+        <span class="iw-status-pill ok" id="pill-client"></span>
+        <h2>Client surface</h2>
+        <span class="iw-counter">whether winget runs at all, and whether users can change its settings</span>
+      </div>
+      <div id="policies-client"></div>
+    </section>
+
+    <!-- Section 2: Hardening overrides (block the --ignore-* style escape hatches) -->
+    <section class="iw-section" data-section="hardening">
+      <div class="iw-section-head">
+        <span class="iw-status-pill ok" id="pill-hardening"></span>
+        <h2>Hardening overrides</h2>
+        <span class="iw-counter">block sideloading, hash bypass, malware-scan bypass, drive-by installs</span>
+      </div>
+      <div id="policies-hardening"></div>
+    </section>
+
+    <!-- Section 3: Public sources -->
+    <section class="iw-section" data-section="public">
+      <div class="iw-section-head">
+        <span class="iw-status-pill ok" id="pill-public"></span>
+        <h2>Public sources</h2>
+        <span class="iw-counter">community winget source and Microsoft Store source</span>
+      </div>
+      <div id="policies-public"></div>
+    </section>
+
+    <!-- Section 4: Private REST source -->
+    <section class="iw-section" data-section="private">
+      <div class="iw-section-head">
+        <span class="iw-status-pill ok" id="pill-private"></span>
+        <h2>Private REST source (this server)</h2>
+        <span class="iw-counter">the linchpin: forces our source onto every endpoint and restricts to only ours</span>
+      </div>
+      <div id="policies-private"></div>
+      <div class="iw-int-input iw-mt-8">
+        <label>
+          <span class="lbl">SourceAutoUpdateInterval</span>
+          <input type="number" id="source_auto_update_minutes" min="0" max="10080" value="60">
+          <span class="ind"></span>
+          <span class="muted">minutes. How often the client refreshes source metadata from the REST endpoint. 0 = do not push this policy (winget client default applies).</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Section 5: Out-of-scope notes -->
+    <section class="iw-section">
+      <div class="iw-section-head">
+        <h2>Out of scope for this policy</h2>
+      </div>
+      <div class="iw-callout iw-callout-dim">
+        <p>
+          <strong>Per-install silent mode:</strong> the DesktopAppInstaller CSP does
+          not have a "force silent" toggle. Silent behaviour is driven by each
+          manifest's <code>InstallerSwitches.Silent</code> field, which this tool
+          already sets when you publish a custom app.
+        </p>
+        <p>
+          <strong>TLS validation for REST sources:</strong> winget validates the
+          REST endpoint against the system trust store automatically. There is no
+          CSP toggle to relax or tighten that for sources other than the
+          Microsoft Store. If your server uses an internal CA, that CA must be
+          trusted by the endpoint (Intune trusted-certificate profile).
+        </p>
+      </div>
+    </section>
+
+    <!-- Section 6: Export + preview -->
+    <section class="iw-section">
+      <div class="iw-section-head">
+        <span class="iw-status-pill" id="pill-export"></span>
+        <h2>Export</h2>
+        <span class="iw-counter" id="counter-export">live preview updates as you change settings above</span>
+      </div>
+      <div class="iw-actions">
+        <button type="button" class="primary" id="downloadBtn" disabled>Download Settings Catalog JSON</button>
+        <button type="button" id="toggleOmaBtn">Show OMA-URI table</button>
+        <button type="button" id="copyBtn">Copy JSON to clipboard</button>
+        <span class="muted" id="exportHint">Fill the red fields, then download.</span>
+      </div>
+      <div class="iw-preview iw-mt-10">
+        <div>
+          <h3 class="iw-pane-head">Settings Catalog JSON (preview)</h3>
+          <pre id="jsonPreview" class="iw-output">{}</pre>
+        </div>
+        <div id="omaPanel" hidden>
+          <h3 class="iw-pane-head">OMA-URI breakdown <small class="muted">(for the legacy Custom Configuration Profile route)</small></h3>
+          <table class="iw-oma-table">
+            <thead><tr><th>Policy</th><th>OMA-URI path</th><th>Data type</th><th>Value</th></tr></thead>
+            <tbody id="omaBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <template id="policyTemplate">
+    <div class="iw-policy">
+      <div class="iw-policy-head">
+        <span class="iw-status-pill ok" data-policy-pill></span>
+        <strong data-policy-name></strong>
+        <span class="iw-policy-tag" data-policy-rec></span>
+        <span class="iw-state">
+          <label><input type="radio" value="enabled">       Enabled</label>
+          <label><input type="radio" value="disabled">      Disabled</label>
+          <label><input type="radio" value="not_configured">Not configured</label>
+        </span>
+      </div>
+      <div class="iw-policy-consequences">
+        <div class="iw-conseq en" data-conseq="enabled">
+          <strong>If Enabled</strong>
+          <span data-text-enabled></span>
+        </div>
+        <div class="iw-conseq di" data-conseq="disabled">
+          <strong>If Disabled</strong>
+          <span data-text-disabled></span>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script src="./intune-deploy.js" type="module"></script>
+</body>
+</html>

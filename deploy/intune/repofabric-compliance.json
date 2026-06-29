@@ -1,0 +1,64 @@
+{
+  "_comment": "RepoFabric peer-caching compliance policy. Flags endpoints where BranchCache, BITS Peercaching, or DO has drifted from the desired state. Implemented as a Custom Compliance Policy in Intune (Devices -> Compliance -> Create policy -> Windows 10+ -> Custom). The discovery script runs locally on each endpoint and returns a JSON object that Intune compares against the rules below. See deploy/intune/README.md for the import walkthrough. Operated by RingoSystems Heavy Industries.",
+
+  "discoveryScript": {
+    "description": "Runs on the endpoint, returns a JSON object whose keys are referenced in the 'rules' array below.",
+    "language": "powershell",
+    "runAs": "system",
+    "runAs64": true,
+    "body": "$result = @{}\n# BranchCache service state\ntry { $svc = Get-Service -Name PeerDistSvc -ErrorAction Stop; $result.BranchCacheRunning = $svc.Status -eq 'Running' } catch { $result.BranchCacheRunning = $false }\n# BranchCache mode (1 = Distributed, 2 = Hosted)\ntry { $result.BranchCacheMode = (Get-BCStatus -ErrorAction Stop).BranchCacheStatus.BranchCacheServiceStatus } catch { $result.BranchCacheMode = 'unknown' }\n# BITS Peercaching enabled (registry; HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\BITS\\EnablePeerCaching)\n$bits = Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\BITS' -Name EnablePeerCaching -ErrorAction SilentlyContinue\n$result.BitsPeercachingEnabled = ($bits.EnablePeerCaching -eq 1)\n# Delivery Optimization Download Mode (must be 1, 2, or 3 to peer)\ntry { $result.DODownloadMode = (Get-DeliveryOptimizationStatus -ErrorAction Stop).DownloadMode } catch { $result.DODownloadMode = -1 }\n# Firewall rule groups enabled\n$bcHttp = Get-NetFirewallRule -DisplayGroup 'BranchCache - Content Retrieval (Uses HTTP)' -ErrorAction SilentlyContinue | Where-Object Enabled -eq 'True'\n$bcWsd  = Get-NetFirewallRule -DisplayGroup 'BranchCache - Peer Discovery (Uses WSD)'      -ErrorAction SilentlyContinue | Where-Object Enabled -eq 'True'\n$result.FirewallHttpEnabled = [bool]$bcHttp\n$result.FirewallWsdEnabled  = [bool]$bcWsd\n($result | ConvertTo-Json -Compress)"
+  },
+
+  "rules": [
+    {
+      "settingName": "BranchCacheRunning",
+      "operator": "IsEquals",
+      "dataType": "Boolean",
+      "operand": true,
+      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric/blob/main/deploy/intune/README.md",
+      "remediationStrings": [
+        { "language": "en_US", "title": "BranchCache service is not running", "description": "The PeerDistSvc service is required for peer-to-peer installer caching. Reboot or contact IT." }
+      ]
+    },
+    {
+      "settingName": "BitsPeercachingEnabled",
+      "operator": "IsEquals",
+      "dataType": "Boolean",
+      "operand": true,
+      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric/blob/main/deploy/intune/README.md",
+      "remediationStrings": [
+        { "language": "en_US", "title": "BITS Peercaching is not enabled", "description": "Without BITS Peercaching, this endpoint will not share installer blocks with peers and will not benefit from peer-cached installs. Ensure the 'RepoFabric - Peer caching' Intune profile has applied." }
+      ]
+    },
+    {
+      "settingName": "DODownloadMode",
+      "operator": "IsGreaterThanOrEqual",
+      "dataType": "Int64",
+      "operand": 1,
+      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric/blob/main/deploy/intune/README.md",
+      "remediationStrings": [
+        { "language": "en_US", "title": "Delivery Optimization is disabled", "description": "DO Download Mode must be 1 or higher for peer-share to function. Ensure the 'RepoFabric - Peer caching' Intune profile has applied." }
+      ]
+    },
+    {
+      "settingName": "FirewallHttpEnabled",
+      "operator": "IsEquals",
+      "dataType": "Boolean",
+      "operand": true,
+      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric/blob/main/deploy/intune/README.md",
+      "remediationStrings": [
+        { "language": "en_US", "title": "BranchCache HTTP firewall rule is disabled", "description": "Inbound TCP 80 from the local subnet must be allowed for peer-share to function. Ensure the Endpoint Security Firewall profile activates 'BranchCache - Content Retrieval (Uses HTTP)'." }
+      ]
+    },
+    {
+      "settingName": "FirewallWsdEnabled",
+      "operator": "IsEquals",
+      "dataType": "Boolean",
+      "operand": true,
+      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric/blob/main/deploy/intune/README.md",
+      "remediationStrings": [
+        { "language": "en_US", "title": "BranchCache peer discovery firewall rule is disabled", "description": "Inbound UDP 3702 (WS-Discovery) from the local subnet must be allowed for peer-share to function. Ensure the Endpoint Security Firewall profile activates 'BranchCache - Peer Discovery (Uses WSD)'." }
+      ]
+    }
+  ]
+}

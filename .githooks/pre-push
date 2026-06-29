@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Opt-in pre-push hook: runs the CI-parity build+tests before allowing a push,
+# so a red build never reaches the remote (and never reaches a merge).
+#
+# Enable once per clone:   git config core.hooksPath .githooks
+# Skip for a single push:  PREPUSH_SKIP=1 git push   (use sparingly)
+set -euo pipefail
+
+if [ "${PREPUSH_SKIP:-0}" = "1" ]; then
+  echo "pre-push: skipped via PREPUSH_SKIP=1"
+  exit 0
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+if ! command -v docker >/dev/null 2>&1; then
+  echo "pre-push: docker not found; cannot run CI parity. Install docker or set PREPUSH_SKIP=1 to override." >&2
+  exit 1
+fi
+
+echo "pre-push: running CI parity (scripts/ci-local.sh) before push..."
+bash "$ROOT/scripts/ci-local.sh"
+echo "pre-push: CI parity passed; allowing push."

@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Publish custom app, RingoSystems Heavy Industries</title>
+  <link rel="stylesheet" href="./repofabric-tokens.css">
+  <link rel="stylesheet" href="./setup/setup.css">
+  <link rel="stylesheet" href="./app-linux.css">
+  <style>
+    /* Compact single-page wizard. Three columns: status rail (left),
+       form (middle), preview/help (right) on wide screens; stacks on
+       narrow viewports. */
+    main.publish-custom {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .pc-drop {
+      border: 2px dashed #555;
+      border-radius: 6px;
+      padding: 18px;
+      text-align: center;
+      cursor: pointer;
+      background: rgba(255,255,255,0.02);
+      transition: border-color .15s, background .15s;
+    }
+    .pc-drop.over { border-color: #5b9bff; background: rgba(91,155,255,0.08); }
+    .pc-drop.has-file { border-style: solid; border-color: #2c7a3a; padding: 10px 18px; }
+    .pc-drop input[type=file] { display: none; }
+    .pc-summary { font-size: 13px; }
+    .pc-summary code { background: rgba(255,255,255,0.05); padding: 0 4px; border-radius: 3px; }
+
+    .pc-section {
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.02);
+      padding: 10px 14px;
+    }
+    .pc-section-head {
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer;
+      margin: -2px -4px 8px -4px; padding: 2px 4px;
+    }
+    .pc-section-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+    .pc-section-head .pc-counter { font-size: 11px; color: #888; margin-left: auto; }
+    .pc-status-pill {
+      display: inline-block; min-width: 14px; height: 14px; border-radius: 7px;
+      background: #555;
+      border: 1px solid #222;
+    }
+    .pc-status-pill.ok      { background: #2c7a3a; }
+    .pc-status-pill.warn    { background: #b88a1c; }
+    .pc-status-pill.error   { background: #b8201c; }
+
+    .pc-fields { display: grid; grid-template-columns: 1fr; gap: 6px; }
+    @media (min-width: 800px) {
+      .pc-fields { grid-template-columns: 1fr 1fr; }
+      .pc-fields .full { grid-column: 1 / -1; }
+    }
+    .pc-fields label {
+      display: grid; grid-template-columns: 150px 1fr 22px; align-items: center;
+      gap: 6px; font-size: 13px;
+    }
+    .pc-fields label .lbl   { color: #ccc; }
+    .pc-fields label .lbl.req::after { content: ' *'; color: #d04742; }
+    .pc-fields label .ind   { text-align: center; font-size: 14px; }
+    .pc-fields label .ind.ok    { color: #4caf50; }
+    .pc-fields label .ind.warn  { color: #d6a834; }
+    .pc-fields label .ind.error { color: #f04742; }
+
+    .pc-field-hint {
+      grid-column: 1 / -1;
+      font-size: 12px;
+      color: #888;
+      margin: -2px 0 4px 156px;
+    }
+    .pc-field-hint code { background: rgba(255,255,255,0.05); padding: 0 4px; border-radius: 3px; }
+
+    .pc-publish-status {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 5px;
+      font-size: 13px;
+      line-height: 1.5;
+      border: 1px solid #333;
+      background: rgba(255,255,255,0.03);
+    }
+    .pc-publish-status.pending { border-color: #b88a1c; background: rgba(184, 138, 28, 0.10); }
+    .pc-publish-status.ok      { border-color: #2c7a3a; background: rgba(44, 122, 58, 0.15); }
+    .pc-publish-status.err     { border-color: #b8201c; background: rgba(184, 32, 28, 0.15); }
+    .pc-publish-status ul      { margin: 6px 0; padding-left: 18px; }
+    .pc-publish-status code    { background: rgba(0,0,0,0.25); padding: 1px 4px; border-radius: 3px; }
+    .pc-publish-status .pc-publish-cta {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 12px;
+      background: #2c7a3a;
+      color: #fff;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .pc-publish-status .pc-publish-cta:hover { background: #348e44; }
+
+    .pc-installer-card, .pc-locale-card {
+      border: 1px solid #2f2f2f; border-radius: 6px;
+      background: rgba(0,0,0,0.15);
+      padding: 8px 12px; margin-bottom: 8px;
+    }
+    .pc-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .pc-card-head strong { font-size: 13px; }
+    .pc-card-head .pc-card-tag { font-size: 11px; color: #aaa; padding: 1px 6px; border-radius: 3px; background: rgba(255,255,255,0.06); }
+    .pc-card-head button { margin-left: auto; }
+
+    details > summary { cursor: pointer; user-select: none; font-size: 13px; color: #9bb; margin: 4px 0; }
+
+    .pc-actions { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
+    .pc-actions .muted { font-size: 12px; }
+
+    pre.pc-output { background: rgba(0,0,0,0.25); padding: 8px; border-radius: 4px; font-size: 12px; max-height: 220px; overflow: auto; }
+
+    .collision-banner {
+      background: rgba(184, 32, 28, 0.18);
+      border: 1px solid #b8201c;
+      color: #f4d8d7;
+      padding: 8px 10px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .collision-banner code { background: rgba(0,0,0,0.25); padding: 1px 4px; border-radius: 3px; }
+    .collision-override { display: block; margin-top: 8px; color: #fff; }
+    .collision-override input { margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Publish custom app</h1>
+    <p class="muted">Drop an installer, fill the highlighted fields. Schema: WinGet manifest v1.6.0. <a href="./">back to admin</a></p>
+  </header>
+
+  <main class="publish-custom">
+
+    <!-- 0. Upload (always first, drives auto-fill) -->
+    <section class="pc-section">
+      <div class="pc-section-head">
+        <span class="pc-status-pill" id="pill-upload"></span>
+        <h2>Installer file</h2>
+        <span class="pc-counter" id="counter-upload">drop file or click</span>
+      </div>
+      <div class="pc-drop" id="drop">
+        <p id="drop-text">Drop your installer here, or click to choose a file.</p>
+        <p class="muted pc-summary" id="drop-summary" hidden></p>
+        <input type="file" id="installerFile">
+      </div>
+    </section>
+
+    <!-- 1. Identity (auto-populated after upload, operator overrides) -->
+    <section class="pc-section">
+      <div class="pc-section-head">
+        <span class="pc-status-pill" id="pill-identity"></span>
+        <h2>Identity</h2>
+        <span class="pc-counter" id="counter-identity"></span>
+      </div>
+      <div class="pc-fields">
+        <label class="full">
+          <span class="lbl req">PackageIdentifier</span>
+          <input type="text" id="PackageIdentifier" placeholder="RingoSystems.InternalTool" data-required data-pattern="^[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+$">
+          <span class="ind" data-ind-for="PackageIdentifier"></span>
+        </label>
+        <p class="pc-field-hint">
+          Auto-built as <code>&lt;prefix&gt;.&lt;Subject&gt;</code> from the uploaded MSI/EXE metadata. Prefix: <code id="pc-prefix-hint">(loading)</code>. Configure it in <a href="./#settings">Settings, Custom publish defaults</a>.
+        </p>
+        <label>
+          <span class="lbl req">PackageVersion</span>
+          <input type="text" id="PackageVersion" placeholder="1.0.0" data-required>
+          <span class="ind" data-ind-for="PackageVersion"></span>
+        </label>
+        <label>
+          <span class="lbl">DefaultLocale</span>
+          <input type="text" id="DefaultLocale" value="en-US">
+          <span class="ind" data-ind-for="DefaultLocale"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- 2. Locale info -->
+    <section class="pc-section">
+      <div class="pc-section-head">
+        <span class="pc-status-pill" id="pill-locale"></span>
+        <h2>Default locale</h2>
+        <span class="pc-counter" id="counter-locale"></span>
+      </div>
+      <div class="pc-fields">
+        <label>
+          <span class="lbl req">Publisher</span>
+          <input type="text" id="loc_Publisher" data-required data-min="2">
+          <span class="ind" data-ind-for="loc_Publisher"></span>
+        </label>
+        <label>
+          <span class="lbl req">PackageName</span>
+          <input type="text" id="loc_PackageName" data-required data-min="2">
+          <span class="ind" data-ind-for="loc_PackageName"></span>
+        </label>
+        <label>
+          <span class="lbl">License</span>
+          <input type="text" id="loc_License" value="Undefined" data-warn-on="Undefined" placeholder="Proprietary">
+          <span class="ind" data-ind-for="loc_License"></span>
+        </label>
+        <label>
+          <span class="lbl req">ShortDescription</span>
+          <input type="text" id="loc_ShortDescription" data-required data-min="3">
+          <span class="ind" data-ind-for="loc_ShortDescription"></span>
+        </label>
+        <details class="full">
+          <summary>Advanced (URLs, copyright, tags, release notes)</summary>
+          <div class="pc-fields pc-advanced-fields">
+            <label><span class="lbl">PublisherUrl</span>        <input type="url"  id="loc_PublisherUrl"><span class="ind" data-ind-for="loc_PublisherUrl"></span></label>
+            <label><span class="lbl">PublisherSupportUrl</span> <input type="url"  id="loc_PublisherSupportUrl"><span class="ind" data-ind-for="loc_PublisherSupportUrl"></span></label>
+            <label><span class="lbl">PrivacyUrl</span>          <input type="url"  id="loc_PrivacyUrl"><span class="ind" data-ind-for="loc_PrivacyUrl"></span></label>
+            <label><span class="lbl">Author</span>              <input type="text" id="loc_Author"><span class="ind"></span></label>
+            <label><span class="lbl">PackageUrl</span>          <input type="url"  id="loc_PackageUrl"><span class="ind" data-ind-for="loc_PackageUrl"></span></label>
+            <label><span class="lbl">LicenseUrl</span>          <input type="url"  id="loc_LicenseUrl"><span class="ind" data-ind-for="loc_LicenseUrl"></span></label>
+            <label><span class="lbl">Copyright</span>           <input type="text" id="loc_Copyright"><span class="ind"></span></label>
+            <label><span class="lbl">CopyrightUrl</span>        <input type="url"  id="loc_CopyrightUrl"><span class="ind" data-ind-for="loc_CopyrightUrl"></span></label>
+            <label class="full"><span class="lbl">Description</span> <textarea id="loc_Description" rows="2"></textarea><span class="ind"></span></label>
+            <label><span class="lbl">Moniker</span>             <input type="text" id="loc_Moniker"><span class="ind"></span></label>
+            <label><span class="lbl">Tags</span>                <input type="text" id="loc_Tags" placeholder="comma-separated"><span class="ind"></span></label>
+            <label><span class="lbl">ReleaseNotesUrl</span>     <input type="url"  id="loc_ReleaseNotesUrl"><span class="ind" data-ind-for="loc_ReleaseNotesUrl"></span></label>
+            <label class="full"><span class="lbl">ReleaseNotes</span> <textarea id="loc_ReleaseNotes" rows="2"></textarea><span class="ind"></span></label>
+            <label class="full"><span class="lbl">InstallationNotes</span> <textarea id="loc_InstallationNotes" rows="2"></textarea><span class="ind"></span></label>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- 3. Installers (auto-populated from upload) -->
+    <section class="pc-section">
+      <div class="pc-section-head">
+        <span class="pc-status-pill" id="pill-installers"></span>
+        <h2>Installers</h2>
+        <span class="pc-counter" id="counter-installers"></span>
+      </div>
+      <div id="installers"></div>
+      <button type="button" id="addInstaller">+ Add installer</button>
+    </section>
+
+    <!-- 4. Additional locales (optional) -->
+    <section class="pc-section">
+      <div class="pc-section-head">
+        <span class="pc-status-pill ok" id="pill-locales"></span>
+        <h2>Additional locales <small class="muted">(optional)</small></h2>
+        <span class="pc-counter" id="counter-locales"></span>
+      </div>
+      <div id="locales"></div>
+      <button type="button" id="addLocale">+ Add locale</button>
+    </section>
+
+    <!-- 5. Publish -->
+    <section class="pc-section">
+      <div class="pc-section-head">
+        <span class="pc-status-pill" id="pill-overall"></span>
+        <h2>Publish</h2>
+        <span class="pc-counter" id="counter-overall"></span>
+      </div>
+      <div class="pc-actions">
+        <button type="button" class="primary" id="publishBtn" disabled>Publish to repo</button>
+        <button type="button" id="validateBtn">Run server-side validate</button>
+        <span class="muted" id="publishHint">Fill the red fields, then Publish.</span>
+      </div>
+      <div id="publishStatus" class="pc-publish-status" hidden></div>
+      <pre id="validateOutput" class="pc-output" hidden></pre>
+    </section>
+
+  </main>
+
+  <template id="installerTemplate">
+    <div class="pc-installer-card">
+      <div class="pc-card-head">
+        <span class="pc-status-pill" data-card-pill></span>
+        <strong class="installer-label">Installer</strong>
+        <span class="pc-card-tag" data-card-tag></span>
+        <button type="button" class="installer-remove ghost">remove</button>
+      </div>
+      <div class="pc-fields">
+        <label><span class="lbl req">Architecture</span>
+          <select name="Architecture" data-required>
+            <option value="">(pick)</option>
+            <option>x64</option><option>x86</option><option>arm</option><option>arm64</option><option>neutral</option>
+          </select>
+          <span class="ind"></span>
+        </label>
+        <label><span class="lbl req">InstallerType</span>
+          <select name="InstallerType" data-required>
+            <option value="">(pick)</option>
+            <option>exe</option><option>msi</option><option>msix</option><option>appx</option>
+            <option>zip</option><option>inno</option><option>nullsoft</option><option>wix</option>
+            <option>burn</option><option>pwa</option><option>portable</option>
+          </select>
+          <span class="ind"></span>
+        </label>
+        <label><span class="lbl">Scope</span>
+          <select name="Scope"><option value="">(unset)</option><option selected>machine</option><option>user</option></select>
+          <span class="ind"></span>
+        </label>
+        <label><span class="lbl">InstallerLocale</span>
+          <input name="InstallerLocale" value="en-US">
+          <span class="ind"></span>
+        </label>
+        <label class="full"><span class="lbl">Silent switch</span>
+          <input name="sw_Silent" placeholder="/quiet /norestart">
+          <span class="ind" data-ind-for-sw="Silent"></span>
+        </label>
+        <label class="full"><span class="lbl">SilentWithProgress</span>
+          <input name="sw_SilentWithProgress" placeholder="/passive /norestart">
+          <span class="ind"></span>
+        </label>
+        <label><span class="lbl">InstallModes</span>
+          <input name="InstallModes" placeholder="interactive,silent,silentWithProgress">
+          <span class="ind"></span>
+        </label>
+        <label><span class="lbl">UpgradeBehavior</span>
+          <select name="UpgradeBehavior">
+            <option value="">(default)</option>
+            <option>install</option><option>uninstallPrevious</option><option>deny</option>
+          </select>
+          <span class="ind"></span>
+        </label>
+        <label><span class="lbl">ProductCode</span>
+          <input name="ProductCode" placeholder="(auto from MSI)">
+          <span class="ind"></span>
+        </label>
+        <label><span class="lbl">UpgradeCode</span>
+          <input name="UpgradeCode" placeholder="(auto from MSI)">
+          <span class="ind"></span>
+        </label>
+        <label><span class="lbl">PackageFamilyName</span>
+          <input name="PackageFamilyName" placeholder="(MSIX only)">
+          <span class="ind"></span>
+        </label>
+        <label><span class="lbl">MinimumOSVersion</span>
+          <input name="MinimumOSVersion" placeholder="10.0.17763.0">
+          <span class="ind"></span>
+        </label>
+        <details class="full">
+          <summary>Advanced installer fields</summary>
+          <div class="pc-fields pc-advanced-fields">
+            <label><span class="lbl">Platform</span> <input name="Platform" placeholder="Windows.Desktop"><span class="ind"></span></label>
+            <label><span class="lbl">ReleaseDate</span> <input name="ReleaseDate" placeholder="YYYY-MM-DD"><span class="ind"></span></label>
+            <label><span class="lbl">ElevationRequirement</span>
+              <select name="ElevationRequirement">
+                <option value="">(default)</option>
+                <option>elevationRequired</option><option>elevationProhibited</option><option>elevatesSelf</option>
+              </select>
+              <span class="ind"></span>
+            </label>
+            <label><span class="lbl">Interactive switch</span>          <input name="sw_Interactive"><span class="ind"></span></label>
+            <label><span class="lbl">InstallLocation switch</span>      <input name="sw_InstallLocation"><span class="ind"></span></label>
+            <label><span class="lbl">Log switch</span>                   <input name="sw_Log"><span class="ind"></span></label>
+            <label><span class="lbl">Upgrade switch</span>               <input name="sw_Upgrade"><span class="ind"></span></label>
+            <label><span class="lbl">Custom switch</span>                <input name="sw_Custom"><span class="ind"></span></label>
+            <label><span class="lbl">InstallerSuccessCodes</span>        <input name="InstallerSuccessCodes" placeholder="0,3010"><span class="ind"></span></label>
+            <label class="full"><span class="lbl">ExpectedReturnCodes (JSON)</span> <textarea name="ExpectedReturnCodes" rows="2"></textarea><span class="ind"></span></label>
+            <label><span class="lbl">UnsupportedArguments</span> <input name="UnsupportedArguments"><span class="ind"></span></label>
+            <label><span class="lbl">UnsupportedOSArchitectures</span> <input name="UnsupportedOSArchitectures"><span class="ind"></span></label>
+            <label><span class="lbl">Commands</span> <input name="Commands"><span class="ind"></span></label>
+            <label><span class="lbl">Protocols</span> <input name="Protocols"><span class="ind"></span></label>
+            <label><span class="lbl">FileExtensions</span> <input name="FileExtensions"><span class="ind"></span></label>
+            <label class="full"><span class="lbl">AppsAndFeaturesEntries (JSON)</span> <textarea name="AppsAndFeaturesEntries" rows="2"></textarea><span class="ind"></span></label>
+            <label><span class="lbl">NestedInstallerType</span>
+              <select name="NestedInstallerType">
+                <option value="">(none)</option>
+                <option>msi</option><option>exe</option><option>msix</option><option>portable</option>
+              </select>
+              <span class="ind"></span>
+            </label>
+            <label class="full"><span class="lbl">NestedInstallerFiles (JSON)</span> <textarea name="NestedInstallerFiles" rows="2"></textarea><span class="ind"></span></label>
+            <label class="full"><span class="lbl">Markets (JSON)</span> <input name="Markets"><span class="ind"></span></label>
+          </div>
+        </details>
+      </div>
+    </div>
+  </template>
+
+  <template id="localeTemplate">
+    <div class="pc-locale-card">
+      <div class="pc-card-head">
+        <span class="pc-status-pill" data-card-pill></span>
+        <strong>Locale</strong>
+        <span class="pc-card-tag" data-card-tag></span>
+        <button type="button" class="locale-remove ghost">remove</button>
+      </div>
+      <div class="pc-fields">
+        <label><span class="lbl req">PackageLocale</span> <input name="PackageLocale" value="fr-FR" data-required><span class="ind"></span></label>
+        <label><span class="lbl">Publisher</span>         <input name="Publisher"><span class="ind"></span></label>
+        <label><span class="lbl">PackageName</span>       <input name="PackageName"><span class="ind"></span></label>
+        <label><span class="lbl">ShortDescription</span>  <input name="ShortDescription"><span class="ind"></span></label>
+        <label class="full"><span class="lbl">Description</span> <textarea name="Description" rows="2"></textarea><span class="ind"></span></label>
+      </div>
+    </div>
+  </template>
+
+  <script src="./publish-custom.js" defer></script>
+</body>
+</html>

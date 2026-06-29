@@ -1,0 +1,33 @@
+/* Linux fork additions. Layered on top of app.css. */
+
+details > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+
+/* Anchor styled as toolbar button so /publish-custom.html can be middle-
+   click-able while looking native next to the JS-driven buttons. */
+.toolbar a.btn {
+  display: inline-block;
+  background: var(--accent);
+  color: white;
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1;
+}
+.toolbar a.btn:hover { filter: brightness(1.1); }
+
+/* Combined subscriptions tab: managed + custom + untracked stacked
+   with a solid divider so the operator sees what is managed vs what
+   was added by hand. */
+.combined-head { margin: 20px 0 6px 0; font-size: 14px; font-weight: 600; color: #d6dae3; }
+.combined-head small { font-weight: 400; color: #8a8f99; margin-left: 6px; }
+.combined-head-inline { display: inline; margin: 0; font-size: 14px; font-weight: 600; color: #d6dae3; }
+.combined-divider {
+  border: 0;
+  border-top: 2px solid #2a2f3a;
+  margin: 22px 0 8px 0;
+}
+.combined-untracked { margin-top: 16px; }
+.combined-untracked > summary { padding: 6px 0; }
+#custom-table tbody tr { cursor: default; }
+#untracked-table tbody tr { color: #8a8f99; }

@@ -1,0 +1,26 @@
+{
+  "_comment": "Paste this object as the value of the 'Enable Additional Sources' setting in the REPOFABRIC Settings Catalog profile (Desktop App Installer category). Replace <your-domain> and <base64-DER-of-rewinged-leaf-or-issuer-cert>. See docs/Intune-EndpointConfiguration.md sections 2.3-2.4 for the cert capture script.",
+  "Sources": [
+    {
+      "Name": "repofabric",
+      "Arg": "https://winget.<your-domain>/api/",
+      "Type": "Microsoft.Rest",
+      "Data": "",
+      "Identifier": "WingetRepoSync.Production",
+      "TrustLevel": ["Trusted"],
+      "Explicit": false,
+      "CertificatePinning": {
+        "Chains": [
+          {
+            "Chain": [
+              {
+                "Validation": ["Subject", "Issuer", "PublicKey"],
+                "EmbeddedCertificate": "<base64-DER-of-rewinged-leaf-or-issuer-cert>"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

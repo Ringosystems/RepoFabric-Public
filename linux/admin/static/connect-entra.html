@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect Microsoft Entra &middot; RepoFabric</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0f1115; color:#d6dae3; margin:0; line-height:1.5; }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    a { color:#4fa3ff; }
+    .topbar { display:flex; align-items:center; gap:.75rem; margin-bottom:.5rem; }
+    .badge { display:inline-block; background:#a6601c; color:#fff; font-size:.66rem; font-weight:700; letter-spacing:.06em; padding:.2rem .5rem; border-radius:4px; }
+    h1 { font-size:1.5rem; margin:.25rem 0 .5rem; }
+    h2 { font-size:1.05rem; margin:0 0 .25rem; }
+    p.lede { color:#aab1c0; margin:.25rem 0 1.5rem; }
+    .step { background:#161922; border:1px solid #232838; border-radius:10px; padding:1.1rem 1.25rem; margin:1rem 0; }
+    .step.is-locked { opacity:.55; }
+    .step-head { display:flex; align-items:baseline; gap:.6rem; }
+    .step-num { flex:0 0 1.6rem; height:1.6rem; line-height:1.6rem; text-align:center; border-radius:50%; background:#2a3142; color:#cfd6e4; font-weight:700; font-size:.85rem; }
+    .step-num.done { background:#1f6f43; color:#fff; }
+    .muted { color:#7d8492; }
+    .hint { color:#9aa2b1; font-size:.85rem; margin:.4rem 0 0; }
+    button, .btn { font: inherit; cursor:pointer; border:0; border-radius:6px; padding:.55rem .9rem; background:#3b82f6; color:#fff; font-weight:600; text-decoration:none; display:inline-block; }
+    button.ghost, .btn.ghost { background:transparent; color:#cfd6e4; border:1px solid #39404f; }
+    button:disabled { opacity:.5; cursor:default; }
+    .row { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin-top:.8rem; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    code.inline { background:#0b0d12; padding:.1rem .4rem; border-radius:4px; font-size:.85em; }
+    .tabs { display:flex; gap:.4rem; margin:.8rem 0 0; }
+    .tab { background:#10141d; border:1px solid #2a3142; color:#9aa2b1; border-radius:6px 6px 0 0; padding:.35rem .8rem; font-size:.85rem; }
+    .tab.is-active { background:#0b0d12; color:#fff; border-bottom-color:#0b0d12; }
+    pre.script { background:#0b0d12; border:1px solid #2a3142; border-radius:0 6px 6px 6px; padding:1rem; overflow:auto; max-height:340px; margin:0; font-size:.82rem; white-space:pre; }
+    ol.run-steps { margin:.6rem 0 0; padding-left:1.3rem; }
+    ol.run-steps li { margin:.45rem 0; }
+    .callout { background:#1a1407; border:1px solid #5c4410; border-radius:8px; padding:.7rem .9rem; margin:.8rem 0 0; color:#e8d9b0; font-size:.9rem; }
+    .callout.warn { background:#1f1010; border-color:#5c1a1a; color:#f0c9c9; }
+    label.field { display:block; margin:.8rem 0 0; }
+    label.field span.lbl { display:block; font-size:.8rem; color:#9aa2b1; margin-bottom:.25rem; }
+    input[type=text], input[type=password], textarea { width:100%; padding:.55rem .6rem; border:1px solid #2a3142; border-radius:6px; background:#0b0d12; color:#e6e6e6; font:inherit; }
+    textarea { min-height:120px; resize:vertical; font-family: ui-monospace, monospace; font-size:.82rem; }
+    .probe { margin-top:.8rem; padding:.7rem .9rem; border-radius:8px; font-size:.88rem; display:none; }
+    .probe.show { display:block; }
+    .probe.ok { background:#0e2417; border:1px solid #1f6f43; color:#bfe9cf; }
+    .probe.fail { background:#241010; border:1px solid #5c1a1a; color:#f0c9c9; }
+    .probe.pending { background:#10141d; border:1px solid #2a3142; color:#aab1c0; }
+    .probe ul { margin:.4rem 0 0; padding-left:1.2rem; }
+    .done-card { background:#0e2417; border:1px solid #1f6f43; border-radius:10px; padding:1.5rem; text-align:center; }
+    .footer-links { margin-top:1.5rem; font-size:.85rem; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+    @media (max-width:560px){ .grid-2 { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap" id="wrap">
+    <div class="topbar">
+      <span class="badge">SANDBOX</span>
+      <a href="./" class="muted" style="font-size:.85rem;">&larr; Back to admin</a>
+    </div>
+    <h1>Connect Microsoft Entra sign-in</h1>
+    <p class="lede" id="lede">
+      This deployment started with a local admin account. Connect Microsoft Entra to switch
+      sign-in to your organization's accounts. Your local admin account stays available as a
+      break-glass fallback, so you cannot lock yourself out.
+    </p>
+
+    <div id="already" class="callout" hidden>
+      Microsoft Entra is already connected for this deployment. Running this wizard again will
+      replace the stored credentials (use it to rotate the client secret or update the app
+      registration). The local admin account remains as a break-glass fallback.
+    </div>
+
+    <!-- STEP 1 ---------------------------------------------------------------->
+    <section class="step" id="step1">
+      <div class="step-head"><span class="step-num" id="num1">1</span><div>
+        <h2>Generate your Azure setup script</h2>
+        <p class="hint">RepoFabric builds a ready-to-run script that creates the app registration in
+          your tenant. The sign-in redirect URL is filled in for you, derived from this server's
+          address, so it is always exact.</p>
+      </div></div>
+      <div class="row">
+        <button id="genBtn" type="button">Generate script</button>
+        <span class="muted" id="genMsg"></span>
+      </div>
+
+      <div id="scriptBox" hidden>
+        <p class="hint" style="margin-top:1rem;">Redirect URL this app registration will trust:
+          <code class="inline" id="redirectUri"></code></p>
+        <div class="tabs">
+          <button class="tab is-active" data-shell="bash" type="button">Bash (Cloud Shell)</button>
+          <button class="tab" data-shell="powershell" type="button">PowerShell</button>
+        </div>
+        <pre class="script" id="scriptText"></pre>
+        <div class="row">
+          <button id="copyBtn" class="ghost" type="button">Copy script</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 2 ---------------------------------------------------------------->
+    <section class="step is-locked" id="step2">
+      <div class="step-head"><span class="step-num" id="num2">2</span><div>
+        <h2>Run the script in Azure Cloud Shell</h2>
+        <p class="hint">No installs needed. Cloud Shell is a terminal inside the Azure portal that is
+          already signed in as you.</p>
+      </div></div>
+
+      <ol class="run-steps">
+        <li><strong>Open Azure Cloud Shell.</strong> Click the button below (opens a new tab), sign in
+          with your Microsoft work account, and if asked to choose a shell pick <strong>Bash</strong>.</li>
+        <li><strong>Make sure you have the right role.</strong> You must be a <strong>Global Administrator</strong>
+          or <strong>Privileged Role Administrator</strong>. Granting admin consent for the Microsoft Graph
+          permissions requires it, no tool can skip this.</li>
+        <li><strong>Paste the script and press Enter.</strong> Right-click to paste (or
+          <code class="inline">Shift</code>+<code class="inline">Insert</code>). It runs in about 30 to 60 seconds.</li>
+        <li><strong>Copy all of the output.</strong> When it finishes it prints three lines that start with
+          <code class="inline">TENANT_ID=</code>, <code class="inline">CLIENT_ID=</code>, and
+          <code class="inline">CLIENT_SECRET=</code>. Select and copy the whole block.</li>
+      </ol>
+
+      <div class="row">
+        <a class="btn" id="cloudShellBtn" href="https://shell.azure.com" target="_blank" rel="noopener">Open Azure Cloud Shell &nearr;</a>
+        <span class="muted">Prefer your own machine? Run <code class="inline">az login</code> first, then paste the PowerShell tab instead.</span>
+      </div>
+
+      <div class="callout">
+        The client secret is shown only once, in that output. Keep it private, do not screenshot it.
+        It is a 2-year credential you can rotate later by re-running this wizard.
+      </div>
+    </section>
+
+    <!-- STEP 3 ---------------------------------------------------------------->
+    <section class="step is-locked" id="step3">
+      <div class="step-head"><span class="step-num" id="num3">3</span><div>
+        <h2>Paste the output and test</h2>
+        <p class="hint">Paste everything the script printed. RepoFabric fills in the three values for you.</p>
+      </div></div>
+
+      <label class="field"><span class="lbl">Script output</span>
+        <textarea id="output" placeholder="Paste the TENANT_ID= / CLIENT_ID= / CLIENT_SECRET= lines here"></textarea>
+      </label>
+      <div class="row">
+        <button id="fillBtn" class="ghost" type="button">Autofill the fields below</button>
+        <span class="muted" id="fillMsg"></span>
+      </div>
+
+      <div class="grid-2">
+        <label class="field"><span class="lbl">Tenant ID</span>
+          <input type="text" id="tenant_id" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span class="lbl">Client (application) ID</span>
+          <input type="text" id="client_id" autocomplete="off" spellcheck="false"></label>
+      </div>
+      <label class="field"><span class="lbl">Client secret</span>
+        <input type="password" id="client_secret" autocomplete="off" spellcheck="false"></label>
+
+      <div class="row">
+        <button id="probeBtn" class="ghost" type="button">Test connection</button>
+        <span class="muted">Confirms the three values are valid before you commit them.</span>
+      </div>
+      <div class="probe" id="probe"></div>
+    </section>
+
+    <!-- STEP 4 ---------------------------------------------------------------->
+    <section class="step is-locked" id="step4">
+      <div class="step-head"><span class="step-num" id="num4">4</span><div>
+        <h2>Choose who can sign in, then connect</h2>
+        <p class="hint">Limit admin access to specific people or groups. Optional, but recommended.</p>
+      </div></div>
+
+      <label class="field"><span class="lbl">Allowed users (comma-separated UPNs, e.g. you@contoso.com)</span>
+        <input type="text" id="allowed_users" autocomplete="off" spellcheck="false" placeholder="you@contoso.com, colleague@contoso.com"></label>
+      <label class="field"><span class="lbl">Allowed group IDs (comma-separated Entra group object IDs, optional)</span>
+        <input type="text" id="allowed_groups" autocomplete="off" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000"></label>
+
+      <div class="callout warn" id="openAccessWarn" hidden>
+        You left both lists empty. With no allow-list, <strong>anyone in your tenant</strong> who signs in
+        will be admitted. Add at least your own UPN above unless you really want tenant-wide access.
+      </div>
+
+      <div class="callout">
+        On connect, the credentials are saved and the admin service restarts (a few seconds). You will be
+        signed out and sent to Microsoft sign-in. The local admin account stays available at
+        <code class="inline">/admin/auth/local-login</code> as a break-glass fallback.
+      </div>
+
+      <div class="row">
+        <button id="connectBtn" type="button">Connect Microsoft Entra &amp; restart</button>
+        <span class="muted" id="connectMsg"></span>
+      </div>
+    </section>
+
+    <p class="footer-links muted">
+      Setting this up wrong? You can always sign in with the local admin account at
+      <a href="/admin/auth/local-login">/admin/auth/local-login</a>, or re-run the full first-run wizard
+      from Settings &rarr; Advanced &rarr; System.
+    </p>
+  </div>
+
+  <script src="./connect-entra.js" defer></script>
+</body>
+</html>

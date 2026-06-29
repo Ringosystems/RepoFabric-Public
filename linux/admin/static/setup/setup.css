@@ -1,0 +1,163 @@
+:root {
+  --bg: #0f1115;
+  --panel: #161922;
+  --text: #d6dae3;
+  --muted: #7d8492;
+  --accent: #4fa3ff;
+  --ok: #5ad17b;
+  --warn: #e8b94b;
+  --fail: #e25555;
+  --border: #2a2f3a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 14px/1.5 system-ui, -apple-system, Segoe UI, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+header, main, nav { max-width: 800px; margin: 0 auto; padding: 16px 20px; }
+header h1 { margin: 0 0 4px; }
+.muted { color: var(--muted); }
+
+#steps ol {
+  display: flex; gap: 4px; padding: 0; margin: 0; list-style: none; flex-wrap: wrap;
+}
+#steps li {
+  flex: 1 1 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+#steps li.active { color: var(--text); border-color: var(--accent); }
+
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 20px; margin-top: 16px; }
+.panel h2 { margin-top: 0; }
+label { display: block; margin: 10px 0; }
+label input, label select {
+  display: block; width: 100%; margin-top: 4px;
+  padding: 6px 8px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 4px;
+}
+fieldset { border: 1px solid var(--border); border-radius: 4px; padding: 8px 14px; margin: 12px 0; }
+fieldset legend { padding: 0 6px; color: var(--muted); }
+
+.actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+button {
+  padding: 8px 14px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--panel); color: var(--text); cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: #0a0d12; border-color: var(--accent); font-weight: 600; }
+
+.error { background: #4a1717; border: 1px solid var(--fail); color: #ffd2d2; padding: 8px; border-radius: 4px; margin-top: 10px; }
+
+/* Required marker on labels */
+.req { color: var(--fail); font-weight: 600; margin-left: 2px; }
+
+/* Inline help text under every input */
+label small.help,
+fieldset p.help {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+label small.help code,
+fieldset p.help code {
+  background: rgba(255,255,255,0.05);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+/* Validation: red border + inline message when a required field is
+   empty or a data-validate shape check failed */
+label.is-invalid input,
+label.is-invalid select {
+  border-color: var(--fail);
+}
+.validation-msg {
+  display: block;
+  font-size: 11.5px;
+  color: var(--fail);
+  margin-top: 3px;
+}
+
+/* Probe row: button + result panel side by side on wide viewports */
+.probe-row { display: flex; gap: 12px; align-items: flex-start; margin-top: 10px; flex-wrap: wrap; }
+.probe-row > button { flex: 0 0 auto; }
+.probe-result {
+  flex: 1 1 280px;
+  font-size: 12.5px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+  line-height: 1.45;
+}
+.probe-result:empty { display: none; }
+.probe-result ul { margin: 4px 0 0 0; padding-left: 18px; }
+.probe-result code { background: rgba(0,0,0,0.25); padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.probe-result-pending { border-color: var(--warn); }
+.probe-result-ok      { border-color: var(--ok); background: rgba(90,209,123,0.10); }
+.probe-result-fail    { border-color: var(--fail); background: rgba(226,85,85,0.10); }
+.probe-result strong  { color: var(--text); }
+.probe-result-ok strong   { color: var(--ok); }
+.probe-result-fail strong { color: var(--fail); }
+
+/* Inline checkbox label */
+label.inline-check { display: flex; align-items: center; gap: 8px; }
+label.inline-check input { display: inline-block; width: auto; }
+
+pre {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+  padding: 12px; max-height: 400px; overflow: auto; font-size: 12px;
+}
+
+.done {
+  max-width: 720px;
+  margin: 40px auto;
+  padding: 32px 36px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--ok);
+  border-radius: 8px;
+}
+.done h1 { margin-top: 0; color: var(--ok); }
+.done h2 { margin-top: 24px; font-size: 16px; }
+.done a { color: var(--accent); }
+.done a:hover { color: #6db4ff; }
+.done .done-next { margin: 0; padding-left: 22px; }
+.done .done-next li { margin: 10px 0; line-height: 1.55; }
+.done .done-next strong, .done .done-next em { color: var(--text); }
+.done code { background: rgba(0,0,0,0.25); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.done p.muted { margin-top: 24px; font-style: italic; }
+
+/* Entra app-registration bootstrap (step 4) */
+.entra-bootstrap {
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 4px; padding: 10px 14px; margin: 14px 0; background: rgba(79,163,255,0.05);
+}
+.entra-bootstrap > summary { cursor: pointer; color: var(--text); }
+.entra-bootstrap > summary strong { color: var(--accent); }
+.entra-bootstrap .entra-steps { margin: 6px 0 4px; padding-left: 20px; color: var(--muted); }
+.entra-bootstrap .entra-steps li { margin: 4px 0; }
+.entra-bootstrap a { color: var(--accent); }
+.entra-tabs { display: flex; gap: 6px; margin: 10px 0 6px; }
+.entra-tab { padding: 4px 10px; font-size: 12px; }
+.entra-tab.is-active { border-color: var(--accent); color: var(--accent); }
+.entra-script-row { position: relative; }
+.entra-script { margin: 0; }
+.entra-copy { position: absolute; top: 8px; right: 8px; font-size: 11px; padding: 4px 10px; z-index: 1; }
+.entra-bootstrap textarea {
+  width: 100%; box-sizing: border-box; margin-top: 4px; font-family: ui-monospace, monospace;
+  font-size: 12px; padding: 6px 8px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 4px;
+}
+#entraFillMsg { align-self: center; color: var(--muted); }

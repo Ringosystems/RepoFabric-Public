@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# Interactively generate a correct RepoFabric .env (instead of hand-editing
+# .env.example). Host-native twin of deploy/New-RepoFabricEnv.ps1 -- run it
+# directly on the Linux/UNRAID host that runs the stack.
+#
+# Microsoft sign-in and the Gitea token are NOT asked for: the wizard's Identity
+# step generates the Entra app for you, and the bundled Gitea is auto-provisioned.
+#
+# Every prompt can be pre-answered with an env var (handy for automation):
+#   RF_MODE=greenfield|proxy  RF_DOMAIN=...  RF_ACME_EMAIL=...  RF_SESSION_SECRET=...
+#   RF_INSTANCE=...  RF_STATE_ROOT=...  RF_APPDATA_ROOT=...
+#   RF_ADMIN_PORT=...  RF_INSTALLERS_PORT=...  RF_REWINGED_PORT=...  RF_GITEA_PORT=...
+#   RF_PATH=/path/to/.env   RF_FORCE=1
+set -euo pipefail
+
+# repo root = parent of this script's dir; .env lives next to docker-compose.yml.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+ENV_PATH="${RF_PATH:-$REPO_ROOT/.env}"
+
+gen_secret() {
+  if command -v openssl >/dev/null 2>&1; then openssl rand -hex 32
+  else head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'; fi
+}
+
+# ask VARNAME "prompt" "default" "override"
+ask() {
+  local __var=$1 prompt=$2 default=${3:-} override=${4:-} hint="" ans=""
+  if [ -n "$override" ]; then printf -v "$__var" '%s' "$override"; return; fi
+  [ -n "$default" ] && hint=" [$default]"
+  read -r -p "$prompt$hint: " ans || true
+  [ -z "$ans" ] && ans=$default
+  printf -v "$__var" '%s' "$ans"
+}
+
+# ask_required VARNAME "prompt" "override"  -- loops until non-empty
+ask_required() {
+  local __var=$1 prompt=$2 override=${3:-} val=""
+  if [ -n "$override" ]; then printf -v "$__var" '%s' "$override"; return; fi
+  while [ -z "$val" ]; do
+    read -r -p "$prompt: " val || true
+    [ -z "$val" ] && echo "  This value is required." >&2
+  done
+  printf -v "$__var" '%s' "$val"
+}
+
+echo
+echo "RepoFabric .env generator"
+echo "-------------------------"
+
+# --- mode -------------------------------------------------------------------
+MODE="${RF_MODE:-}"
+if [ -z "$MODE" ]; then
+  echo
+  echo "How will HTTPS be handled?"
+  echo "  1) Greenfield  - this host owns ports 80/443; use the bundled Caddy (automatic HTTPS)."
+  echo "  2) Behind a proxy / side-by-side - you already run a reverse proxy, or want a 2nd instance."
+  while [ "$MODE" != "greenfield" ] && [ "$MODE" != "proxy" ]; do
+    read -r -p "Choose 1 or 2: " m || true
+    case "$m" in 1) MODE=greenfield ;; 2) MODE=proxy ;; esac
+  done
+fi
+[ "$MODE" = "greenfield" ] && GREEN=1 || GREEN=0
+
+# --- core values ------------------------------------------------------------
+ask_required DOMAIN "Public hostname (e.g. winget.example.com)" "${RF_DOMAIN:-}"
+ACME=""
+[ "$GREEN" = "1" ] && ask_required ACME "Email for the Let's Encrypt certificate" "${RF_ACME_EMAIL:-}"
+
+SECRET="${RF_SESSION_SECRET:-}"
+if [ -z "$SECRET" ]; then SECRET="$(gen_secret)"; echo "  Generated a 64-character session secret."; fi
+
+# --- instance / ports / storage --------------------------------------------
+if [ "$GREEN" = "1" ]; then DEF_INSTANCE=repofabric; else DEF_INSTANCE=repofabric-test; fi
+ask INSTANCE "Instance name (namespaces containers/network/volumes)" "$DEF_INSTANCE" "${RF_INSTANCE:-}"
+
+SIDE=0
+[ "$GREEN" = "0" ] && [ "$INSTANCE" != "repofabric" ] && SIDE=1
+
+WRITE_PORTS=0
+ADMIN_PORT="${RF_ADMIN_PORT:-}"; INSTALLERS_PORT="${RF_INSTALLERS_PORT:-}"
+REWINGED_PORT="${RF_REWINGED_PORT:-}"; GITEA_PORT="${RF_GITEA_PORT:-}"
+if [ "$SIDE" = "1" ] || [ -n "$ADMIN_PORT$INSTALLERS_PORT$REWINGED_PORT$GITEA_PORT" ]; then
+  WRITE_PORTS=1
+  [ "$SIDE" = "1" ] && echo "  Side-by-side: ports MUST differ from the running instance."
+  if [ "$SIDE" = "1" ]; then dA=8096; dI=8101; dR=8100; dG=3040; else dA=8086; dI=8091; dR=8090; dG=3030; fi
+  ask ADMIN_PORT      "  Admin UI host port"          "$dA" "$ADMIN_PORT"
+  ask INSTALLERS_PORT "  Installer file-server port"  "$dI" "$INSTALLERS_PORT"
+  ask REWINGED_PORT   "  rewinged host port"          "$dR" "$REWINGED_PORT"
+  ask GITEA_PORT      "  Gitea host port"             "$dG" "$GITEA_PORT"
+fi
+
+if [ "$INSTANCE" = "repofabric" ]; then
+  DEF_STATE=/mnt/cache/appdata/repofabric-linux; DEF_APPDATA=/mnt/user/appdata/repofabric
+else
+  DEF_STATE="/mnt/cache/appdata/$INSTANCE-linux"; DEF_APPDATA="/mnt/user/appdata/$INSTANCE"
+fi
+WRITE_STORAGE=0
+STATE_ROOT="${RF_STATE_ROOT:-}"; APPDATA_ROOT="${RF_APPDATA_ROOT:-}"
+if [ "$SIDE" = "1" ] || [ -n "$STATE_ROOT$APPDATA_ROOT" ]; then
+  WRITE_STORAGE=1
+  ask STATE_ROOT   "  State root (SSD)"     "$DEF_STATE"   "$STATE_ROOT"
+  ask APPDATA_ROOT "  Appdata root (bulk)"  "$DEF_APPDATA" "$APPDATA_ROOT"
+fi
+
+# --- build .env -------------------------------------------------------------
+if [ "$GREEN" = "1" ]; then START="docker compose --profile proxy up -d"; MODE_DESC="greenfield (bundled Caddy, automatic HTTPS)"
+else START="docker compose up -d"; MODE_DESC="behind your own reverse proxy / side-by-side"; fi
+
+TMP="$(mktemp)"
+{
+  echo "# RepoFabric environment - generated by deploy/new-repofabric-env.sh"
+  echo "# Mode: $MODE_DESC"
+  echo "# Start:  $START"
+  echo "# Then open  https://<domain>/setup/  and follow the wizard."
+  echo
+  echo "# ---- required ----"
+  echo "REPOFABRIC_DOMAIN=$DOMAIN"
+  [ "$GREEN" = "1" ] && echo "REPOFABRIC_ACME_EMAIL=$ACME"
+  echo "REPOFABRIC_SESSION_SECRET=$SECRET"
+  echo
+  echo "# ---- Microsoft sign-in: leave blank and generate it in the wizard Identity step ----"
+  echo "REPOFABRIC_ENTRA_TENANT_ID="
+  echo "REPOFABRIC_ENTRA_CLIENT_ID="
+  echo "REPOFABRIC_ENTRA_CLIENT_SECRET="
+  echo
+  echo "# ---- Gitea is auto-provisioned; leave unset. Set only to use your OWN Gitea token. ----"
+  echo "#REPOFABRIC_GITEA_PAT="
+  echo
+  echo "# ---- instance / side-by-side ----"
+  echo "REPOFABRIC_INSTANCE=$INSTANCE"
+  if [ "$WRITE_PORTS" = "1" ]; then
+    echo "REPOFABRIC_ADMIN_HOST_PORT=$ADMIN_PORT"
+    echo "REPOFABRIC_INSTALLERS_HOST_PORT=$INSTALLERS_PORT"
+    echo "REPOFABRIC_REWINGED_HOST_PORT=$REWINGED_PORT"
+    echo "REPOFABRIC_GITEA_HOST_PORT=$GITEA_PORT"
+  fi
+  if [ "$WRITE_STORAGE" = "1" ]; then
+    echo
+    echo "# ---- storage (must differ between instances) ----"
+    echo "REPOFABRIC_STATE_ROOT=$STATE_ROOT"
+    echo "REPOFABRIC_APPDATA_ROOT=$APPDATA_ROOT"
+  fi
+} > "$TMP"
+
+# --- confirm + write --------------------------------------------------------
+echo
+echo "About to write $ENV_PATH :"
+sed 's/^\(REPOFABRIC_SESSION_SECRET=\).*/\1********/' "$TMP"
+if [ -e "$ENV_PATH" ] && [ "${RF_FORCE:-0}" != "1" ]; then
+  read -r -p "$ENV_PATH exists. Back it up and overwrite? [Y/n]: " ow || true
+  case "${ow:-Y}" in n|N|no|NO) echo "Aborted; existing .env left untouched."; rm -f "$TMP"; exit 0 ;; esac
+fi
+if [ -e "$ENV_PATH" ]; then
+  BK="$ENV_PATH.bak-$(date +%Y%m%d-%H%M%S)"; cp "$ENV_PATH" "$BK"; echo "Backed up existing .env -> $BK"
+fi
+mv "$TMP" "$ENV_PATH"
+echo
+echo "Wrote $ENV_PATH"
+echo "Next:"
+echo "  cd \"$REPO_ROOT\""
+echo "  $START"
+echo "  # then open  https://$DOMAIN/setup/"
