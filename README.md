@@ -165,6 +165,14 @@ winget install --source repofabric --id <PackageId>
 
 It registers the RepoFabric WinGet source as Trusted, sets silent-install defaults, and, for self-signed or non-standard-port hosts, maps the Local Intranet zone. Free and open source, no per-endpoint charges. For fleet rollout, deploy the same operations through Microsoft Intune instead of running the module by hand (see [`docs/Intune-EndpointConfiguration.md`](docs/Intune-EndpointConfiguration.md)).
 
+## Guides
+
+In-depth guides, also published as a docs site at [ringosystems.github.io/RepoFabric-Public](https://ringosystems.github.io/RepoFabric-Public/):
+
+- [Private WinGet source for Microsoft Intune](website/docs/private-winget-source-for-intune.md)
+- [Automated WinGet deployment and CI/CD](website/docs/automated-winget-deployment-and-ci-cd.md)
+- [WinGet for Azure Arc-enabled servers](website/docs/winget-for-azure-arc.md)
+
 ## Where things live
 
 - [`linux/`](linux/), the deployed container. PowerShell module under `linux/src/`, Node admin under `linux/admin/`, container infra at the root.

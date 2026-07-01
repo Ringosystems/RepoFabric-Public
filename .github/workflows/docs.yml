@@ -1,0 +1,63 @@
+# Build and deploy the RepoFabric docs site (MkDocs Material) to GitHub Pages.
+#
+# WHERE THIS RUNS: only from the PUBLIC mirror repo (Ringosystems/RepoFabric-Public),
+# same guard as the other publish workflows. The private mirror never deploys.
+#
+# ONE-TIME SETUP (on the PUBLIC repo): enable GitHub Pages with "GitHub Actions" as
+# the source (Settings -> Pages -> Build and deployment -> Source: GitHub Actions),
+# or run:  gh api -X POST repos/Ringosystems/RepoFabric-Public/pages -f build_type=workflow
+# The site then serves at https://ringosystems.github.io/RepoFabric-Public/
+
+name: Docs site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-deploy:
+    name: Build and deploy the docs site
+    if: endsWith(github.repository, 'RepoFabric-Public')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install MkDocs Material
+        run: pip install mkdocs-material
+
+      - name: Build (strict)
+        run: mkdocs build --strict -f website/mkdocs.yml
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
