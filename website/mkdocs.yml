@@ -3,7 +3,7 @@ site_description: >-
   Free, self-hosted, private WinGet source for Microsoft-managed fleets. Native
   Microsoft Intune, Entra ID, and Azure Arc integration, a REST and PowerShell
   automation surface, and a GUI admin console. No license fees, no per-endpoint charges.
-site_url: https://ringosystems.github.io/RepoFabric-Public/
+site_url: https://ringosystems.com/RepoFabric-Public/
 repo_url: https://github.com/Ringosystems/RepoFabric-Public
 repo_name: Ringosystems/RepoFabric-Public
 copyright: Copyright (c) 2026 RingoSystems Heavy Industries. MIT licensed.

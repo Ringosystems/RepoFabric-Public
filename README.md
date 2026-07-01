@@ -167,7 +167,7 @@ It registers the RepoFabric WinGet source as Trusted, sets silent-install defaul
 
 ## Guides
 
-In-depth guides, also published as a docs site at [ringosystems.github.io/RepoFabric-Public](https://ringosystems.github.io/RepoFabric-Public/):
+In-depth guides, also published as a docs site at [ringosystems.com/RepoFabric-Public](https://ringosystems.com/RepoFabric-Public/):
 
 - [Private WinGet source for Microsoft Intune](website/docs/private-winget-source-for-intune.md)
 - [Automated WinGet deployment and CI/CD](website/docs/automated-winget-deployment-and-ci-cd.md)

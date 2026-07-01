@@ -6,7 +6,7 @@
 # ONE-TIME SETUP (on the PUBLIC repo): enable GitHub Pages with "GitHub Actions" as
 # the source (Settings -> Pages -> Build and deployment -> Source: GitHub Actions),
 # or run:  gh api -X POST repos/Ringosystems/RepoFabric-Public/pages -f build_type=workflow
-# The site then serves at https://ringosystems.github.io/RepoFabric-Public/
+# The site serves at the org Pages domain: https://ringosystems.com/RepoFabric-Public/
 
 name: Docs site
 
