@@ -87,7 +87,7 @@ Hardens the 0.8.1 ConfigFabric integration. A multi-agent audit of the cross-fab
 
 ## [0.8.1] - 2026-06-04 - integrated ConfigFabric sidecar
 
-The M6 bolt-on as a named release: a ConfigFabric sidecar co-hosted on RepoFabric over loopback web-service seams. The cross-fabric signed lock-gate was validated live end-to-end on 2026-06-04. The bolt-on bearer is accepted, the RFC 9421 signature verifies (`VERIFIED keyid=repofabric`), and ConfigFabric returns a real allow/deny verdict that RepoFabric honors, all in observe mode. The observe-to-enforce cut-over is deferred post-launch per FD-024. Released as `v0.8.1` on 2026-06-04. See [`ROADMAP.md`](ROADMAP.md) §0.8.1.
+The M6 bolt-on as a named release: a ConfigFabric sidecar co-hosted on RepoFabric over loopback web-service seams. The cross-fabric signed lock-gate was validated live end-to-end on 2026-06-04. The bolt-on bearer is accepted, the RFC 9421 signature verifies (`VERIFIED keyid=repofabric`), and ConfigFabric returns a real allow/deny verdict that RepoFabric honors, all in observe mode. The observe-to-enforce cut-over is deferred post-launch per FD-024. Released as `v0.8.1` on 2026-06-04. See `ROADMAP.md` §0.8.1.
 
 ### Added
 
@@ -100,7 +100,7 @@ The M6 bolt-on as a named release: a ConfigFabric sidecar co-hosted on RepoFabri
 - **Cross-fabric standards** ratified family-wide: the collaboration protocol (#15) and the `ecdsa-p256-sha256` signed-coordination scheme (#16).
 - **Outbound M2M signing** (#16): RepoFabric signs its lock-gate calls to ConfigFabric (RFC 9421 / `ecdsa-p256-sha256`, IEEE-P1363) so the peer can authenticate it; no-op when `signing.mode = off`. (#24)
 - **Cross-host bridge legs**: pre-auth pass-through for `catalog:read` / `audit:write` so a peer on another host reaches RepoFabric over the reverse proxy, with `@authority` / `@target-uri` reconciliation from `X-Forwarded-*`. (#25)
-- **Cross-fabric coordination (C2) tooling**: the collaboration protocol gains **Rule 7** (inbound items are a top-priority interrupt, #27) and a standardized **operator-communication format** (#28); an append-only decision registry ([`docs/c2/DECISIONS.md`](docs/c2/DECISIONS.md)), a peer roster ([`coordination/peers.json`](coordination/peers.json)), coordination mechanics (governance markers + delegated-subagent freshness gate), N-party issue templates, `CODEOWNERS`, and GitHub Actions for an event bus, a STATUS+SLA board, broadcast fan-out, and a registry-sync gate (inert until a `FABRIC_BUS_TOKEN` is provisioned). (#29, #30)
+- **Cross-fabric coordination (C2) tooling**: the collaboration protocol gains **Rule 7** (inbound items are a top-priority interrupt, #27) and a standardized **operator-communication format** (#28); an append-only decision registry (`docs/c2/DECISIONS.md`), a peer roster (`coordination/peers.json`), coordination mechanics (governance markers + delegated-subagent freshness gate), N-party issue templates, `CODEOWNERS`, and GitHub Actions for an event bus, a STATUS+SLA board, broadcast fan-out, and a registry-sync gate (inert until a `FABRIC_BUS_TOKEN` is provisioned). (#29, #30)
 
 ### Fixed
 
@@ -114,7 +114,7 @@ The M6 bolt-on as a named release: a ConfigFabric sidecar co-hosted on RepoFabri
 
 ## [0.8.0] - 2026-06-02 - client-side bandwidth optimization
 
-Cuts the bytes transferred from the central RepoFabric host to managed endpoints during `winget install` by advertising PeerDist content hashes on the installer route. BITS-driven Windows clients use the hash table to find peers on their subnet via Windows BranchCache and Delivery Optimization, and pull blocks from each other instead of from the central host. The behaviour is gated behind a kill-switch flag (default off), so the upgrade is byte-for-byte equivalent to 0.7.9 until an operator opts in. Released as `v0.8.0` on 2026-06-02. See [`docs/0.8.0-bandwidth-plan.md`](docs/0.8.0-bandwidth-plan.md) for the full design.
+Cuts the bytes transferred from the central RepoFabric host to managed endpoints during `winget install` by advertising PeerDist content hashes on the installer route. BITS-driven Windows clients use the hash table to find peers on their subnet via Windows BranchCache and Delivery Optimization, and pull blocks from each other instead of from the central host. The behaviour is gated behind a kill-switch flag (default off), so the upgrade is byte-for-byte equivalent to 0.7.9 until an operator opts in. Released as `v0.8.0` on 2026-06-02. See `docs/0.8.0-bandwidth-plan.md` for the full design.
 
 ### Added
 

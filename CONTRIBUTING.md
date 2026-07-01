@@ -18,8 +18,8 @@ Operated by RingoSystems Heavy Industries. Thanks for the interest. This documen
   - [`linux/Dockerfile`](linux/Dockerfile), [`linux/docker-compose.yml`](linux/docker-compose.yml), [`linux/supervisord.conf`](linux/supervisord.conf), [`linux/crontab`](linux/crontab), [`linux/entrypoint.sh`](linux/entrypoint.sh) - container infra.
   - [`linux/schemas/`](linux/schemas/) - vendored WinGet manifest schemas (used by both the publisher and the validator).
 - [`deploy/`](deploy/) - companion compose (Gitea + rewinged), bootstrap script, migrate script, Intune assets.
-- [`docs/`](docs/) - operator- and stakeholder-facing docs: the solution overview, the Intune endpoint configuration, and marketing collateral.
-- Root - the planning docs ([`README.md`](README.md), [`CHANGELOG.md`](CHANGELOG.md), and this file).
+- [`docs/`](docs/) - operator- and stakeholder-facing docs: the solution overview, the Intune endpoint configuration, the 0.8.0 bandwidth-optimization design, and marketing collateral.
+- Root - the planning docs ([`README.md`](README.md), `ROADMAP.md`, [`CHANGELOG.md`](CHANGELOG.md), `HANDOFF.md`, and this file).
 
 ## Build and run locally
 
@@ -69,5 +69,6 @@ Tests that touch private functions wrap their bodies in `InModuleScope RepoFabri
 
 1. Bump `ModuleVersion` in [`linux/src/RepoFabric.psd1`](linux/src/RepoFabric.psd1).
 2. Add a `## [<version>] - <date>` entry to [`CHANGELOG.md`](CHANGELOG.md) following Keep a Changelog conventions.
-3. Tag `v<version>` on `main` after the PR merges.
-4. The container rebuild is the operator's responsibility; the deploy block in the PR description covers the commands.
+3. Update `ROADMAP.md` if the milestone state shifts.
+4. Tag `v<version>` on `main` after the PR merges.
+5. The UNRAID rebuild is the operator's responsibility; the deploy block in the PR description covers the commands.

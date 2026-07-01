@@ -30,7 +30,7 @@ and [.github/workflows/ci.yml](.github/workflows/ci.yml).
   run on every pull request that touches the admin app's `package.json` or
   `package-lock.json`. The admin app ships a small, pinned dependency set
   (`npm ci --omit=dev`).
-- **Container image (the published `repofabric-linux` image).** Trivy scans the
+- **Container image (the published `ringosystems/repofabric` image).** Trivy scans the
   freshly built image weekly and on demand for **HIGH and CRITICAL** OS and
   library vulnerabilities. The gate is `ignore-unfixed: true`, so it fails the
   build whenever a CVE that **has a fix available** appears, and it
@@ -44,7 +44,7 @@ and [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## Image CVE posture (inherited base vulnerabilities)
 
-The `repofabric-linux` image is built on `mcr.microsoft.com/powershell` (Debian
+The `ringosystems/repofabric` image is built on `mcr.microsoft.com/powershell` (Debian
 12) and runs `apt-get dist-upgrade` during the build so it ships every security
 patch the distribution has released at build time. After that step there are
 **zero fixable HIGH/CRITICAL CVEs** in the image.

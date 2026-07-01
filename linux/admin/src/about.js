@@ -39,7 +39,7 @@ const PRODUCT = {
   vendor:    'RingoSystems Heavy Industries',
   license:   'MIT',
   copyright: 'Copyright (c) 2026 RingoSystems Heavy Industries',
-  repoUrl:   'https://github.com/Ringosystems/RepoFabric',
+  repoUrl:   'https://github.com/Ringosystems/RepoFabric-Public',
   // Static text artifacts under the admin static root (relative to /admin/).
   // These mirror the repo-root LICENSE and THIRD-PARTY-NOTICES.md.
   licenseUrl: 'about/LICENSE.txt',

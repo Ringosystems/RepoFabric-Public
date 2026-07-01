@@ -3,7 +3,7 @@
 // Owns a SQLite database at /var/lib/repofabric/metrics.db that records one
 // row per installer download request. The Bandwidth admin UI tab reads
 // from this database to surface savings ratios per subnet, per installer,
-// and over time.
+// and over time. See docs/0.8.0-bandwidth-plan.md for the design.
 //
 // Two tables:
 //

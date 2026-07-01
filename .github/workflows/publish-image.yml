@@ -1,0 +1,140 @@
+# Publish the single RepoFabric application image to Docker Hub and GHCR.
+#
+# ONE image serves EVERY deployment. The Sandbox trial and both production
+# flavours run the same bytes and differ only at runtime, not in the image, so
+# there is one registry repository and one Docker Hub page for all of them. See
+# docs/deployment.md ("Same code, one image").
+#
+# WHERE THIS RUNS: only from the PUBLIC mirror repo (Ringosystems/RepoFabric-Public).
+# The file also rides along to the private repo through the promotion sync, but
+# the repository guard below keeps the private mirror from ever publishing. To
+# release: flip the public repo public, then push a version tag there (e.g.
+# v0.9.0) or run this workflow manually with a tag.
+#
+# REQUIRED SECRETS (set on the PUBLIC repo, Settings -> Secrets -> Actions):
+#   DOCKERHUB_USERNAME  Docker Hub account/org that owns ringosystems/repofabric
+#   DOCKERHUB_TOKEN     Docker Hub access token with Read+Write+Delete scope
+# GHCR uses the built-in GITHUB_TOKEN (the packages: write permission below).
+
+name: Publish image
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to push, e.g. 0.9.0 (also moves :latest).'
+        required: true
+        default: '0.9.0'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build once, push to Docker Hub + GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    # Only the public mirror publishes. The private repo carries this file after a
+    # promotion sync, but the guard skips the whole job there, so the DOCKERHUB
+    # secret references are never evaluated on the private side.
+    if: endsWith(github.repository, 'RepoFabric-Public')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Warm buildkit image (retry transient Docker Hub timeouts)
+        # Mirrors the CI job: pull the builder image first with backoff so the
+        # buildx bootstrap finds it locally instead of failing on a Hub timeout.
+        run: |
+          set -e
+          img=moby/buildkit:buildx-stable-1
+          n=0
+          until [ "$n" -ge 5 ]; do
+            if docker pull "$img"; then break; fi
+            n=$((n+1)); echo "pull $img failed (attempt $n/5), retry in $((n*10))s"; sleep $((n*10))
+          done
+          [ "$n" -lt 5 ] || { echo "::error::could not pull $img after 5 attempts"; exit 1; }
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:buildx-stable-1
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
+
+      - name: Compute image tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ringosystems/repofabric
+            ghcr.io/ringosystems/repofabric
+          # Semver tags come from the pushed git tag (v0.9.0 -> 0.9.0 and 0.9).
+          # A manual run uses the tag input. :latest only moves on a real tag push.
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/Ringosystems/RepoFabric-Public
+            org.opencontainers.image.title=RepoFabric
+            org.opencontainers.image.description=Self-hosted private WinGet source. RingoSystems Heavy Industries.
+            org.opencontainers.image.vendor=RingoSystems Heavy Industries
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.url=https://github.com/Ringosystems/RepoFabric-Public
+            org.opencontainers.image.documentation=https://github.com/Ringosystems/RepoFabric-Public/blob/main/docs/deployment.md
+
+      # Build once and load locally so the exact bytes are scanned BEFORE anything
+      # reaches a public registry. The push step below is a cache hit on this build.
+      - name: Build (load for scan)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./linux
+          file: ./linux/Dockerfile
+          tags: repofabric:publish-candidate
+          load: true
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy scan (HIGH/CRITICAL fixable) before publish
+        # Same gate as the Security scan workflow. A public image never ships with
+        # a fixable HIGH/CRITICAL CVE.
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: repofabric:publish-candidate
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          vuln-type: os,library
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push to Docker Hub + GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: ./linux
+          file: ./linux/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

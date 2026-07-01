@@ -245,7 +245,7 @@ export function docsRouter() {
         res.status(404).set('Content-Type', 'text/html').send(renderPage(p, `
           <h1>Page coming soon</h1>
           <p>This page is listed in the documentation index but the markdown source has not landed yet.</p>
-          <p>Track the gap at <a href="https://github.com/Ringosystems/RepoFabric/tree/main/linux/admin/static/docs">linux/admin/static/docs/</a>.</p>
+          <p>Track the gap at <a href="https://github.com/Ringosystems/RepoFabric-Public/tree/main/linux/admin/static/docs">linux/admin/static/docs/</a>.</p>
         `, p));
       } else {
         next(err);

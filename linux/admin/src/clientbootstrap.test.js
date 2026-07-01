@@ -16,7 +16,10 @@ test('buildClientBootstrapScript: embeds the CA, imports to LocalMachine\\Root, 
   assert.ok(ps1.includes('Cert:\\LocalMachine\\Root'));
   assert.ok(ps1.includes("$src = 'repofabric-main'"));
   assert.ok(ps1.includes("$url = 'https://winget.example.com:8443/api/'"));
-  assert.ok(ps1.includes('winget source add --name $src --arg $url --type Microsoft.Rest'));
+  assert.ok(ps1.includes("$addArgs = @('source','add','--name',$src,'--arg',$url,'--type','Microsoft.Rest'"));
+  // Registered as TRUSTED so winget skips the MotW attachment scan (with a fallback
+  // for older winget builds that reject --trust-level).
+  assert.ok(ps1.includes('--trust-level trusted'));
   // Clears a prior (possibly broken) source first so it is idempotent.
   assert.ok(ps1.includes('winget source remove --name $src'));
   // Scopes the Mark-of-the-Web exemption to ONLY the RepoFabric sites via the Site
@@ -47,5 +50,5 @@ test('buildClientBootstrapScript: single quotes in the source name/url cannot br
 test('buildClientBootstrapScript: tolerates missing inputs', () => {
   const ps1 = buildClientBootstrapScript();
   assert.ok(ps1.includes("$src = 'repofabric-main'")); // default source name
-  assert.ok(ps1.includes('winget source add'));
+  assert.ok(ps1.includes('--trust-level trusted'));
 });

@@ -145,7 +145,8 @@ COPY tests /opt/repofabric/tests
 COPY supervisord.conf /etc/supervisor/conf.d/repofabric.conf
 COPY crontab /tmp/repofabric-crontab
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod 0755 /usr/local/bin/entrypoint.sh && \
+COPY initial-index.sh /usr/local/bin/initial-index.sh
+RUN chmod 0755 /usr/local/bin/entrypoint.sh /usr/local/bin/initial-index.sh && \
     crontab -u repofabric /tmp/repofabric-crontab && \
     rm /tmp/repofabric-crontab
 

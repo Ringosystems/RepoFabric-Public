@@ -165,7 +165,7 @@ export function loadConfig() {
     // "Content-Encoding: peerdist" MS-PCCRC v1.0 Content Information body
     // for BranchCache and Delivery Optimization. Default is false so a fresh
     // deploy ships in baseline-collection mode; the operator flips it on
-    // after the 24 to 48 hour baseline window.
+    // after the 24 to 48 hour baseline window. See docs/0.8.0-bandwidth-plan.md.
     installers: {
       peerdist: {
         enabled: service.installers?.peerdist?.enabled === true,

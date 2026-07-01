@@ -1837,7 +1837,7 @@ function ensureRefreshUi() {
   host.innerHTML = `
     <div class="op-progress-head">
       <span class="op-progress-title">Upstream index refresh</span>
-      <span class="op-progress-elapsed muted" id="op-refresh-elapsed">0s</span>
+      <span class="op-progress-elapsed muted"><span id="op-refresh-elapsed">0s</span> elapsed<span id="op-refresh-remaining"></span></span>
     </div>
     <div class="op-progress-bar"><div class="op-progress-fill" id="op-refresh-fill"></div></div>
     <div class="op-progress-line"><span class="op-progress-phase" id="op-refresh-phase">phase</span> <span class="op-progress-msg" id="op-refresh-msg"></span></div>
@@ -1866,14 +1866,26 @@ function updateRefreshUi(status) {
   $('#op-refresh-counts').textContent = total
     ? `${proc.toLocaleString()} / ${total.toLocaleString()} rows`
     : (proc ? `${proc.toLocaleString()} rows` : '');
+  // Cancel bar visibility + ETA both key off whether the run is live (any phase
+  // outside the terminal set).
+  const live = !['idle','complete','failed','unknown'].includes(status.phase);
   if (status.started_at) {
     const startedMs = Date.parse(status.started_at);
     const endedMs = status.ended_at ? Date.parse(status.ended_at) : Date.now();
-    $('#op-refresh-elapsed').textContent = fmtElapsed((endedMs - startedMs) / 1000);
+    const elapsedSec = (endedMs - startedMs) / 1000;
+    $('#op-refresh-elapsed').textContent = fmtElapsed(elapsedSec);
+    // Estimated time remaining: linear extrapolation from rows processed so far
+    // (rate = proc / elapsed). Only meaningful while live with a known row total
+    // and some progress; the git-fetch / enumerate phases have no total, so we
+    // show nothing there rather than a misleading guess.
+    let remainingTxt = '';
+    if (live && !status.ended_at && total > 0 && proc > 0 && proc < total && elapsedSec > 0) {
+      const remSec = elapsedSec * (total - proc) / proc;
+      remainingTxt = ` · ~${fmtElapsed(remSec)} left`;
+    }
+    const remEl = document.getElementById('op-refresh-remaining');
+    if (remEl) remEl.textContent = remainingTxt;
   }
-  // Cancel bar visibility tracks live phase: visible only while the
-  // dispatch gate is closed (any phase outside the terminal set).
-  const live = !['idle','complete','failed','unknown'].includes(status.phase);
   const cancelBar = $('#op-cancel-bar');
   if (cancelBar) cancelBar.hidden = !live;
 }

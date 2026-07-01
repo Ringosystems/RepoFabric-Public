@@ -108,4 +108,4 @@ RepoFabric is at 0.7.9 (cleanup release, shipped 2026-05-29) on the `0.8.0-repof
 
 The 0.8.0 milestone is in flight. The server-side PeerDist hash advertisement (Wave 15), the bandwidth measurement layer plus the Bandwidth dashboard tab (Wave 16), and the Intune endpoint-configuration deliverables (Wave 17) are on disk, with the kill-switch flag defaulted off, so containers built from current head behave identically to 0.7.9 until an operator opts in. The Hyper-V lab validation (Wave 18) ran to completion but found that the current PeerDist encoder is not yet spec-compliant against what BITS negotiates, so the peer-cache layer does not share blocks yet. The measurement dashboard and the Intune endpoint config stand on their own, so shipping those while the encoder is finished is a viable 0.8.0 outcome. The org-wide rollout (Wave 19) waits on that decision.
 
-See [`linux/README.md`](../linux/README.md) for the deployment walkthrough.
+See `docs/0.8.0-bandwidth-plan.md` for the active 0.8.0 design and wave-by-wave status, `ROADMAP.md` for the milestone roadmap, and [`linux/README.md`](../linux/README.md) for the deployment walkthrough.

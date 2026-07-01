@@ -31,7 +31,7 @@ sudo -i
 mkdir -p /volume1/docker/repofabric/{appdata,state,cache,build}
 chown -R 1024:100 /volume1/docker/repofabric    # admin user on DSM is uid 1024
 cd /volume1/docker/repofabric/build
-git clone https://github.com/Ringosystems/RepoFabric.git
+git clone https://github.com/Ringosystems/RepoFabric-Public.git RepoFabric
 cd RepoFabric
 bash deploy/bootstrap.sh /volume1/docker/repofabric --appdata-root /volume1/docker/repofabric/appdata
 ```

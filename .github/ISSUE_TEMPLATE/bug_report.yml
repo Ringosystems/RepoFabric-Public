@@ -3,10 +3,6 @@ description: Report a bug in RepoFabric
 title: "[Bug]: "
 labels: ["bug", "triage"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for filing a bug in RepoFabric. Please include enough detail to reproduce it.
   - type: textarea
     id: what-happened
     attributes:

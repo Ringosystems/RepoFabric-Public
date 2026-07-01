@@ -25,7 +25,7 @@ Your production stack (`repofabric-*`) is never read or modified.
 ### 1. Clone into a separate folder
 
 ```bash
-git clone https://github.com/Ringosystems/RepoFabric.git /opt/repofabric-test
+git clone https://github.com/Ringosystems/RepoFabric-Public.git /opt/repofabric-test
 cd /opt/repofabric-test
 ```
 

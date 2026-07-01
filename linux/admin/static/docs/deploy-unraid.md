@@ -36,7 +36,7 @@ Open the **Terminal** (UNRAID web UI -> upper right -> >_) or SSH into the host 
 ```
 mkdir -p /mnt/cache/appdata/repofabric-linux/build
 cd /mnt/cache/appdata/repofabric-linux/build
-git clone https://github.com/Ringosystems/RepoFabric.git
+git clone https://github.com/Ringosystems/RepoFabric-Public.git RepoFabric
 ```
 
 This gives you the source tree at `/mnt/cache/appdata/repofabric-linux/build/RepoFabric/`, which is the canonical path the rest of this guide assumes.

@@ -68,7 +68,7 @@ function Get-RfPopularityForPackage {
         $mod = Get-Module -Name 'RepoFabric'
         if ($mod) { [string]$mod.Version } else { 'unknown' }
     } catch { 'unknown' }
-    $headers = @{ 'User-Agent' = "RepoFabric/$moduleVersion (popularity-cron; https://github.com/Ringosystems/RepoFabric)" }
+    $headers = @{ 'User-Agent' = "RepoFabric/$moduleVersion (popularity-cron; https://github.com/Ringosystems/RepoFabric-Public)" }
 
     try {
         $resp = Invoke-WebRequest -Uri $url -Method Get -UseBasicParsing -TimeoutSec $TimeoutSec -Headers $headers -ErrorAction Stop

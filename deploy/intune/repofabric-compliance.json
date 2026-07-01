@@ -15,7 +15,7 @@
       "operator": "IsEquals",
       "dataType": "Boolean",
       "operand": true,
-      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric/blob/main/deploy/intune/README.md",
+      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric-Public/blob/main/deploy/intune/README.md",
       "remediationStrings": [
         { "language": "en_US", "title": "BranchCache service is not running", "description": "The PeerDistSvc service is required for peer-to-peer installer caching. Reboot or contact IT." }
       ]
@@ -25,7 +25,7 @@
       "operator": "IsEquals",
       "dataType": "Boolean",
       "operand": true,
-      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric/blob/main/deploy/intune/README.md",
+      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric-Public/blob/main/deploy/intune/README.md",
       "remediationStrings": [
         { "language": "en_US", "title": "BITS Peercaching is not enabled", "description": "Without BITS Peercaching, this endpoint will not share installer blocks with peers and will not benefit from peer-cached installs. Ensure the 'RepoFabric - Peer caching' Intune profile has applied." }
       ]
@@ -35,7 +35,7 @@
       "operator": "IsGreaterThanOrEqual",
       "dataType": "Int64",
       "operand": 1,
-      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric/blob/main/deploy/intune/README.md",
+      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric-Public/blob/main/deploy/intune/README.md",
       "remediationStrings": [
         { "language": "en_US", "title": "Delivery Optimization is disabled", "description": "DO Download Mode must be 1 or higher for peer-share to function. Ensure the 'RepoFabric - Peer caching' Intune profile has applied." }
       ]
@@ -45,7 +45,7 @@
       "operator": "IsEquals",
       "dataType": "Boolean",
       "operand": true,
-      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric/blob/main/deploy/intune/README.md",
+      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric-Public/blob/main/deploy/intune/README.md",
       "remediationStrings": [
         { "language": "en_US", "title": "BranchCache HTTP firewall rule is disabled", "description": "Inbound TCP 80 from the local subnet must be allowed for peer-share to function. Ensure the Endpoint Security Firewall profile activates 'BranchCache - Content Retrieval (Uses HTTP)'." }
       ]
@@ -55,7 +55,7 @@
       "operator": "IsEquals",
       "dataType": "Boolean",
       "operand": true,
-      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric/blob/main/deploy/intune/README.md",
+      "moreInfoUrl": "https://github.com/Ringosystems/RepoFabric-Public/blob/main/deploy/intune/README.md",
       "remediationStrings": [
         { "language": "en_US", "title": "BranchCache peer discovery firewall rule is disabled", "description": "Inbound UDP 3702 (WS-Discovery) from the local subnet must be allowed for peer-share to function. Ensure the Endpoint Security Firewall profile activates 'BranchCache - Peer Discovery (Uses WSD)'." }
       ]

@@ -98,7 +98,12 @@ services:
   repofabric-linux:
     build:
       context: ./linux
-    image: ${REPOFABRIC_INSTANCE:-repofabric}-linux:latest
+    # Default to the published release image so `docker compose pull` fetches it;
+    # the build: stanza above stays as a from-source fallback (`docker compose
+    # build` / `up --build`). Pin a version with REPOFABRIC_IMAGE_TAG in .env. The
+    # image is identical across instances, so a shared tag is correct; only the
+    # container name, network, and ports are instance-scoped.
+    image: ${REPOFABRIC_IMAGE:-ringosystems/repofabric}:${REPOFABRIC_IMAGE_TAG:-latest}
     container_name: ${REPOFABRIC_INSTANCE:-repofabric}-linux
     restart: unless-stopped
     user: "0:0"          # entrypoint chowns then drops via supervisord

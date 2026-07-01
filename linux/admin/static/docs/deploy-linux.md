@@ -15,7 +15,7 @@ The reference deployment. Any Linux host with Docker Engine 24+ and `docker comp
 ```
 sudo mkdir -p /opt/repofabric
 sudo chown $USER /opt/repofabric
-git clone https://github.com/Ringosystems/RepoFabric.git /opt/repofabric/repo
+git clone https://github.com/Ringosystems/RepoFabric-Public.git /opt/repofabric/repo
 cd /opt/repofabric/repo
 ```
 

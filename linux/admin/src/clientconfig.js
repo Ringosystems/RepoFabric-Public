@@ -14,7 +14,7 @@
 //   3. When peer caching is enabled for the deployment, configures BranchCache
 //      distributed mode, BITS Peercaching, Delivery Optimization Download
 //      Mode 1, and the BranchCache firewall rule groups. Mirrors the verified
-//      peer-caching lab configuration.
+//      lab configuration (tests/peerdist-lab).
 //
 // This is the non-Intune path: clients that are not Intune-managed get the
 // same posture by running the script (interactively, via GPO logon script,

@@ -32,7 +32,7 @@ Set ownership to a user/group SCALE creates for you (or `apps:apps` if it exists
 ```
 sudo -i
 cd /mnt/tank/repofabric/build
-git clone https://github.com/Ringosystems/RepoFabric.git
+git clone https://github.com/Ringosystems/RepoFabric-Public.git RepoFabric
 cd RepoFabric
 bash deploy/bootstrap.sh /mnt/tank/repofabric --appdata-root /mnt/tank/repofabric/appdata
 ```

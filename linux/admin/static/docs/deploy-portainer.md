@@ -14,7 +14,7 @@ SSH into the Docker host Portainer manages and run:
 ```
 sudo mkdir -p /opt/repofabric
 sudo chown $USER /opt/repofabric
-git clone https://github.com/Ringosystems/RepoFabric.git /opt/repofabric/repo
+git clone https://github.com/Ringosystems/RepoFabric-Public.git /opt/repofabric/repo
 sudo mkdir -p /var/lib/repofabric-data
 sudo chown -R 99:100 /var/lib/repofabric-data
 sudo bash /opt/repofabric/repo/deploy/bootstrap.sh /var/lib/repofabric-data
@@ -52,7 +52,7 @@ In Portainer: **Stacks -> Add stack** -> name `repofabric-linux`.
 
 Build method: **Repository**:
 
-- Repository URL: `https://github.com/Ringosystems/RepoFabric`
+- Repository URL: `https://github.com/Ringosystems/RepoFabric-Public`
 - Reference: `main`
 - Compose path: `linux/docker-compose.yml`
 - Environment file: reuse the same `.env` from step 1 (Portainer supports a per-stack env file path).

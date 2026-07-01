@@ -2,6 +2,11 @@
 
 A self-hosted private WinGet source for Windows fleets, by RingoSystems Heavy Industries.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/Ringosystems/RepoFabric-Public/actions/workflows/ci.yml/badge.svg)](https://github.com/Ringosystems/RepoFabric-Public/actions/workflows/ci.yml)
+[![Docker Hub](https://img.shields.io/docker/v/ringosystems/repofabric?sort=semver&label=Docker%20Hub)](https://hub.docker.com/r/ringosystems/repofabric)
+[![Docker Pulls](https://img.shields.io/docker/pulls/ringosystems/repofabric)](https://hub.docker.com/r/ringosystems/repofabric)
+
 ![RepoFabric overview](docs/repofabric-overview.png)
 
 > **Stop downloading the same installer a thousand times.**
@@ -62,7 +67,7 @@ If this host will handle HTTPS itself — i.e. nothing else is using ports 80/44
 2. Clone and generate a `.env` beside the top-level `docker-compose.yml`. The helper script prompts for the values and fills in the session secret for you:
 
    ```bash
-   git clone https://github.com/Ringosystems/RepoFabric.git && cd RepoFabric
+   git clone https://github.com/Ringosystems/RepoFabric-Public.git repofabric && cd repofabric
    ./deploy/new-repofabric-env.sh                 # Linux / UNRAID
    # or on Windows:  pwsh ./deploy/New-RepoFabricEnv.ps1
    ```
@@ -107,20 +112,31 @@ The wizard runs a prerequisites gate, walks you through certificates, local port
 
 On a populated host like UNRAID, read the [busy-host pre-flight](sandbox/README.md#unraid-and-other-busy-docker-hosts) first: pick a free HTTPS port (443 is usually taken) and check for container-name collisions.
 
+## Container image
+
+The single application image is published to Docker Hub and GitHub Container Registry, and serves every deployment (both production flavours and the Sandbox trial run the same image):
+
+- `docker pull ringosystems/repofabric`
+- `docker pull ghcr.io/ringosystems/repofabric`
+
+`latest` tracks the newest release; pin `X.Y.Z` for production. The compose files pull it by default, or build from source with `docker compose build`. Tag list and the full overview are on [Docker Hub](https://hub.docker.com/r/ringosystems/repofabric).
+
 ## Where things live
 
 - [`linux/`](linux/), the deployed container. PowerShell module under `linux/src/`, Node admin under `linux/admin/`, container infra at the root.
 - [`deploy/`](deploy/), companion compose, bootstrap, migrate script, Intune assets.
 - [`sandbox/`](sandbox/), the alternative all-in-one Sandbox deployment (throwaway, not for production).
 - [`docs/Intune-EndpointConfiguration.md`](docs/Intune-EndpointConfiguration.md), the endpoint-side Intune profile that registers the WinGet source on managed Windows endpoints.
+- `ROADMAP.md`, current and next milestone.
 - [`CHANGELOG.md`](CHANGELOG.md), release notes.
+- `HANDOFF.md`, orientation for a fresh agent or operator.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md), local dev setup and how tests run.
 
 ## Status
 
-**0.8.3** is the latest tagged release (2026-06-05). The 0.8.x line shipped client-side bandwidth optimization (PeerDist LAN peer-caching with an Intune endpoint profile and a per-subnet savings dashboard, behind a default-off kill switch), the integrated ConfigFabric sidecar (flag-gated, off by default), integration hardening, and repo-aware version retention.
+**0.8.3** is the latest tagged release (2026-06-05). The 0.8.x line shipped client-side bandwidth optimization (PeerDist LAN peer-caching with an Intune endpoint profile and a per-subnet savings dashboard, behind a default-off kill switch — see `docs/0.8.0-bandwidth-plan.md`), the integrated ConfigFabric sidecar (flag-gated, off by default), integration hardening, and repo-aware version retention.
 
-**0.9.0** is in progress. See [`CHANGELOG.md`](CHANGELOG.md) for the full release history.
+**0.9.0** is in progress: a phased cross-fabric program (observe-to-enforce signing cut-over, per-peer capability tokens, an integrated console, green-gate tagging). Phase 1 has landed — a per-repo working-tree lock and fail-fast on a half-configured integration. See [`CHANGELOG.md`](CHANGELOG.md) for the full history and `ROADMAP.md` for what's next.
 
 ## License
 

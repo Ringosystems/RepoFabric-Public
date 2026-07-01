@@ -192,9 +192,9 @@ export function startInstallerServer(port, installersRoot) {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
     if (req.headers['range']) return next();
 
-    // Real BITS sends Accept-Encoding: identity, peerdist and
-    // X-P2P-PeerDist: Version=1.1. The earlier X-MS-AcceptEncoding
-    // lookup never fired.
+    // See Wave 18 finding (tests/peerdist-lab/FINDINGS.md): real BITS
+    // sends Accept-Encoding: identity, peerdist and X-P2P-PeerDist:
+    // Version=1.1. The earlier X-MS-AcceptEncoding lookup never fired.
     const acceptEnc = (req.headers['accept-encoding'] || '').toLowerCase();
     const p2pHeader = req.headers['x-p2p-peerdist'] || '';
     if (!acceptEnc.includes('peerdist') && !p2pHeader) return next();
