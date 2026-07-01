@@ -6,7 +6,7 @@ Per-platform guides live under [`admin/static/docs/`](admin/static/docs/): plain
 
 ## Status
 
-0.8.3 is the latest tagged release; 0.9.0 (a phased cross-fabric program) is in progress with Phase 1 landed. The 0.8.x line shipped client-side bandwidth optimization (PeerDist LAN peer-caching, Intune endpoint configuration, a savings dashboard) behind a default-off kill switch, the integrated ConfigFabric sidecar (flag-gated, off by default), and repo-aware version retention. Containers built from current head behave identically to a clean install until an operator opts into PeerDist via service.yaml. See [`../CHANGELOG.md`](../CHANGELOG.md) for the full history and `../docs/0.8.0-bandwidth-plan.md` for the PeerDist design.
+0.9.0 is the current release, and the first public release. It carries client-side bandwidth optimization (PeerDist LAN peer-caching, Intune endpoint configuration, a savings dashboard) behind a default-off kill switch, the integrated ConfigFabric sidecar (flag-gated, off by default), repo-aware version retention, and the first phase of a cross-fabric hardening program. Containers behave identically to a clean install until an operator opts into PeerDist via service.yaml. See [`../CHANGELOG.md`](../CHANGELOG.md) for the full history.
 
 ## Prerequisites on the host
 

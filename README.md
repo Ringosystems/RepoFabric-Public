@@ -134,9 +134,7 @@ The single application image is published to Docker Hub and GitHub Container Reg
 
 ## Status
 
-**0.8.3** is the latest tagged release (2026-06-05). The 0.8.x line shipped client-side bandwidth optimization (PeerDist LAN peer-caching with an Intune endpoint profile and a per-subnet savings dashboard, behind a default-off kill switch — see `docs/0.8.0-bandwidth-plan.md`), the integrated ConfigFabric sidecar (flag-gated, off by default), integration hardening, and repo-aware version retention.
-
-**0.9.0** is in progress: a phased cross-fabric program (observe-to-enforce signing cut-over, per-peer capability tokens, an integrated console, green-gate tagging). Phase 1 has landed — a per-repo working-tree lock and fail-fast on a half-configured integration. See [`CHANGELOG.md`](CHANGELOG.md) for the full history and `ROADMAP.md` for what's next.
+**0.9.0** is the current release, and the first public release of RepoFabric. It carries client-side bandwidth optimization (PeerDist LAN peer-caching with an Intune endpoint profile and a per-subnet savings dashboard, behind a default-off kill switch), the integrated ConfigFabric sidecar (flag-gated, off by default), repo-aware version retention, and the first phase of a cross-fabric hardening program (per-repo working-tree locking and fail-fast on a half-configured integration). See [`CHANGELOG.md`](CHANGELOG.md) for the full history. Later phases of the cross-fabric program continue in subsequent releases.
 
 ## License
 
