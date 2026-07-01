@@ -89,3 +89,22 @@ jobs:
           name: test-results
           path: /tmp/ci-out/test-results.xml
           if-no-files-found: warn
+
+  client-module:
+    name: Validate client PowerShell module
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Test manifest, import, and exports
+        shell: pwsh
+        run: |
+          $m = './client/RepoFabric.Client/RepoFabric.Client.psd1'
+          Test-ModuleManifest -Path $m -ErrorAction Stop | Out-Null
+          Import-Module $m -Force -ErrorAction Stop
+          $fns = (Get-Command -Module RepoFabric.Client).Name
+          $expected = 'Register-RfSource','Unregister-RfSource','Get-RfSource','Set-RfClientDefault','Test-RfClientHealth'
+          $missing = $expected | Where-Object { $_ -notin $fns }
+          if ($missing) { throw "Missing exported functions: $($missing -join ', ')" }
+          Write-Host "Client module OK: $($fns -join ', ')"

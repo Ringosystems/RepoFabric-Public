@@ -1,0 +1,49 @@
+# Publish the RepoFabric.Client PowerShell module to the PowerShell Gallery.
+#
+# WHERE THIS RUNS: only from the PUBLIC mirror repo (Ringosystems/RepoFabric-Public),
+# same as publish-image.yml. The guard below keeps the private mirror from publishing.
+#
+# REQUIRED SECRET (on the PUBLIC repo): PSGALLERY_API_KEY, an API key from
+# https://www.powershellgallery.com/account/apikeys scoped to push this module.
+#
+# Gallery versions are permanent. The module version in
+# client/RepoFabric.Client/RepoFabric.Client.psd1 must be bumped for each release;
+# the Gallery rejects re-publishing an existing version.
+
+name: Publish PowerShell module
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish RepoFabric.Client to the PowerShell Gallery
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: endsWith(github.repository, 'RepoFabric-Public')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate manifest and import
+        shell: pwsh
+        run: |
+          $m = './client/RepoFabric.Client/RepoFabric.Client.psd1'
+          Test-ModuleManifest -Path $m -ErrorAction Stop | Out-Null
+          Import-Module $m -Force -ErrorAction Stop
+          Write-Host "Exports: $((Get-Command -Module RepoFabric.Client).Name -join ', ')"
+
+      - name: Publish to the PowerShell Gallery
+        shell: pwsh
+        env:
+          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PSGALLERY_API_KEY)) {
+            throw 'PSGALLERY_API_KEY secret is not set on this repository.'
+          }
+          Publish-Module -Path ./client/RepoFabric.Client -NuGetApiKey $env:PSGALLERY_API_KEY -Repository PSGallery -Verbose

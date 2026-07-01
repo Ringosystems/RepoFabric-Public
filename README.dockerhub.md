@@ -1,6 +1,6 @@
 # RepoFabric
 
-**Self-hosted, private WinGet source.** Run your own WinGet REST catalog, curate exactly the packages your fleet is allowed to install, mirror upstream `winget-pkgs` on your terms, and add your own in-house installers. From RingoSystems Heavy Industries.
+**Self-hosted, private WinGet source for Microsoft-managed fleets.** Native Microsoft Intune and Microsoft Entra ID integration, Azure Arc ready, a GUI admin console, and a REST plus PowerShell automation surface for CI/CD. Curate exactly the packages your fleet may install, auto-sync approved apps from `winget-pkgs`, and add your own in-house installers. Free and open source (MIT), self-hosted, with no license fees, no per-endpoint charges, and no subscription. From RingoSystems Heavy Industries.
 
 `docker pull ringosystems/repofabric`
 
