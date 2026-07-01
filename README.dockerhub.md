@@ -20,7 +20,13 @@ This single image runs **every** deployment. The Sandbox trial and both producti
 
 ## Quick start
 
-Both flows come from the same GitHub repository. Clone it, then choose a path.
+Both flows come from the same GitHub repository:
+
+```
+git clone https://github.com/Ringosystems/RepoFabric-Public.git repofabric && cd repofabric
+```
+
+Then choose a path.
 
 ### Production
 
@@ -41,6 +47,17 @@ Then open `https://<your-domain>/setup/` and finish in the browser. Behind an ex
 ```
 
 One command stands up the whole stack with a bundled proxy and a self-signed certificate, and one command tears it down. It is deliberately non-enterprise. Do not use it for production.
+
+## Endpoints (PowerShell Gallery)
+
+Point Windows endpoints at your source with the companion module:
+
+```
+Install-Module RepoFabric.Client
+Register-RfSource -Url https://<your-domain>/api/
+```
+
+It registers the source as Trusted and sets silent-install defaults. For fleets, deploy the same through Microsoft Intune. Free and open source, no per-endpoint charges.
 
 ## Supported tags
 
