@@ -500,3 +500,70 @@ document.addEventListener('keydown', ev => {
   if (installer) installer.addEventListener('input', () => { installerEdited = true; if (autoTag) autoTag.hidden = true; });
   recompute();
 })();
+
+// --- Defaults step: architecture checkboxes serialise to the CSV field ----
+// The boxes carry no name so collectInputs ignores them; a hidden
+// input[name=architectures] holds the comma-separated value (publish-priority
+// order) that buildPayload already reads. x86 ships off by default.
+(function wireDefaults() {
+  const boxes = $$('.arch-box');
+  const hidden = document.querySelector('[name="architectures"]');
+  if (!boxes.length || !hidden) return;
+  const sync = () => { hidden.value = boxes.filter(b => b.checked).map(b => b.value).join(','); };
+  boxes.forEach(b => b.addEventListener('change', sync));
+  sync();
+})();
+
+// --- Schedule step: frequency picker builds the cron string ---------------
+// A plain-language frequency chooser writes the five-field cron into the
+// hidden input[name=schedule_cron] that buildPayload reads. "Custom" exposes a
+// raw cron field (validated) for operators who want full control.
+(function wireSchedule() {
+  const freq = $('#schedFreq');
+  if (!freq) return;
+  const hidden = document.querySelector('[name="schedule_cron"]');
+  const out = $('#schedCronOut');
+  const human = $('#schedHuman');
+  const everyHours = $('#schedEveryHours');
+  const dailyTime = $('#schedDailyTime');
+  const dow = $('#schedDow');
+  const weeklyTime = $('#schedWeeklyTime');
+  const custom = $('#schedCronCustom');
+  const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const hm = v => { const p = String(v || '02:00').split(':'); return { h: parseInt(p[0], 10) || 0, m: parseInt(p[1], 10) || 0 }; };
+  function compute() {
+    switch (freq.value) {
+      case 'hours': {
+        const n = parseInt(everyHours.value, 10) || 6;
+        return { cron: `0 */${n} * * *`, text: `Runs every ${n} hour${n === 1 ? '' : 's'}.` };
+      }
+      case 'daily': {
+        const { h, m } = hm(dailyTime.value);
+        return { cron: `${m} ${h} * * *`, text: `Runs daily at ${dailyTime.value || '02:00'}.` };
+      }
+      case 'weekly': {
+        const { h, m } = hm(weeklyTime.value);
+        const d = parseInt(dow.value, 10) || 0;
+        return { cron: `${m} ${h} * * ${d}`, text: `Runs every ${DOW[d]} at ${weeklyTime.value || '02:00'}.` };
+      }
+      default: {
+        const c = (custom.value || '').trim();
+        return { cron: c, text: c ? 'Custom schedule.' : 'Enter a five-field cron expression.' };
+      }
+    }
+  }
+  function refresh() {
+    $$('.sched-opt').forEach(el => { el.hidden = (el.dataset.when !== freq.value); });
+    const r = compute();
+    hidden.value = r.cron;
+    if (out) out.textContent = r.cron || '(none)';
+    if (human) human.textContent = r.text;
+  }
+  [freq, everyHours, dailyTime, dow, weeklyTime, custom].forEach(el => {
+    if (!el) return;
+    el.addEventListener('change', refresh);
+    el.addEventListener('input', refresh);
+  });
+  refresh();
+})();

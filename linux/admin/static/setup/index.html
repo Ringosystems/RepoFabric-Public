@@ -151,10 +151,17 @@
     <section data-panel="2" class="panel" hidden>
       <h2>Defaults</h2>
       <p>Sane defaults applied to every new subscription unless the operator overrides per-row.</p>
-      <label>Preferred architectures
-        <input type="text" name="architectures" value="x64,x86,arm64" data-validate="csv-arch">
-        <small class="help">Comma-separated, in publish priority order. Valid values: <code>x64</code>, <code>x86</code>, <code>arm64</code>, <code>arm</code>.</small>
-      </label>
+      <div class="field-block">
+        <div class="field-cap">Preferred architectures</div>
+        <div class="arch-grid">
+          <label class="inline-check"><input type="checkbox" class="arch-box" value="x64" checked> x64 <span class="arch-note">64-bit, most PCs</span></label>
+          <label class="inline-check"><input type="checkbox" class="arch-box" value="arm64" checked> arm64 <span class="arch-note">Windows on ARM</span></label>
+          <label class="inline-check"><input type="checkbox" class="arch-box" value="x86"> x86 <span class="arch-note">32-bit, legacy</span></label>
+          <label class="inline-check"><input type="checkbox" class="arch-box" value="arm"> arm <span class="arch-note">32-bit ARM, rare</span></label>
+        </div>
+        <input type="hidden" name="architectures" value="x64,arm64">
+        <p class="help">Publish these architectures for each app, in the order shown. <code>x64</code> and <code>arm64</code> cover modern fleets; turn on <code>x86</code> only if you still run 32-bit apps.</p>
+      </div>
       <label>Default locales
         <input type="text" name="locales" value="en-US" data-validate="csv-locale">
         <small class="help">Comma-separated BCP-47 tags (e.g. <code>en-US,fr-FR</code>). Manifests are published in every listed locale that exists upstream.</small>
@@ -184,10 +191,31 @@
         <input type="number" name="worker_pool_size" value="4" min="1" max="32">
         <small class="help">Parallel sync workers. Bound by CPU and network. 4 is fine for most fleets; raise if syncs are slow and Gitea + nginx aren't the bottleneck.</small>
       </label>
-      <label>Schedule (cron)
-        <input type="text" name="schedule_cron" value="0 */6 * * *" data-validate="cron">
-        <small class="help">When the scheduled sync fires. Default: every six hours. Five-field standard cron (no seconds).</small>
-      </label>
+      <div class="field-block">
+        <div class="field-cap">Sync schedule</div>
+        <div class="sched-sub"><span>How often?</span>
+          <select id="schedFreq">
+            <option value="hours">Every few hours</option>
+            <option value="daily">Once a day</option>
+            <option value="weekly">Once a week</option>
+            <option value="custom">Custom (cron)</option>
+          </select>
+        </div>
+        <div class="sched-sub sched-opt" data-when="hours"><span>Run every</span>
+          <select id="schedEveryHours">
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="6" selected>6</option><option value="8">8</option><option value="12">12</option>
+          </select><span>hours</span>
+        </div>
+        <div class="sched-sub sched-opt" data-when="daily" hidden><span>At</span><input type="time" id="schedDailyTime" value="02:00"></div>
+        <div class="sched-sub sched-opt" data-when="weekly" hidden><span>On</span>
+          <select id="schedDow"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select>
+          <span>at</span><input type="time" id="schedWeeklyTime" value="02:00">
+        </div>
+        <label class="sched-sub sched-opt" data-when="custom" hidden><span>Cron</span><input type="text" id="schedCronCustom" data-validate="cron" placeholder="0 */6 * * *"></label>
+        <div class="readout"><span class="readout-v" id="schedCronOut">0 */6 * * *</span></div>
+        <input type="hidden" name="schedule_cron" value="0 */6 * * *">
+        <p class="help" id="schedHuman">Runs every 6 hours. Switch to Custom for a full five-field cron expression.</p>
+      </div>
       <label>Index refresh threshold (hours)
         <input type="number" name="index_refresh_threshold_hours" value="6" min="1">
         <small class="help">Skip the (expensive) upstream-index refresh if it ran less than this many hours ago. The "Sync (force index refresh)" button always overrides.</small>
