@@ -57,9 +57,13 @@ const DEFAULT_DISPLAY_NAME = 'RepoFabric Admin';
 
 // Build the operator-facing bootstrap scripts. Pure: takes the public base URL,
 // returns the redirect URI plus a bash and a PowerShell variant of the same
-// idempotent `az` sequence. Both end by printing the three values the wizard
-// needs (TENANT_ID / CLIENT_ID / CLIENT_SECRET) on clearly-labelled lines so the
-// "paste output" autofill can extract them.
+// idempotent `az` sequence. The app registration is created with
+// groupMembershipClaims=SecurityGroup so the sign-in token carries the caller's
+// security-group ids -- without it Entra sends NO groups claim, a brand-new admin
+// group is invisible to authorize(), and group-based access silently fails. Both
+// end by printing the three values the wizard needs (TENANT_ID / CLIENT_ID /
+// CLIENT_SECRET) on clearly-labelled lines so the "paste output" autofill can
+// extract them.
 export function buildAzScripts(publicBaseUrl, displayName = DEFAULT_DISPLAY_NAME) {
   const redirectUri = redirectUriFor(publicBaseUrl);
   const manifest = permsManifestJson();
@@ -107,6 +111,12 @@ else
   echo "Reusing existing app registration: $APP_ID"
 fi
 
+# 1b) Emit a security-group claim in the sign-in token so group-based admin/
+#     read-only access works out of the box. Without this Entra sends NO groups
+#     claim, so a freshly-created admin group is invisible to RepoFabric.
+az ad app update --id "$APP_ID" --set groupMembershipClaims=SecurityGroup >/dev/null
+echo "Enabled security-group claims on the sign-in token"
+
 # 2) Service principal (must exist before consent can be granted).
 SP_ID="$(az ad sp list --filter "appId eq '$APP_ID'" --query '[0].id' -o tsv)"
 if [ -z "$SP_ID" ]; then az ad sp create --id "$APP_ID" >/dev/null; echo "Created service principal"; fi
@@ -116,11 +126,15 @@ CLIENT_SECRET="$(az ad app credential reset --id "$APP_ID" --append --years 2 \\
   --display-name 'repofabric-server' --query password -o tsv)"
 
 # 4) Admin consent (the 3 application permissions + delegated User.Read).
-#    Retry briefly: a brand-new service principal can take seconds to replicate.
+#    A brand-new app + service principal can take 30-90s to replicate before the
+#    consent endpoint can even see them -- the "application ... has been removed
+#    or is configured to use an incorrect application identifier" error right
+#    after creation is really "not replicated yet". So retry; the if-test keeps a
+#    failed attempt from tripping set -e.
 CONSENTED=0
-for attempt in 1 2 3 4 5; do
+for attempt in $(seq 1 8); do
   if az ad app permission admin-consent --id "$APP_ID"; then CONSENTED=1; break; fi
-  echo "admin-consent not ready (attempt $attempt/5); retrying in 10s..."; sleep 10
+  echo "admin-consent not ready yet (attempt $attempt/8); waiting 15s for directory replication..."; sleep 15
 done
 
 TENANT_ID="$(az account show --query tenantId -o tsv)"
@@ -136,9 +150,9 @@ fi
 
 echo ""
 echo "================ RepoFabric: copy these three values into the wizard ================"
-echo "TENANT_ID=$TENANT_ID"
-echo "CLIENT_ID=$APP_ID"
-echo "CLIENT_SECRET=$CLIENT_SECRET"
+printf 'TENANT_ID=\\t%s\\n' "$TENANT_ID"
+printf 'CLIENT_ID=\\t%s\\n' "$APP_ID"
+printf 'CLIENT_SECRET=\\t%s\\n' "$CLIENT_SECRET"
 echo "====================================================================================="
 echo "(Keep CLIENT_SECRET private -- don't screenshot it. It is a 2-year credential;"
 echo " rotate later with: az ad app credential reset --id $APP_ID --append)"
@@ -167,6 +181,12 @@ if (-not $AppId) {
   Write-Host "Reusing existing app registration: $AppId"
 }
 
+# 1b) Emit a security-group claim in the sign-in token so group-based admin/
+#     read-only access works out of the box. Without this Entra sends NO groups
+#     claim, so a freshly-created admin group is invisible to RepoFabric.
+az ad app update --id $AppId --set groupMembershipClaims=SecurityGroup | Out-Null
+Write-Host 'Enabled security-group claims on the sign-in token'
+
 # 2) Service principal (must exist before consent can be granted).
 $SpId = az ad sp list --filter "appId eq '$AppId'" --query '[0].id' -o tsv
 if (-not $SpId) { az ad sp create --id $AppId | Out-Null; Write-Host 'Created service principal' }
@@ -175,12 +195,23 @@ if (-not $SpId) { az ad sp create --id $AppId | Out-Null; Write-Host 'Created se
 $ClientSecret = az ad app credential reset --id $AppId --append --years 2 --display-name 'repofabric-server' --query password -o tsv
 
 # 4) Admin consent (the 3 application permissions + delegated User.Read).
+#    A brand-new app + service principal can take 30-90s to replicate before the
+#    consent endpoint can even see them -- the "application ... has been removed
+#    or is configured to use an incorrect application identifier" error right
+#    after creation is really "not replicated yet". az signals that with a
+#    NON-ZERO EXIT, which $ErrorActionPreference='Stop' would turn into a
+#    terminating error and abort the whole script on the first blip -- so relax it
+#    to 'Continue' for the loop, gate on $LASTEXITCODE ourselves, then restore it.
 $Consented = $false
-for ($i = 1; $i -le 5; $i++) {
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+for ($i = 1; $i -le 8; $i++) {
   az ad app permission admin-consent --id $AppId
   if ($LASTEXITCODE -eq 0) { $Consented = $true; break }
-  Write-Host "admin-consent not ready (attempt $i/5); retrying in 10s..."; Start-Sleep -Seconds 10
+  Write-Host "admin-consent not ready yet (attempt $i/8); waiting 15s for directory replication..."
+  Start-Sleep -Seconds 15
 }
+$ErrorActionPreference = $prevEap
 
 $TenantId = az account show --query tenantId -o tsv
 Remove-Item $permsFile -ErrorAction SilentlyContinue
@@ -195,9 +226,9 @@ if (-not $Consented) {
 
 Write-Host ""
 Write-Host "================ RepoFabric: copy these three values into the wizard ================"
-Write-Host "TENANT_ID=$TenantId"
-Write-Host "CLIENT_ID=$AppId"
-Write-Host "CLIENT_SECRET=$ClientSecret"
+Write-Host "TENANT_ID=\`t$TenantId"
+Write-Host "CLIENT_ID=\`t$AppId"
+Write-Host "CLIENT_SECRET=\`t$ClientSecret"
 Write-Host "====================================================================================="
 Write-Host "(Keep CLIENT_SECRET private -- don't screenshot it. It is a 2-year credential;"
 Write-Host " rotate later with: az ad app credential reset --id $AppId --append)"

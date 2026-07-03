@@ -107,32 +107,38 @@ function Invoke-RfAcquire {
             else { Remove-Item $local -Force }
         }
 
-        if (-not $reused) {
+        $computed = $null
+        if ($reused) {
+            $computed = $inst.InstallerSha256
+        } else {
             $ok = $false; $lastErr = $null
-            foreach ($attempt in 1..3) {
+            foreach ($attempt in 1..5) {
                 try {
                     Invoke-WebRequest -Uri $inst.InstallerUrl -OutFile $local -UseBasicParsing -TimeoutSec $DownloadTimeoutSeconds -ErrorAction Stop
-                    $ok = $true; break
                 } catch {
-                    $lastErr = $_
-                    Write-RfLog -Level Warning -Message ("Download attempt {0}/3 failed: {1}" -f $attempt, $_.Exception.Message)
-                    Start-Sleep -Seconds (2 * $attempt)
+                    $lastErr = "download error: $($_.Exception.Message)"
+                    Write-RfLog -Level Warning -Message ("Download attempt {0}/5 failed: {1}" -f $attempt, $_.Exception.Message)
+                    if ($attempt -lt 5) { Start-Sleep -Seconds (2 * $attempt) }
+                    continue
                 }
+                # A dropped connection frequently yields a TRUNCATED file with NO
+                # exception (the server closes after a partial body -- seen with a
+                # large installer over a flaky link, where the advertised
+                # Content-Length is honoured but the transfer is cut short at a
+                # random offset). Verify the SHA-256 HERE so a truncated/corrupt
+                # read is retried, not accepted and then failed permanently by the
+                # downstream check with no attempts left.
+                $check = Test-RfSha256 -Path $local -Expected $inst.InstallerSha256
+                $computed = $check.Actual
+                if ($check.Match) { $ok = $true; break }
+                $lastErr = "hash mismatch (declared $($inst.InstallerSha256), got $($check.Actual)); likely a truncated/partial download"
+                Write-RfLog -Level Warning -Message ("Download attempt {0}/5: {1}; retrying" -f $attempt, $lastErr)
+                Remove-Item -LiteralPath $local -Force -ErrorAction SilentlyContinue
+                if ($attempt -lt 5) { Start-Sleep -Seconds (2 * $attempt) }
             }
             if (-not $ok) {
-                $outcome = 'failed_download'
-                $failure = $lastErr.Exception.Message
-            }
-        }
-
-        $computed = $null
-        if ($outcome -eq 'success' -and (Test-Path $local)) {
-            $check = Test-RfSha256 -Path $local -Expected $inst.InstallerSha256
-            $computed = $check.Actual
-            if (-not $check.Match) {
-                Remove-Item $local -Force
-                $outcome = 'failed_hash_mismatch'
-                $failure = "declared $($inst.InstallerSha256), got $($check.Actual)"
+                $outcome = if ($lastErr -like 'hash mismatch*') { 'failed_hash_mismatch' } else { 'failed_download' }
+                $failure = $lastErr
             }
         }
 

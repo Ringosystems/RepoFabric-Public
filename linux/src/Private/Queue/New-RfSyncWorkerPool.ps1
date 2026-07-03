@@ -162,6 +162,12 @@ UPDATE run
                                 & $log ("publish outcome=already_published sid={0} version={1}" -f $req.SubscriptionId, $acq.Version)
                             } else {
                                 $runChanged = 1
+                                # Rewinged only scans at startup and its file-watch does not
+                                # fire for these cross-container writes, so restart it to
+                                # surface the just-published manifest (throttled + best-effort).
+                                try {
+                                    if (& $mod { Update-RfMainRewinged }) { & $log 'reloaded rewinged to surface the new manifest' }
+                                } catch { & $log ('rewinged reload skipped: ' + $_.Exception.Message) }
                             }
                         } else {
                             # Acquire returned no new version (already up to date,

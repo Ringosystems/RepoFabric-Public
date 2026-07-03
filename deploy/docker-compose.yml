@@ -43,10 +43,39 @@ services:
       - "3030:3000"
     networks: [repofabric]
 
+  # One-shot: ensure the manifest tree's 'manifests/' subdir exists (owned by
+  # the publisher uid) BEFORE rewinged starts. rewinged mounts the manifests
+  # volume read-only and arms its file-watch on -manifestPath at startup; if
+  # that subdir does not exist yet (a fresh deploy, before the first publish),
+  # rewinged logs "open /manifests/manifests: no such file or directory", finds
+  # 0 manifests, and its watch is set on a path that never materialises -- so
+  # every published package stays invisible until the container is restarted.
+  # Creating the dir up front avoids that boot error and gives rewinged a clean
+  # initial scan; RepoFabric restarts this container after each changed publish
+  # (Update-RfMainRewinged) to surface new manifests, since rewinged's watch does
+  # NOT see the publisher's cross-container writes.
+  manifests-init:
+    image: gitea/gitea:1
+    container_name: repofabric-manifests-init
+    user: "0:0"
+    restart: "no"
+    volumes:
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/manifests:/manifests
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'mkdir -p /manifests/manifests && chown 99:100 /manifests/manifests && echo "manifests dir ready"'
+    networks: [repofabric]
+
   rewinged:
     image: ghcr.io/jantari/rewinged:latest
     container_name: repofabric-rewinged
     restart: unless-stopped
+    # Wait for the manifests/ subdir to exist so rewinged's -manifestPath watch
+    # arms on a real directory (see manifests-init above).
+    depends_on:
+      manifests-init:
+        condition: service_completed_successfully
     user: "99:100"
     volumes:
       - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/manifests:/manifests:ro

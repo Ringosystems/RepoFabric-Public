@@ -81,11 +81,35 @@ services:
       - ./deploy/gitea-provision.sh:/usr/local/bin/gitea-provision.sh:ro
     networks: [repofabric]
 
+  # ---- One-shot: ensure the manifests/ subdir exists before rewinged -------
+  # rewinged mounts the manifest volume read-only and arms its -manifestPath
+  # watch at startup; if manifests/ does not exist yet (fresh deploy, before the
+  # first publish) it logs "no such file or directory", indexes 0, and the watch
+  # never fires -- so published packages stay invisible until the container is
+  # restarted. manifests-init up front (publisher uid) avoids that boot error and
+  # gives rewinged a clean initial scan; RepoFabric then restarts this container
+  # after each changed publish (Update-RfMainRewinged) -- rewinged's watch does
+  # NOT see the publisher's cross-container writes, so a restart is the reload.
+  manifests-init:
+    image: gitea/gitea:1
+    container_name: ${REPOFABRIC_INSTANCE:-repofabric}-manifests-init
+    restart: "no"
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /manifests/manifests && chown 99:100 /manifests/manifests && echo 'manifests dir ready'"]
+    volumes:
+      - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/manifests:/manifests
+    networks: [repofabric]
+
   # ---- WinGet REST API for the default 'main' repo -------------------------
   rewinged:
     image: ghcr.io/jantari/rewinged:latest
     container_name: ${REPOFABRIC_INSTANCE:-repofabric}-rewinged
     restart: unless-stopped
+    # Wait for manifests/ to exist so rewinged's -manifestPath watch arms on a
+    # real directory (see manifests-init above).
+    depends_on:
+      manifests-init:
+        condition: service_completed_successfully
     user: "99:100"
     volumes:
       - ${REPOFABRIC_APPDATA_ROOT:-/mnt/user/appdata/repofabric}/manifests:/manifests:ro

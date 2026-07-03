@@ -71,7 +71,7 @@ INSERT INTO virtual_repos (
     'main',
     'Main',
     'Default virtual repository (auto-created during 0.8.0 schema migration).',
-    'repofabric/winget-manifests',
+    'repofabric-publisher/winget-manifests',
     'local',
     'active',
     'repofabric-rewinged',

@@ -33,7 +33,7 @@ function Invoke-RfSetupCli {
     Write-Host ""
     Write-Host "-- Gitea target --"
     $giteaUrl = _Ask 'Gitea base URL' 'http://repofabric-gitea:3000'
-    $giteaRepo = _Ask 'Gitea repo path' 'repofabric/winget-manifests'
+    $giteaRepo = _Ask 'Gitea repo path' 'repofabric-publisher/winget-manifests'
     $giteaPat = Read-Host 'Gitea PAT' -AsSecureString
     $patPlain = [System.Net.NetworkCredential]::new('', $giteaPat).Password
 

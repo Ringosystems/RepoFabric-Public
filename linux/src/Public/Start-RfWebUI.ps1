@@ -43,6 +43,9 @@ function Start-RfWebUI {
     # phase never runs. Worker count comes from the merged config; cap at
     # 1..64. Failures here are non-fatal: the listener still comes up so
     # the operator can fix config and resize the pool from Settings.
+    # Tracks whether the pool has been spawned, so the per-request self-heal below
+    # brings it up EXACTLY ONCE (after first-run setup) and never repeatedly.
+    $script:RfPoolSpawned = $false
     try {
         $cfg = Get-RfConfiguration -ErrorAction SilentlyContinue
         $poolSize = if ($cfg -and $cfg.operational -and $cfg.operational.worker_pool_size) {
@@ -51,6 +54,7 @@ function Start-RfWebUI {
         if ($poolSize -lt 1) { $poolSize = 1 }
         if ($poolSize -gt 64) { $poolSize = 64 }
         $null = New-RfSyncWorkerPool -Size $poolSize
+        $script:RfPoolSpawned = $true
         Write-Host "Sync worker pool spawned with $poolSize worker(s)" -ForegroundColor DarkGray
     } catch {
         Write-Host "WARN: failed to spawn worker pool: $($_.Exception.Message). Sync requests will queue but not run until pool is started." -ForegroundColor Yellow
@@ -67,6 +71,9 @@ function Start-RfWebUI {
 
     Write-Host "RepoFabric (UNRAID-local) listening on $ListenPrefix" -ForegroundColor Green
     try { Write-RfLog -Level Information -Message "WebUI started on $ListenPrefix" } catch { }
+
+    # Throttle marker for the per-request worker-pool self-heal in the loop below.
+    $script:RfLastPoolEnsure = [datetime]::MinValue
 
     try {
         while ($listener.IsListening) {
@@ -92,6 +99,30 @@ function Start-RfWebUI {
                         continue
                     }
                     $script:RfCallerCaps = $caps
+                }
+
+                # Self-heal: bring the sync worker pool up ONCE if the boot-time
+                # spawn above failed because the bridge started BEFORE first-run
+                # setup wrote a valid target config. Gated on a spawn-once flag --
+                # NOT a live-job probe: Get-Job from the listener thread proved
+                # unreliable and produced a runaway respawn (dozens of pools; each
+                # New pool's orphan-reset re-queued in-flight rows, so multiple
+                # workers processed the same item). Get-RfConfiguration reads the
+                # YAML fresh, so once setup completes the next request spawns the
+                # pool (the GUI polls /queue/status, so within seconds). Throttled
+                # while still waiting for valid config.
+                if (-not $script:RfPoolSpawned -and ((Get-Date) - $script:RfLastPoolEnsure).TotalSeconds -ge 10) {
+                    $script:RfLastPoolEnsure = Get-Date
+                    try {
+                        $ensureCfg  = Get-RfConfiguration
+                        $ensureSize = if ($ensureCfg.operational -and $ensureCfg.operational.worker_pool_size) { [int]$ensureCfg.operational.worker_pool_size } else { 4 }
+                        if ($ensureSize -lt 1) { $ensureSize = 1 } elseif ($ensureSize -gt 64) { $ensureSize = 64 }
+                        $null = New-RfSyncWorkerPool -Size $ensureSize
+                        $script:RfPoolSpawned = $true
+                        Write-Host "Sync worker pool spawned on demand with $ensureSize worker(s)" -ForegroundColor DarkGray
+                    } catch {
+                        # Config still incomplete (pre-setup); retry on a later request.
+                    }
                 }
 
                 Invoke-RfWebRequest -Context $ctx

@@ -17,7 +17,7 @@ function Get-RfRepoTargetPaths {
           main (legacy):
             WorkingTreeDir   = {manifest_root}                        e.g. /var/cache/repofabric/manifests
             ManifestSubdir   = {manifest_root}/manifests
-            GiteaRepoPath    = 'repofabric/winget-manifests' (from virtual_repos)
+            GiteaRepoPath    = 'repofabric-publisher/winget-manifests' (from virtual_repos)
 
           everything else:
             WorkingTreeDir   = {manifest_root}/repos/{repo_id}        e.g. /var/cache/repofabric/manifests/repos/test

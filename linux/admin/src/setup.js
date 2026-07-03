@@ -153,10 +153,12 @@ export function setupRouter() {
           redirect_uri:  str(body.auth?.redirect_uri, redirectUriFor(config.publicBaseUrl)),
           allowed_users:  arr(body.auth?.allowed_users, []).map(String).map(s => s.toLowerCase()),
           allowed_groups: arr(body.auth?.allowed_groups, []).map(g => ({ id: String(g.id), display_name: String(g.display_name || g.id) })),
+          readonly_users:  arr(body.auth?.readonly_users, []).map(String).map(s => s.toLowerCase()),
+          readonly_groups: arr(body.auth?.readonly_groups, []).map(g => ({ id: String(g.id), display_name: String(g.display_name || g.id) })),
         },
         targets: {
           gitea_base_url:      str(body.targets?.gitea_base_url, ''),
-          gitea_repo:          str(body.targets?.gitea_repo, 'repofabric/winget-manifests'),
+          gitea_repo:          str(body.targets?.gitea_repo, 'repofabric-publisher/winget-manifests'),
           gitea_pat:           str(body.targets?.gitea_pat, ''),
           rewinged_url:        str(body.targets?.rewinged_url, ''),
           installer_base_url:  str(body.targets?.installer_base_url, ''),
