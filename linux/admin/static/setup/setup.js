@@ -245,7 +245,9 @@ function buildPayload() {
       client_id:     v.entra_client_id || '',
       client_secret: v.entra_client_secret || '',
       allowed_users:  (v.allowed_users  || '').split(',').map(s => s.trim()).filter(Boolean),
-      allowed_groups: (v.allowed_groups || '').split(',').map(s => s.trim()).filter(Boolean).map(id => ({ id, display_name: id }))
+      allowed_groups: (v.allowed_groups || '').split(',').map(s => s.trim()).filter(Boolean).map(id => ({ id, display_name: id })),
+      readonly_users:  (v.readonly_users  || '').split(',').map(s => s.trim()).filter(Boolean),
+      readonly_groups: (v.readonly_groups || '').split(',').map(s => s.trim()).filter(Boolean).map(id => ({ id, display_name: id }))
     },
     targets: {
       gitea_base_url:     v.gitea_base_url,
@@ -565,5 +567,49 @@ document.addEventListener('keydown', ev => {
     el.addEventListener('change', refresh);
     el.addEventListener('input', refresh);
   });
+  refresh();
+})();
+
+// --- Optional step: mail delivery (Exchange Online Direct Send / custom) ---
+// Direct Send needs no credentials: RepoFabric talks straight to the tenant's
+// Microsoft 365 endpoint (<domain-with-dashes>.mail.protection.outlook.com) over
+// TLS and delivers to internal mailboxes. The named smtp_* inputs are hidden and
+// filled from whichever method is active, so buildPayload stays unchanged.
+(function wireMail() {
+  const method = $('#mailMethod');
+  if (!method) return;
+  const exo = $('#mailExo'), custom = $('#mailCustom');
+  const exoDomain = $('#exoDomain'), exoFrom = $('#exoFrom'), exoHostOut = $('#exoHostOut');
+  const customHost = $('#customHost'), customPort = $('#customPort'), customFrom = $('#customFrom');
+  const host = document.querySelector('[name="smtp_host"]');
+  const port = document.querySelector('[name="smtp_port"]');
+  const from = document.querySelector('[name="smtp_from"]');
+  let exoFromEdited = false;
+
+  const smartHost = dom => dom ? `${dom.replace(/\./g, '-')}.mail.protection.outlook.com` : '';
+  function refresh() {
+    const m = method.value;
+    if (exo) exo.hidden = (m !== 'exo');
+    if (custom) custom.hidden = (m !== 'custom');
+    if (m === 'exo') {
+      const dom = exoDomain.value.trim().toLowerCase().replace(/^@/, '');
+      const sh = smartHost(dom);
+      if (exoHostOut) exoHostOut.textContent = sh || 'yourdomain-com.mail.protection.outlook.com';
+      if (dom && !exoFromEdited) exoFrom.value = `repofabric@${dom}`;
+      host.value = sh;
+      port.value = '25';
+      from.value = exoFrom.value.trim();
+    } else if (m === 'custom') {
+      host.value = customHost.value.trim();
+      port.value = String(parseInt(customPort.value, 10) || 25);
+      from.value = customFrom.value.trim();
+    } else {
+      host.value = '';
+      from.value = '';
+    }
+  }
+  method.addEventListener('change', refresh);
+  [exoDomain, customHost, customPort, customFrom].forEach(el => { if (el) el.addEventListener('input', refresh); });
+  if (exoFrom) exoFrom.addEventListener('input', () => { exoFromEdited = true; refresh(); });
   refresh();
 })();

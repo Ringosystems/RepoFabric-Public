@@ -109,7 +109,7 @@ export async function handleLocalLogin(req, res) {
     console.warn('[auth] sandbox local-login failed for', username || '(empty)');
     return renderLocalLogin(req, res, 'Invalid username or password.');
   }
-  req.session.user = { upn: 'local-admin', name: la.username, groups: [], authReason: 'local password (sandbox)' };
+  req.session.user = { upn: 'local-admin', name: la.username, groups: [], role: 'admin', authReason: 'local password (sandbox)' };
   res.redirect(safeReturnTo(req.body?.returnTo));
 }
 
@@ -165,6 +165,7 @@ export async function handleCallback(req, res) {
       );
     }
     user.authReason = decision.reason;
+    user.role = decision.role;
     req.session.user = user;
     const returnTo = req.session.returnTo || '/admin/';
     delete req.session.returnTo;
@@ -175,40 +176,52 @@ export async function handleCallback(req, res) {
   }
 }
 
+// Returns { allowed, role, reason }. role is 'admin' (full access) or
+// 'readonly' (view-only; every mutating /admin request is refused by the gate
+// in server.js). Admin allow-lists win over read-only, so a user in both is an
+// admin. A Graph membership lookup covers the groups-claim overage case.
 export async function authorize(user) {
-  // 1. User allow-list match.
-  if (config.auth.allowedUsers.length > 0 && user.upn && config.auth.allowedUsers.includes(user.upn)) {
-    return { allowed: true, reason: `user allow-list match (${user.upn})` };
-  }
+  const allowedGroupIds  = config.auth.allowedGroups.map(g => g.id);
+  const readonlyUsers    = config.auth.readonlyUsers || [];
+  const readonlyGroupIds = (config.auth.readonlyGroups || []).map(g => g.id);
 
-  const allowedGroupIds = config.auth.allowedGroups.map(g => g.id);
-
-  // 2. Group claim match (id_token contained the groups).
-  if (allowedGroupIds.length > 0 && user.groups.length > 0) {
-    const hit = user.groups.find(g => allowedGroupIds.includes(g));
-    if (hit) return { allowed: true, reason: `group claim match (${hit})` };
-  }
-
-  // 3. Overage fallback: Microsoft Graph membership lookup. Only fires when
-  //    the id_token told us "too many groups, see Graph" via _claim_names.
-  if (allowedGroupIds.length > 0 && user.groupsOverage && user.oid) {
-    for (const gid of allowedGroupIds) {
-      try {
-        if (await isUserInGroup(user.oid, gid)) {
-          return { allowed: true, reason: `Graph overage match (${gid})` };
-        }
-      } catch (err) {
-        console.warn('[authz] Graph overage check failed for', gid, err.message);
+  const matchesGroups = async (groupIds) => {
+    if (groupIds.length === 0) return null;
+    if (user.groups.length > 0) {
+      const hit = user.groups.find(g => groupIds.includes(g));
+      if (hit) return hit;
+    }
+    // Overage fallback: id_token said "too many groups, see Graph" (_claim_names).
+    if (user.groupsOverage && user.oid) {
+      for (const gid of groupIds) {
+        try { if (await isUserInGroup(user.oid, gid)) return gid; }
+        catch (err) { console.warn('[authz] Graph overage check failed for', gid, err.message); }
       }
     }
-  }
+    return null;
+  };
 
-  // 4. Default-allow when nothing is configured (first boot just after setup
-  //    or an operator who explicitly cleared both lists).
-  if (config.auth.allowedUsers.length === 0 && allowedGroupIds.length === 0) {
-    return { allowed: true, reason: 'no authz configured; default-allow (will warn at startup)' };
+  // 1. Admin: user allow-list, then group (claim or Graph overage).
+  if (config.auth.allowedUsers.length > 0 && user.upn && config.auth.allowedUsers.includes(user.upn)) {
+    return { allowed: true, role: 'admin', reason: `admin user allow-list match (${user.upn})` };
   }
-  return { allowed: false, reason: 'not in allowed users and not in any allowed group' };
+  const adminGroupHit = await matchesGroups(allowedGroupIds);
+  if (adminGroupHit) return { allowed: true, role: 'admin', reason: `admin group match (${adminGroupHit})` };
+
+  // 2. Read-only: user allow-list, then group (claim or Graph overage).
+  if (readonlyUsers.length > 0 && user.upn && readonlyUsers.includes(user.upn)) {
+    return { allowed: true, role: 'readonly', reason: `read-only user allow-list match (${user.upn})` };
+  }
+  const roGroupHit = await matchesGroups(readonlyGroupIds);
+  if (roGroupHit) return { allowed: true, role: 'readonly', reason: `read-only group match (${roGroupHit})` };
+
+  // 3. Default-allow (admin) when NOTHING is configured (first boot just after
+  //    setup or an operator who explicitly cleared every list).
+  if (config.auth.allowedUsers.length === 0 && allowedGroupIds.length === 0 &&
+      readonlyUsers.length === 0 && readonlyGroupIds.length === 0) {
+    return { allowed: true, role: 'admin', reason: 'no authz configured; default-allow (will warn at startup)' };
+  }
+  return { allowed: false, role: null, reason: 'not in any admin or read-only allow-list or group' };
 }
 
 export function logout(req, res) {

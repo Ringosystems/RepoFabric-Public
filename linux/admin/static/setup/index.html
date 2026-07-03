@@ -278,14 +278,30 @@
         <button type="button" data-probe="entra">Test Entra credentials</button>
         <div class="probe-result" data-probe-result="entra"></div>
       </div>
-      <label>Allowed user UPNs
-        <input type="text" name="allowed_users" placeholder="someone@example.com,another@example.com">
-        <small class="help">Comma-separated. Members of this allow-list can sign into the admin. Add at least one or no human will be able to log in.</small>
-      </label>
-      <label>Allowed group ids
-        <input type="text" name="allowed_groups" placeholder="11111111-2222-3333-4444-555555555555">
-        <small class="help">Comma-separated GUIDs. Members of these Entra groups are also admitted. Optional alongside Allowed user UPNs.</small>
-      </label>
+      <fieldset>
+        <legend>Admin access <span class="vpill devices">full control</span></legend>
+        <p class="help">Who can change RepoFabric: add subscriptions, publish, sync, edit settings. <strong>Point this at an Entra group</strong> so access follows your existing joiner/mover/leaver process; list individual UPNs only for exceptions.</p>
+        <label>Admin group object IDs <span class="vpill auto">recommended</span>
+          <input type="text" name="allowed_groups" placeholder="11111111-2222-3333-4444-555555555555">
+          <small class="help">Comma-separated Entra group object IDs. Everyone in these groups gets full admin. The preferred way to grant access.</small>
+        </label>
+        <label>Admin user UPNs <small class="muted">(exceptions)</small>
+          <input type="text" name="allowed_users" placeholder="admin@contoso.com">
+          <small class="help">Comma-separated sign-in names for one-off admins outside the group. Add at least one admin (a group <em>or</em> a UPN) or nobody can manage RepoFabric.</small>
+        </label>
+      </fieldset>
+      <fieldset>
+        <legend>Read-only access <span class="vpill internal">view only</span></legend>
+        <p class="help">Who can sign in and see everything but change nothing (helpdesk, auditors, managers). Every write is refused for these accounts. Again, <strong>prefer a group</strong>.</p>
+        <label>Read-only group object IDs <span class="vpill auto">recommended</span>
+          <input type="text" name="readonly_groups" placeholder="99999999-8888-7777-6666-555555555555">
+          <small class="help">Comma-separated Entra group object IDs whose members get view-only access.</small>
+        </label>
+        <label>Read-only user UPNs <small class="muted">(exceptions)</small>
+          <input type="text" name="readonly_users" placeholder="auditor@contoso.com">
+          <small class="help">Comma-separated sign-in names for one-off read-only users. Optional.</small>
+        </label>
+      </fieldset>
       <div class="actions">
         <button type="button" data-prev>Back</button>
         <button type="button" class="primary" data-next>Next</button>
@@ -297,14 +313,46 @@
       <h2>Optional integrations</h2>
       <p>Both sections are safe to leave blank. You can configure them later from the admin's Settings tab.</p>
       <fieldset>
-        <legend>SMTP relay (notifications)</legend>
-        <label>Host <input type="text" name="smtp_host"></label>
-        <label>Port <input type="number" name="smtp_port" value="25" min="1" max="65535"></label>
-        <label>From <input type="email" name="smtp_from"></label>
-        <label>To
-          <input type="text" name="smtp_to" placeholder="alerts@example.com,oncall@example.com">
-          <small class="help">Comma-separated. Empty disables outgoing notifications entirely.</small>
+        <legend>Email notifications</legend>
+        <p class="help">RepoFabric emails you on sync failures and a daily heartbeat. Safe to leave off; you can set it up later in Settings.</p>
+        <div class="sched-sub"><span>Delivery</span>
+          <select id="mailMethod">
+            <option value="exo">Microsoft 365 (Exchange Online, Direct Send)</option>
+            <option value="custom">Custom SMTP relay</option>
+            <option value="off">Off (no email)</option>
+          </select>
+        </div>
+
+        <div id="mailExo" class="mail-opt">
+          <label>Your email domain
+            <input type="text" id="exoDomain" placeholder="contoso.com" autocomplete="off" spellcheck="false">
+            <small class="help">RepoFabric sends straight to Microsoft 365 with <strong>no password</strong> (Direct Send). Two requirements: it delivers to <strong>internal mailboxes only</strong>, and your domain's SPF record must authorise this server's outbound public IP.</small>
+          </label>
+          <div class="field-block">
+            <div class="field-cap">Microsoft 365 endpoint <span class="vpill internal">derived</span></div>
+            <div class="readout"><span class="readout-v" id="exoHostOut">yourdomain-com.mail.protection.outlook.com</span></div>
+          </div>
+          <label>From address
+            <input type="email" id="exoFrom" placeholder="repofabric@contoso.com" autocomplete="off">
+            <small class="help">Must be on an accepted domain in your tenant. Filled in from your domain; edit if you want a different sender.</small>
+          </label>
+        </div>
+
+        <div id="mailCustom" class="mail-opt" hidden>
+          <label>Host <input type="text" id="customHost" placeholder="smtp.internal.contoso.com"></label>
+          <label>Port <input type="number" id="customPort" value="25" min="1" max="65535"></label>
+          <label>From <input type="email" id="customFrom" placeholder="repofabric@contoso.com"></label>
+          <p class="help">TLS is used automatically. If the relay needs authentication, set <code>REPOFABRIC_SMTP_USERNAME</code> and <code>REPOFABRIC_SMTP_PASSWORD</code> in the container environment.</p>
+        </div>
+
+        <label id="mailToWrap">Send alerts to
+          <input type="text" name="smtp_to" placeholder="itops@contoso.com,oncall@contoso.com">
+          <small class="help">Comma-separated recipients. With Direct Send these must be mailboxes in your own tenant. Leave blank to disable outgoing email.</small>
         </label>
+
+        <input type="hidden" name="smtp_host" value="">
+        <input type="hidden" name="smtp_port" value="25">
+        <input type="hidden" name="smtp_from" value="">
       </fieldset>
       <div class="actions">
         <button type="button" data-prev>Back</button>

@@ -153,6 +153,8 @@ export function setupRouter() {
           redirect_uri:  str(body.auth?.redirect_uri, redirectUriFor(config.publicBaseUrl)),
           allowed_users:  arr(body.auth?.allowed_users, []).map(String).map(s => s.toLowerCase()),
           allowed_groups: arr(body.auth?.allowed_groups, []).map(g => ({ id: String(g.id), display_name: String(g.display_name || g.id) })),
+          readonly_users:  arr(body.auth?.readonly_users, []).map(String).map(s => s.toLowerCase()),
+          readonly_groups: arr(body.auth?.readonly_groups, []).map(g => ({ id: String(g.id), display_name: String(g.display_name || g.id) })),
         },
         targets: {
           gitea_base_url:      str(body.targets?.gitea_base_url, ''),
