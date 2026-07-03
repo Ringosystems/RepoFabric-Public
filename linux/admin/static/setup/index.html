@@ -10,7 +10,7 @@
 <body>
   <header>
     <h1>RepoFabric setup</h1>
-    <p class="muted">First-run wizard. Walk through six short steps; each one validates before you can continue. Secrets (Gitea PAT, Entra client secret) are entered here for the initial save and persist into the container's config files; they are NOT stored client-side.</p>
+    <p class="muted">First-run wizard. Browse the steps in any order to see what each one asks; RepoFabric checks every required answer when you Save. Secrets (Gitea PAT, Entra client secret) are entered here for the initial save and persist into the container's config files; they are NOT stored client-side.</p>
     <p class="muted">New to the stack? The full deployment walkthrough -- companion containers, per-platform setup, reverse proxy, troubleshooting -- lives at <a href="/setup/docs/">/setup/docs/</a>. The wizard below picks up after those steps are complete.</p>
   </header>
 
@@ -46,53 +46,104 @@
     </section>
 
     <!-- Step 1: targets -->
-    <section data-panel="1" class="panel" hidden>
-      <h2>Targets</h2>
-      <p>Where the repofabric companion stack lives. All hosts must be reachable from inside the <code>repofabric</code> docker network this container joins.</p>
+    <section data-panel="1" class="panel targets" hidden>
+      <h2>Where can devices reach RepoFabric?</h2>
+      <p>Give RepoFabric its address on your network and <strong>the rest of this page fills itself in</strong>. The plumbing between the containers is already wired, so most teams change exactly one thing here.</p>
 
-      <fieldset>
-        <legend>Gitea (manifest repo)</legend>
-        <label>Base URL <span class="req">*</span>
-          <input type="url" name="gitea_base_url" value="http://repofabric-gitea:3000" data-required data-validate="url">
-          <small class="help">No trailing slash. Use the container hostname when on the same docker network (e.g. <code>http://repofabric-gitea:3000</code>); the public DNS works too but adds a round-trip through your reverse proxy.</small>
-        </label>
-        <label>Repo path <span class="req">*</span>
-          <input type="text" name="gitea_repo" value="repofabric/winget-manifests" data-required data-validate="owner-repo">
-          <small class="help">In <code>&lt;org-or-user&gt;/&lt;repo&gt;</code> form. Created automatically on first publish if it does not exist yet.</small>
-        </label>
-        <label>Access token <small class="muted">(optional)</small>
-          <input type="password" name="gitea_pat" autocomplete="new-password">
-          <small class="help"><strong>Leave blank.</strong> The bundled Gitea is provisioned automatically and its access token is minted and wired for you. Paste a token only to use your own Gitea (needs repo read+write). Stored in <code>solution.yaml</code>; never echoed back.</small>
-        </label>
-        <div class="probe-row">
-          <button type="button" data-probe="gitea">Test Gitea connection</button>
-          <div class="probe-result" data-probe-result="gitea"></div>
+      <div class="targets-cols">
+        <div class="targets-main">
+          <!-- The one thing most teams set -->
+          <div class="lead-card">
+            <p class="lead-q">Your RepoFabric address</p>
+            <p class="lead-sub">The internal DNS name your managed devices and IT admins use to reach this server.</p>
+            <div class="lead-field">
+              <span class="lead-scheme">https://</span>
+              <input type="text" id="targetDns" spellcheck="false" autocomplete="off" placeholder="winget.contoso.com" aria-label="RepoFabric internal DNS name">
+            </div>
+            <p class="lead-hint">A split-horizon name resolved on your LAN and pointed at your reverse proxy. RepoFabric stays on your internal network, it is never published to the public internet. <span class="vpill devices">Devices connect here</span></p>
+          </div>
+
+          <fieldset>
+            <legend>What your fleet uses</legend>
+            <p class="help grp-note">These two addresses are the only things outside the server that ever touch RepoFabric. Both stay on your internal network.</p>
+
+            <div class="field-block">
+              <div class="field-cap">WinGet source your devices add <span class="vpill devices">You hand this out</span></div>
+              <div class="readout"><span class="readout-v" id="roSource">https://&hellip;/api</span><button type="button" class="copybtn" data-copy="roSource">Copy</button></div>
+              <p class="help">Push this once from Intune and every managed device pulls approved apps from it: <code id="roCmd">winget source add &lt;name&gt; https://&hellip;/api</code>. Derived from your address, nothing to fill in.</p>
+            </div>
+
+            <label>Public installer base URL <span class="req">*</span> <span class="vpill devices">Devices download from here</span> <span class="vpill auto" id="installerAutoTag" hidden>Auto-filled</span>
+              <input type="url" name="installer_base_url" placeholder="https://installers.contoso.com" data-required data-validate="url">
+              <small class="help">Where devices fetch the actual <code>.exe</code> / <code>.msi</code> files. RepoFabric rewrites every manifest's <code>InstallerUrl</code> to <code>&lt;base&gt;/&lt;pkg&gt;/&lt;ver&gt;/&lt;file&gt;</code> and serves them itself on host port 8091. <strong>Filled in from your address</strong>, edit only if downloads live on a different host.</small>
+            </label>
+          </fieldset>
+
+          <details class="internal-wiring">
+            <summary>Internal wiring <span class="iw-sub">wired automatically, you should not need to touch this</span></summary>
+            <div class="iw-body">
+              <label>Gitea base URL <span class="req">*</span> <span class="vpill internal">Internal only</span>
+                <input type="url" name="gitea_base_url" value="http://repofabric-gitea:3000" data-required data-validate="url">
+                <small class="help">RepoFabric reaches its bundled Gitea by container name, inside the Docker network. Nothing outside the server uses this. Leave it unless you run your own Gitea.</small>
+              </label>
+              <label>Manifest repo path <span class="req">*</span> <span class="vpill internal">Internal only</span>
+                <input type="text" name="gitea_repo" value="repofabric/winget-manifests" data-required data-validate="owner-repo">
+                <small class="help">In <code>&lt;org-or-user&gt;/&lt;repo&gt;</code> form. Created automatically on first publish.</small>
+              </label>
+              <label>Gitea access token <small class="muted">(optional)</small> <span class="vpill secret">Secret, never shown</span>
+                <input type="password" name="gitea_pat" autocomplete="new-password">
+                <small class="help"><strong>Leave blank.</strong> Minted and wired for you when the bundled Gitea starts, stored in <code>solution.yaml</code> and never echoed back. Fill in only to point at your own Gitea (needs repo read+write).</small>
+              </label>
+              <div class="probe-row">
+                <button type="button" data-probe="gitea">Test Gitea connection</button>
+                <div class="probe-result" data-probe-result="gitea"></div>
+              </div>
+
+              <label>rewinged URL <span class="req">*</span> <span class="vpill internal">Internal only</span>
+                <input type="url" name="rewinged_url" value="http://repofabric-rewinged:8080" data-required data-validate="url">
+                <small class="help">RepoFabric's container-to-container link to the WinGet REST engine. Probe hits <code>/information</code> and reports the <code>SourceIdentifier</code>. Leave it.</small>
+              </label>
+              <div class="probe-row">
+                <button type="button" data-probe="rewinged">Test rewinged connection</button>
+                <div class="probe-result" data-probe-result="rewinged"></div>
+              </div>
+            </div>
+          </details>
+
+          <div class="actions">
+            <button type="button" data-prev>Back</button>
+            <button type="button" class="primary" data-next>Next</button>
+          </div>
         </div>
-      </fieldset>
 
-      <fieldset>
-        <legend>rewinged (WinGet REST source)</legend>
-        <label>URL <span class="req">*</span>
-          <input type="url" name="rewinged_url" value="http://repofabric-rewinged:8080" data-required data-validate="url">
-          <small class="help">rewinged's HTTP listener, no trailing slash. Probe hits <code>/information</code> and reports the <code>SourceIdentifier</code> it returns.</small>
-        </label>
-        <div class="probe-row">
-          <button type="button" data-probe="rewinged">Test rewinged connection</button>
-          <div class="probe-result" data-probe-result="rewinged"></div>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Installer base URL</legend>
-        <label>Public installer base URL <span class="req">*</span>
-          <input type="url" name="installer_base_url" placeholder="https://installers.example.com" data-required data-validate="url">
-          <small class="help">Public HTTPS origin endpoints download installer binaries from. No trailing slash. The publisher rewrites every manifest's <code>InstallerUrl</code> to <code>&lt;base&gt;/&lt;pkg&gt;/&lt;ver&gt;/&lt;file&gt;</code>. The repofabric-linux container serves the files directly on host port 8091 from the bind-mounted installer cache.</small>
-        </label>
-      </fieldset>
-
-      <div class="actions">
-        <button type="button" data-prev>Back</button>
-        <button type="button" class="primary" data-next>Next</button>
+        <aside class="example" aria-label="Worked example">
+          <div class="example-head">
+            <span class="sample-tag"><span class="sample-dot"></span>Sample, not your settings</span>
+            <h3>Contoso, Ltd. <span class="fict">(fictional example)</span></h3>
+            <p>How a 180-person company fills this page in. Shown for reference only, your own values appear on the left as you type.</p>
+          </div>
+          <div class="example-body">
+            <dl class="ex-dl">
+              <div class="ex-row"><dt>Their address <span class="vpill devices">devices</span></dt><dd>winget.contoso.com</dd></div>
+              <div class="ex-row"><dt>Installer downloads <span class="vpill devices">devices</span></dt><dd>installers.contoso.com</dd></div>
+              <div class="ex-row"><dt>Gitea <span class="vpill internal">internal</span></dt><dd>repofabric-gitea:3000 <span class="ex-auto">auto</span></dd></div>
+              <div class="ex-row"><dt>rewinged <span class="vpill internal">internal</span></dt><dd>repofabric-rewinged:8080 <span class="ex-auto">auto</span></dd></div>
+              <div class="ex-row"><dt>Access token <span class="vpill secret">secret</span></dt><dd>&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull; <span class="ex-auto">minted for you</span></dd></div>
+            </dl>
+            <div class="ex-divider"></div>
+            <p class="ex-cap">What Contoso's laptops run (pushed via Intune):</p>
+            <pre class="ex-cmd"><code><span class="tok-cmd">winget source add</span> <span class="tok-arg">contoso</span> https://winget.contoso.com/api</code></pre>
+            <div class="ex-legend">
+              <div class="ex-li"><span class="vpill devices">Devices</span><span><strong>On your network.</strong> Managed devices connect and download here. Never public.</span></div>
+              <div class="ex-li"><span class="vpill internal">Internal</span><span><strong>Container-to-container.</strong> Never leaves the Docker network on the server.</span></div>
+              <div class="ex-li"><span class="vpill secret">Secret</span><span><strong>Stored encrypted.</strong> Shown to no one, minted automatically.</span></div>
+            </div>
+            <div class="ex-persona">
+              <span class="ex-av">MB</span>
+              <span><strong>Megan Bowen</strong>, Contoso IT, signs in at <code>winget.contoso.com/admin</code> with her Microsoft work account. Staff never see the admin, their laptops just receive approved apps.</span>
+            </div>
+          </div>
+        </aside>
       </div>
     </section>
 

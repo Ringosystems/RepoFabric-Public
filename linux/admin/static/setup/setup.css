@@ -161,3 +161,77 @@ pre {
   border: 1px solid var(--border); border-radius: 4px;
 }
 #entraFillMsg { align-self: center; color: var(--muted); }
+
+/* ===== Free navigation: step tabs are clickable ===== */
+#steps li { cursor: pointer; }
+#steps li:hover { border-color: var(--accent); color: var(--text); }
+#steps li:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ===== Targets step: guided, example-led layout ===== */
+/* The Targets step widens only for itself to fit the worked-example panel. */
+body[data-step="1"] header,
+body[data-step="1"] nav,
+body[data-step="1"] main { max-width: 1160px; }
+
+.targets-cols { display: grid; grid-template-columns: minmax(0,1fr) 400px; gap: 20px; align-items: start; }
+.targets-main { min-width: 0; }
+@media (max-width: 900px) { .targets-cols { grid-template-columns: 1fr; } }
+
+/* Visibility pills: who sees each value */
+.vpill { display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .02em; white-space: nowrap; vertical-align: middle; }
+.vpill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.vpill.devices  { color: var(--accent); background: rgba(79,163,255,.15); }
+.vpill.internal { color: var(--muted);  background: rgba(255,255,255,.07); }
+.vpill.secret   { color: var(--warn);   background: rgba(232,185,75,.15); }
+.vpill.auto     { color: var(--ok);     background: rgba(90,209,123,.15); }
+
+/* Lead question */
+.lead-card { background: linear-gradient(180deg, rgba(79,163,255,.09), rgba(79,163,255,.02)); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 16px 18px; margin-bottom: 16px; }
+.lead-q { margin: 0 0 2px; font-size: 16px; font-weight: 600; }
+.lead-sub { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; }
+.lead-field { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 0 12px; }
+.lead-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,163,255,.16); }
+.lead-scheme { color: var(--muted); font-family: ui-monospace, monospace; }
+.lead-field input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--text); font-family: ui-monospace, monospace; font-size: 16px; padding: 10px 0; }
+.lead-hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+/* "What your fleet uses" group */
+.grp-note { margin-top: 0 !important; margin-bottom: 12px; }
+.field-block { margin: 12px 0; }
+.field-cap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.readout { display: flex; align-items: center; gap: 8px; margin-top: 4px; background: var(--bg); border: 1px dashed var(--border); border-radius: 4px; padding: 6px 8px; }
+.readout-v { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: ui-monospace, monospace; font-size: 12.5px; }
+.copybtn { flex: 0 0 auto; padding: 2px 10px; font-size: 11px; }
+
+/* Internal wiring disclosure */
+.internal-wiring { border: 1px solid var(--border); border-radius: 4px; margin: 12px 0; }
+.internal-wiring > summary { cursor: pointer; padding: 10px 14px; color: var(--text); display: flex; align-items: baseline; gap: 8px; }
+.internal-wiring > summary .iw-sub { color: var(--muted); font-weight: 400; font-size: 12px; }
+.iw-body { padding: 4px 14px 12px; border-top: 1px solid var(--border); }
+
+/* Worked example (clearly a sample) */
+.example { align-self: start; position: sticky; top: 16px; background: var(--panel); background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.02) 0 11px, transparent 11px 22px); border: 1px dashed var(--border); border-radius: 8px; overflow: hidden; }
+.example-head { padding: 14px 16px; border-bottom: 1px dashed var(--border); }
+.sample-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); background-image: repeating-linear-gradient(45deg, rgba(232,185,75,.16) 0 6px, transparent 6px 12px); border: 1px dashed var(--warn); border-radius: 4px; padding: 3px 9px; margin-bottom: 8px; }
+.sample-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+.example-head h3 { margin: 0; font-size: 16px; }
+.example-head h3 .fict { font-size: 12px; font-weight: 400; color: var(--muted); }
+.example-head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.example-body { padding: 14px 16px; }
+.ex-dl { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.ex-row { display: flex; flex-direction: column; gap: 4px; }
+.ex-row dt { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.ex-row dd { margin: 0; font-family: ui-monospace, monospace; font-size: 12.5px; color: var(--text); word-break: break-all; }
+.ex-auto { font-family: system-ui, sans-serif; color: var(--muted); font-size: 11px; margin-left: 4px; }
+.ex-divider { height: 1px; background: var(--border); margin: 14px -16px; }
+.ex-cap { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
+.ex-cmd { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: none; }
+.ex-cmd .tok-cmd { color: var(--ok); }
+.ex-cmd .tok-arg { color: var(--accent); }
+.ex-legend { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.ex-li { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.ex-li strong { color: var(--text); }
+.ex-persona { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; padding: 10px; background: rgba(255,255,255,.03); border-radius: 5px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.ex-persona .ex-av { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #0a0d12; display: grid; place-items: center; font-weight: 700; font-size: 11px; }
+.ex-persona strong { color: var(--text); }
+.ex-persona code { background: rgba(0,0,0,.25); padding: 1px 5px; border-radius: 3px; }
