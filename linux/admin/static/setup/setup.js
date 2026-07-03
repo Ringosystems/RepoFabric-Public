@@ -245,7 +245,9 @@ function buildPayload() {
       client_id:     v.entra_client_id || '',
       client_secret: v.entra_client_secret || '',
       allowed_users:  (v.allowed_users  || '').split(',').map(s => s.trim()).filter(Boolean),
-      allowed_groups: (v.allowed_groups || '').split(',').map(s => s.trim()).filter(Boolean).map(id => ({ id, display_name: id }))
+      allowed_groups: (v.allowed_groups || '').split(',').map(s => s.trim()).filter(Boolean).map(id => ({ id, display_name: id })),
+      readonly_users:  (v.readonly_users  || '').split(',').map(s => s.trim()).filter(Boolean),
+      readonly_groups: (v.readonly_groups || '').split(',').map(s => s.trim()).filter(Boolean).map(id => ({ id, display_name: id }))
     },
     targets: {
       gitea_base_url:     v.gitea_base_url,
@@ -324,7 +326,7 @@ function renderDonePage() {
 // the three credential fields from the script's printed output. No secret ever
 // touches the server here: the script runs in the operator's own Azure Cloud
 // Shell, and the printed values are pasted client-side into the fields.
-const entra = { bash: '', powershell: '', shell: 'bash' };
+const entra = { bash: '', powershell: '', shell: 'powershell' };
 
 async function entraGenerate() {
   const btn = $('#entraGenBtn');
@@ -499,4 +501,115 @@ document.addEventListener('keydown', ev => {
   dns.addEventListener('input', recompute);
   if (installer) installer.addEventListener('input', () => { installerEdited = true; if (autoTag) autoTag.hidden = true; });
   recompute();
+})();
+
+// --- Defaults step: architecture checkboxes serialise to the CSV field ----
+// The boxes carry no name so collectInputs ignores them; a hidden
+// input[name=architectures] holds the comma-separated value (publish-priority
+// order) that buildPayload already reads. x86 ships off by default.
+(function wireDefaults() {
+  const boxes = $$('.arch-box');
+  const hidden = document.querySelector('[name="architectures"]');
+  if (!boxes.length || !hidden) return;
+  const sync = () => { hidden.value = boxes.filter(b => b.checked).map(b => b.value).join(','); };
+  boxes.forEach(b => b.addEventListener('change', sync));
+  sync();
+})();
+
+// --- Schedule step: frequency picker builds the cron string ---------------
+// A plain-language frequency chooser writes the five-field cron into the
+// hidden input[name=schedule_cron] that buildPayload reads. "Custom" exposes a
+// raw cron field (validated) for operators who want full control.
+(function wireSchedule() {
+  const freq = $('#schedFreq');
+  if (!freq) return;
+  const hidden = document.querySelector('[name="schedule_cron"]');
+  const out = $('#schedCronOut');
+  const human = $('#schedHuman');
+  const everyHours = $('#schedEveryHours');
+  const dailyTime = $('#schedDailyTime');
+  const dow = $('#schedDow');
+  const weeklyTime = $('#schedWeeklyTime');
+  const custom = $('#schedCronCustom');
+  const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const hm = v => { const p = String(v || '02:00').split(':'); return { h: parseInt(p[0], 10) || 0, m: parseInt(p[1], 10) || 0 }; };
+  function compute() {
+    switch (freq.value) {
+      case 'hours': {
+        const n = parseInt(everyHours.value, 10) || 6;
+        return { cron: `0 */${n} * * *`, text: `Runs every ${n} hour${n === 1 ? '' : 's'}.` };
+      }
+      case 'daily': {
+        const { h, m } = hm(dailyTime.value);
+        return { cron: `${m} ${h} * * *`, text: `Runs daily at ${dailyTime.value || '02:00'}.` };
+      }
+      case 'weekly': {
+        const { h, m } = hm(weeklyTime.value);
+        const d = parseInt(dow.value, 10) || 0;
+        return { cron: `${m} ${h} * * ${d}`, text: `Runs every ${DOW[d]} at ${weeklyTime.value || '02:00'}.` };
+      }
+      default: {
+        const c = (custom.value || '').trim();
+        return { cron: c, text: c ? 'Custom schedule.' : 'Enter a five-field cron expression.' };
+      }
+    }
+  }
+  function refresh() {
+    $$('.sched-opt').forEach(el => { el.hidden = (el.dataset.when !== freq.value); });
+    const r = compute();
+    hidden.value = r.cron;
+    if (out) out.textContent = r.cron || '(none)';
+    if (human) human.textContent = r.text;
+  }
+  [freq, everyHours, dailyTime, dow, weeklyTime, custom].forEach(el => {
+    if (!el) return;
+    el.addEventListener('change', refresh);
+    el.addEventListener('input', refresh);
+  });
+  refresh();
+})();
+
+// --- Optional step: mail delivery (Exchange Online Direct Send / custom) ---
+// Direct Send needs no credentials: RepoFabric talks straight to the tenant's
+// Microsoft 365 endpoint (<domain-with-dashes>.mail.protection.outlook.com) over
+// TLS and delivers to internal mailboxes. The named smtp_* inputs are hidden and
+// filled from whichever method is active, so buildPayload stays unchanged.
+(function wireMail() {
+  const method = $('#mailMethod');
+  if (!method) return;
+  const exo = $('#mailExo'), custom = $('#mailCustom');
+  const exoDomain = $('#exoDomain'), exoFrom = $('#exoFrom'), exoHostOut = $('#exoHostOut');
+  const customHost = $('#customHost'), customPort = $('#customPort'), customFrom = $('#customFrom');
+  const host = document.querySelector('[name="smtp_host"]');
+  const port = document.querySelector('[name="smtp_port"]');
+  const from = document.querySelector('[name="smtp_from"]');
+  let exoFromEdited = false;
+
+  const smartHost = dom => dom ? `${dom.replace(/\./g, '-')}.mail.protection.outlook.com` : '';
+  function refresh() {
+    const m = method.value;
+    if (exo) exo.hidden = (m !== 'exo');
+    if (custom) custom.hidden = (m !== 'custom');
+    if (m === 'exo') {
+      const dom = exoDomain.value.trim().toLowerCase().replace(/^@/, '');
+      const sh = smartHost(dom);
+      if (exoHostOut) exoHostOut.textContent = sh || 'yourdomain-com.mail.protection.outlook.com';
+      if (dom && !exoFromEdited) exoFrom.value = `repofabric@${dom}`;
+      host.value = sh;
+      port.value = '25';
+      from.value = exoFrom.value.trim();
+    } else if (m === 'custom') {
+      host.value = customHost.value.trim();
+      port.value = String(parseInt(customPort.value, 10) || 25);
+      from.value = customFrom.value.trim();
+    } else {
+      host.value = '';
+      from.value = '';
+    }
+  }
+  method.addEventListener('change', refresh);
+  [exoDomain, customHost, customPort, customFrom].forEach(el => { if (el) el.addEventListener('input', refresh); });
+  if (exoFrom) exoFrom.addEventListener('input', () => { exoFromEdited = true; refresh(); });
+  refresh();
 })();

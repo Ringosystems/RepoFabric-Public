@@ -22,7 +22,17 @@ function toast(msg, kind = '') {
   t._timer = setTimeout(() => t.hidden = true, 5000);
 }
 
+// Operator role, set from /admin/api/features on boot. A 'readonly' operator is
+// blocked from every mutating request here (defense in depth; the server also
+// enforces read-only, returning 403 on writes).
+let userRole = 'admin';
+
 async function api(path, init = {}) {
+  const method = (init.method || 'GET').toUpperCase();
+  if (userRole === 'readonly' && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    toast('Read-only access: you can view RepoFabric but not change it.', 'bad');
+    throw new Error('read-only access');
+  }
   const res = await fetch(`${API}/${path}`, {
     headers: { 'content-type': 'application/json', ...(init.headers || {}) },
     credentials: 'same-origin',
@@ -4028,3 +4038,26 @@ async function runUpgradeCheck() {
     } catch (err) { toast(`Confirm failed: ${err.message}`, 'bad'); cb.checked = !cb.checked; }
   });
 }
+
+// --- Read-only mode ---------------------------------------------------------
+// Reflect the operator's role (from /admin/api/features) in the UI: a read-only
+// operator gets a banner and the write controls are hidden via body.rf-readonly
+// (see app-linux.css). Writes are also refused in api() and by the server.
+async function applyRole() {
+  try {
+    const r = await fetch('api/features', { credentials: 'same-origin' });
+    if (!r.ok) return;
+    const f = await r.json();
+    userRole = f.role || 'admin';
+    if (userRole === 'readonly') {
+      document.body.classList.add('rf-readonly');
+      if (!document.querySelector('.rf-readonly-banner')) {
+        const b = document.createElement('div');
+        b.className = 'rf-readonly-banner';
+        b.textContent = 'Read-only access. You can view everything here, but changes are disabled for your account.';
+        document.body.insertBefore(b, document.body.firstChild);
+      }
+    }
+  } catch { /* leave admin-capable in the UI; the server still enforces read-only */ }
+}
+applyRole();

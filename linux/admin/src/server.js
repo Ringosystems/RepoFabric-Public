@@ -263,6 +263,18 @@ if (config.inSetupMode) {
   // Everything below requires an authenticated session
   app.use('/admin', requireAuth);
 
+  // Read-only role gate. An operator matched via auth.readonly_users /
+  // auth.readonly_groups at sign-in may view but not change anything: every
+  // mutating method under /admin is refused (fail-closed -- anything that is
+  // not a plain read is blocked). GET SPA assets and the auth routes mounted
+  // above this line are unaffected.
+  app.use('/admin', (req, res, next) => {
+    if (req.session?.user?.role === 'readonly' && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      return res.status(403).json({ error: 'read-only access: this account can view RepoFabric but not change it.' });
+    }
+    next();
+  });
+
   // Static SPA assets (the main admin UI; the setup wizard's static tree
   // is intentionally unmounted in normal mode)
   app.use('/admin', express.static(path.join(__dirname, '..', 'static'), {
@@ -294,7 +306,7 @@ if (config.inSetupMode) {
   // Docker socket is mounted). The SPA gates the multi-repo controls (add repo,
   // reconcile containers) on this capability rather than on the deployment
   // profile, so a sandbox that opts into the socket gets the controls too.
-  app.get('/admin/api/features', (_q, s) => s.json({ configfabric: config.configfabric.enabled === true, timezone: currentTimezone(), deployment_profile: config.deploymentProfile, sandbox: config.isSandbox, entra_configured: isEntraConfigured(config.entra), docker_socket: fs.existsSync('/var/run/docker.sock'), http_port: config.publicHttpPort }));
+  app.get('/admin/api/features', (q, s) => s.json({ configfabric: config.configfabric.enabled === true, timezone: currentTimezone(), deployment_profile: config.deploymentProfile, sandbox: config.isSandbox, entra_configured: isEntraConfigured(config.entra), docker_socket: fs.existsSync('/var/run/docker.sock'), http_port: config.publicHttpPort, role: q.session?.user?.role || 'admin' }));
 
   // Post-setup "Connect Microsoft Entra" wizard (sandbox profile only). Lets an
   // authenticated local admin connect organizational sign-in after first boot.

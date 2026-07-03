@@ -31,3 +31,52 @@ details > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
 .combined-untracked > summary { padding: 6px 0; }
 #custom-table tbody tr { cursor: default; }
 #untracked-table tbody tr { color: #8a8f99; }
+
+/* ===== Read-only mode =====================================================
+ * Applied (via body.rf-readonly, set in app.js from /admin/api/features role)
+ * when the signed-in operator matches auth.readonly_users / readonly_groups.
+ * Every write is also refused in api() and by the server; this hides the
+ * controls so a read-only operator sees a clean, view-only UI. Read controls
+ * (Refresh, filters, tab nav, window pickers) are deliberately left alone. */
+.rf-readonly-banner {
+  background: #2a2213;
+  color: #e8b94b;
+  border-bottom: 1px solid #e8b94b;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+body.rf-readonly #btn-vrepo-add,
+body.rf-readonly #btn-vrepo-reconcile,
+body.rf-readonly #btn-vrepo-reconcile-retention,
+body.rf-readonly #btn-vrepo-edit,
+body.rf-readonly #btn-vrepo-archive,
+body.rf-readonly #btn-add-sub,
+body.rf-readonly #btn-publish-custom,
+body.rf-readonly #btn-sub-edit,
+body.rf-readonly #btn-sub-sync,
+body.rf-readonly #btn-sub-promote,
+body.rf-readonly #inv-set-primary,
+body.rf-readonly #btn-cfg-edit,
+body.rf-readonly #btn-cfg-save,
+body.rf-readonly #btn-cfg-cancel,
+body.rf-readonly #btn-backup-snapshot,
+body.rf-readonly #btn-backup-drill,
+body.rf-readonly #btn-cleanup-run,
+body.rf-readonly #btn-popularity-refresh,
+body.rf-readonly #btn-upgrade-check,
+body.rf-readonly #btn-upgrade-complete,
+body.rf-readonly #btn-svc-restart,
+body.rf-readonly .op-grid,
+body.rf-readonly #op-cancel-bar,
+body.rf-readonly [data-inv-action],
+body.rf-readonly [data-act$="-save"],
+body.rf-readonly [data-act$="-confirm"],
+body.rf-readonly .danger,
+body.rf-readonly .primary,
+body.rf-readonly dialog menu button[type="submit"],
+body.rf-readonly form#vrepo-form #vrepo-save,
+body.rf-readonly form#promo-form #promo-save {
+  display: none !important;
+}

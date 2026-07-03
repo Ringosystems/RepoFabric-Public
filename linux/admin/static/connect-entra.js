@@ -5,7 +5,7 @@
 // fetches only.
 
 const $ = (id) => document.getElementById(id);
-const scripts = { bash: '', powershell: '', shell: 'bash' };
+const scripts = { bash: '', powershell: '', shell: 'powershell' };
 
 function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

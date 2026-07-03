@@ -137,6 +137,13 @@ export function loadConfig() {
         id: g.id,
         display_name: g.display_name || g.name || g.id,
       })),
+      // Read-only operators: admitted to sign in but blocked from every
+      // mutating /admin request by the role gate in server.js.
+      readonlyUsers: (solution.auth?.readonly_users || []).map(s => String(s).toLowerCase()),
+      readonlyGroups: (solution.auth?.readonly_groups || []).map(g => ({
+        id: g.id,
+        display_name: g.display_name || g.name || g.id,
+      })),
     },
 
     // Target endpoints (from solution.yaml; env vars are seeds for the wizard)

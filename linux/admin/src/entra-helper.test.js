@@ -44,6 +44,14 @@ test('buildAzScripts: returns both shells, the exact redirect URI, and all four 
   }
 });
 
+test('buildAzScripts: enables the security-group token claim (group-based access needs it)', () => {
+  const out = buildAzScripts('https://winget.example.com/admin');
+  for (const s of [out.bash, out.powershell]) {
+    assert.ok(s.includes('groupMembershipClaims=SecurityGroup'),
+      'script must set groupMembershipClaims=SecurityGroup so the token carries security-group ids');
+  }
+});
+
 test('buildAzScripts: single quotes in the display name cannot break out of the shell literal', () => {
   const out = buildAzScripts('https://winget.example.com/admin', "Evil' ; rm -rf / #");
   // The injected single quote is stripped, so no stray quote survives in the literal.
