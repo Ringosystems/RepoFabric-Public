@@ -26,7 +26,24 @@ WORK_DIR="${GITEA_WORK_DIR:-/data/gitea}"
 export GITEA_WORK_DIR="$WORK_DIR"
 
 log() { printf '[gitea-provision] %s\n' "$*"; }
-gitea_cli() { "$GITEA_BIN" --config "$GITEA_CONF" "$@"; }
+
+# The Gitea CLI refuses to run as root (mustNotRunAsRoot [F] aborts). This
+# one-shot runs as root (compose `user: "0:0"`) so it can write the shared token
+# volume, so drop to the Gitea data owner (REPOFABRIC_UID/GID, default 99:100)
+# for every CLI call. If the container is already non-root, invoke it directly.
+GITEA_RUN_UID="${REPOFABRIC_UID:-99}"
+GITEA_RUN_GID="${REPOFABRIC_GID:-100}"
+_priv_drop=""
+if [ "$(id -u)" = "0" ]; then
+  if command -v su-exec >/dev/null 2>&1; then
+    _priv_drop="su-exec ${GITEA_RUN_UID}:${GITEA_RUN_GID}"
+  elif command -v gosu >/dev/null 2>&1; then
+    _priv_drop="gosu ${GITEA_RUN_UID}:${GITEA_RUN_GID}"
+  else
+    log "WARNING: running as root and neither su-exec nor gosu found; the gitea CLI may refuse to run."
+  fi
+fi
+gitea_cli() { $_priv_drop "$GITEA_BIN" --config "$GITEA_CONF" "$@"; }
 
 # 1. Wait for first-boot init: the app.ini and the SQLite schema appear once the
 #    gitea server has started. Budget ~90s.
