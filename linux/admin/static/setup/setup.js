@@ -1,7 +1,9 @@
-// Setup wizard front-end. Seven-step linear flow (Welcome / Targets /
-// Defaults / Schedule / Identity / Optional / Review) with rich probe
-// feedback for Gitea, rewinged, and Entra plus per-step required-field
-// validation so the operator cannot skip past a half-filled panel.
+// Setup wizard front-end. Seven-step flow (Welcome / Targets / Defaults /
+// Schedule / Identity / Optional / Review) with rich probe feedback for
+// Gitea, rewinged, and Entra. Steps are freely navigable: Next never blocks
+// and the step tabs jump anywhere once the token is verified. Every required
+// answer is validated together at Save, which points the operator at the
+// first gap.
 
 const state = { step: 0, values: {} };
 
@@ -12,8 +14,18 @@ function showStep(n) {
   $$('.panel').forEach(p => { p.hidden = (Number(p.dataset.panel) !== n); });
   $$('#steps li').forEach(li => li.classList.toggle('active', Number(li.dataset.step) === n));
   state.step = n;
+  document.body.dataset.step = String(n);
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (n === 6) renderReview();
+}
+
+// Free navigation via the step tabs. The token gate still applies: the
+// wizard body cannot be reached until the setup token is verified.
+function gotoStep(n) {
+  if (Number.isNaN(n) || n === state.step) return;
+  if (!state.values.token) return showStep(0);
+  collectInputs($(`[data-panel="${state.step}"]`));
+  showStep(n);
 }
 
 function collectInputs(panel) {
@@ -24,10 +36,10 @@ function collectInputs(panel) {
   });
 }
 
-// Per-step validation. Walks the current panel's data-required + data-validate
-// inputs, marks each one ok / error, and returns true only when every required
-// field is filled and every data-validate shape check passes. The Next button
-// calls this; if it returns false, focus jumps to the first failure.
+// Field validation. VALIDATORS / VALIDATOR_HINT define the shape checks and
+// setFieldState paints a field ok / error inline. validateAll() runs at Save
+// (not on Next), so the operator can browse every step freely and is only
+// stopped at the finish line.
 const VALIDATORS = {
   'url':         v => /^https?:\/\/[^/\s]+(\/.*)?$/.test(v) && !v.endsWith('/'),
   'owner-repo':  v => /^[^/\s]+\/[^/\s]+$/.test(v),
@@ -62,29 +74,33 @@ function setFieldState(el, ok, errMsg) {
   }
 }
 
-function validatePanel(panel) {
-  let firstBad = null;
-  let allOk = true;
-  $$('input, select', panel).forEach(el => {
-    const required = el.hasAttribute('data-required');
-    const validator = el.getAttribute('data-validate');
-    const raw = (el.value || '').trim();
-    if (required && !raw) {
-      setFieldState(el, false, 'Required.');
-      if (!firstBad) firstBad = el;
-      allOk = false;
-      return;
-    }
-    if (validator && raw && VALIDATORS[validator] && !VALIDATORS[validator](raw)) {
-      setFieldState(el, false, VALIDATOR_HINT[validator] || 'Invalid format.');
-      if (!firstBad) firstBad = el;
-      allOk = false;
-      return;
-    }
-    setFieldState(el, true, null);
+const STEP_NAMES = { 1: 'Targets', 2: 'Defaults', 3: 'Schedule', 4: 'Identity', 5: 'Optional' };
+
+// Whole-wizard validation, run at Save. Marks every empty required or
+// mis-shaped field across all input steps and reports which steps still need
+// attention plus the first offending element, so free navigation stays
+// unblocked until the finish line.
+function validateAll() {
+  const badSteps = [];
+  let count = 0;
+  let firstEl = null;
+  $$('.panel').forEach(panel => {
+    const step = Number(panel.dataset.panel);
+    if (step === 0 || step === 6) return; // token + review carry no inputs
+    let panelBad = false;
+    $$('input, select', panel).forEach(el => {
+      const required = el.hasAttribute('data-required');
+      const validator = el.getAttribute('data-validate');
+      const raw = (el.value || '').trim();
+      let msg = null;
+      if (required && !raw) msg = 'Required.';
+      else if (validator && raw && VALIDATORS[validator] && !VALIDATORS[validator](raw)) msg = VALIDATOR_HINT[validator] || 'Invalid format.';
+      setFieldState(el, !msg, msg);
+      if (msg) { count++; panelBad = true; if (!firstEl) firstEl = el; }
+    });
+    if (panelBad) badSteps.push(step);
   });
-  if (firstBad) firstBad.focus();
-  return allOk;
+  return { ok: count === 0, count, badSteps, firstEl };
 }
 
 async function verifyToken() {
@@ -200,6 +216,16 @@ function escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// Copy the text content of a derived read-out (e.g. the WinGet source URL)
+// to the clipboard. Falls back silently where the clipboard API is blocked.
+function copyReadout(btn) {
+  const el = document.getElementById(btn.dataset.copy);
+  if (!el) return;
+  const done = () => { const prev = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = prev; }, 1200); };
+  if (navigator.clipboard) navigator.clipboard.writeText(el.textContent).then(done, done);
+  else done();
+}
+
 function buildPayload() {
   const v = state.values;
   return {
@@ -247,6 +273,14 @@ function renderReview() {
 
 async function save() {
   $('#saveError').hidden = true;
+  // Free navigation means the operator can reach Save with gaps. Enforce every
+  // required answer here, mark the offenders, and name the steps that need work.
+  const check = validateAll();
+  if (!check.ok) {
+    const d = check.firstEl && check.firstEl.closest('details'); if (d) d.open = true;
+    const names = check.badSteps.map(s => STEP_NAMES[s] || ('Step ' + s)).join(', ');
+    return showError('#saveError', `${check.count} required ${check.count === 1 ? 'answer is' : 'answers are'} still missing or invalid on: ${names}. Use the step tabs above to jump to each, then Save again.`);
+  }
   const payload = buildPayload();
   try {
     const r = await fetch('/setup/api/save', {
@@ -365,6 +399,10 @@ function showError(sel, msg) { const el = $(sel); el.textContent = msg; el.hidde
 function hideError(sel)      { const el = $(sel); el.hidden = true; }
 
 document.addEventListener('click', ev => {
+  // Step tabs jump to any step (the token gate is enforced inside gotoStep).
+  const stepLi = ev.target.closest('#steps li');
+  if (stepLi) return gotoStep(Number(stepLi.dataset.step));
+
   const btn = ev.target.closest('button');
   if (!btn) return;
   if (btn.id === 'saveButton') return save();
@@ -372,18 +410,17 @@ document.addEventListener('click', ev => {
   if (btn.id === 'entraCopyBtn') return entraCopy();
   if (btn.id === 'entraFillBtn') return entraFillFromOutput();
   if (btn.classList.contains('entra-tab')) return entraSwitchTab(btn);
+  if (btn.dataset.copy) return copyReadout(btn);
   if (btn.dataset.probe) return probe(btn.dataset.probe);
   if (btn.hasAttribute('data-next')) {
     if (state.step === 0) return verifyToken();
-    const panel = $(`[data-panel="${state.step}"]`);
-    if (!validatePanel(panel)) return;
-    collectInputs(panel);
+    // Free navigation: never block moving forward. Answers are validated
+    // together at Save.
+    collectInputs($(`[data-panel="${state.step}"]`));
     showStep(state.step + 1);
     return;
   }
   if (btn.hasAttribute('data-prev')) {
-    // Back collects but does not validate; the operator may legitimately
-    // want to step back from a partly-filled panel.
     collectInputs($(`[data-panel="${state.step}"]`));
     showStep(state.step - 1);
     return;
@@ -410,3 +447,56 @@ fetch('/setup/api/state').then(r => r.json()).then(s => {
     document.body.innerHTML = '<div class="done"><h1>Setup already complete</h1><p>The wizard does not run after first save. From the admin you can re-enter via <strong>Settings &rarr; Advanced &rarr; Re-enter setup wizard</strong>.</p><p><a href="/admin/">Open the admin UI</a></p></div>';
   }
 });
+
+// Step tabs are keyboard-operable; they navigate on click via the delegated
+// handler above.
+$$('#steps li').forEach(li => { li.setAttribute('role', 'button'); li.tabIndex = 0; });
+document.addEventListener('keydown', ev => {
+  if (ev.key !== 'Enter' && ev.key !== ' ') return;
+  const li = ev.target.closest('#steps li');
+  if (!li) return;
+  ev.preventDefault();
+  gotoStep(Number(li.dataset.step));
+});
+
+// --- Targets step: derive the fleet-facing fields from the one DNS name ----
+// The operator types their RepoFabric address once; the WinGet source URL, the
+// `winget source add` command, and the installer base URL fill in from it. The
+// installer field stops auto-filling the moment it is edited by hand.
+(function wireTargets() {
+  const dns = $('#targetDns');
+  if (!dns) return;
+  const installer = document.querySelector('[name="installer_base_url"]');
+  const roSource = $('#roSource');
+  const roCmd = $('#roCmd');
+  const autoTag = $('#installerAutoTag');
+  let installerEdited = false;
+
+  const parentZone = host => {
+    const parts = host.split('.').filter(Boolean);
+    return parts.length >= 3 ? parts.slice(1).join('.') : parts.join('.');
+  };
+  function recompute() {
+    const host = dns.value.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    if (!host) {
+      roSource.textContent = 'https://…/api';
+      roCmd.textContent = 'winget source add <name> https://…/api';
+      return;
+    }
+    roSource.textContent = `https://${host}/api`;
+    const org = parentZone(host).split('.')[0] || 'winget';
+    roCmd.textContent = `winget source add ${org} https://${host}/api`;
+    if (!installerEdited && installer) {
+      installer.value = `https://installers.${parentZone(host)}`;
+      if (autoTag) autoTag.hidden = false;
+      const label = installer.closest('label');
+      if (label && label.classList.contains('is-invalid')) {
+        label.classList.remove('is-invalid');
+        const h = label.querySelector('.validation-msg'); if (h) h.remove();
+      }
+    }
+  }
+  dns.addEventListener('input', recompute);
+  if (installer) installer.addEventListener('input', () => { installerEdited = true; if (autoTag) autoTag.hidden = true; });
+  recompute();
+})();
