@@ -7,7 +7,7 @@
 # and routes:
 #   gitea.<domain>      -> repofabric-gitea:3000     (port 3030 on the host)
 #   winget.<domain>/api -> repofabric-rewinged:8080  (port 8090 on the host)
-#   installers.<domain> -> repofabric-linux:8091     (served by repofabric-linux)
+#   installers.winget.<domain> -> repofabric-linux:8091  (served by repofabric-linux)
 name: repofabric
 
 services:

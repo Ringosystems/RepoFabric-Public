@@ -13,7 +13,7 @@ Per-platform guides live under [`admin/static/docs/`](admin/static/docs/): plain
 1. The companion stack from `../deploy/docker-compose.yml` is running: `repofabric-gitea` and `repofabric-rewinged`.
 2. The `repofabric` docker network exists. `deploy/bootstrap.sh` creates it.
 3. An Entra app registration in your tenant with a redirect URI matching `${REPOFABRIC_ADMIN_PUBLIC_URL}/auth/callback` and the `User.Read`, `User.Read.All`, `Group.Read.All` Microsoft Graph permissions granted.
-4. A reverse proxy (Nginx Proxy Manager is the documented default) configured to route `https://winget.<domain>/admin/` and `https://winget.<domain>/setup/` to `repofabric-linux:8086`, and `https://installers.<domain>/` to `repofabric-linux:8091`, and `https://winget.<domain>/api/` to `repofabric-rewinged:8080`.
+4. A reverse proxy (Nginx Proxy Manager is the documented default) configured to route `https://winget.<domain>/admin/` and `https://winget.<domain>/setup/` to `repofabric-linux:8086`, and `https://installers.winget.<domain>/` to `repofabric-linux:8091`, and `https://winget.<domain>/api/` to `repofabric-rewinged:8080`.
 
 ## Install walkthrough
 

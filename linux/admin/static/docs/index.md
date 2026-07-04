@@ -16,7 +16,7 @@ A reverse proxy in front of them terminates TLS and routes the following. The bu
 
 - `winget.<your-domain>/api` -> repofabric-rewinged (clients install from here)
 - `winget.<your-domain>/admin/` -> repofabric-linux (this admin UI)
-- `installers.<your-domain>` -> repofabric-linux:8091 (binary downloads)
+- `installers.winget.<your-domain>` -> repofabric-linux:8091 (binary downloads)
 - `gitea.<your-domain>` -> repofabric-gitea (manifest browsing, manual edits)
 
 ## Fastest path: one command (greenfield host)

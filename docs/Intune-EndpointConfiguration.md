@@ -21,7 +21,7 @@ Everything below is deployable from the Intune admin center; no on-host registry
 | # | Mechanism | What it does | Why this mechanism |
 |---|---|---|---|
 | 1 | **Settings Catalog profile** — `Desktop App Installer` category | Auto-registers the `repofabric` source as trusted with TLS cert pinning; disables hash override and local manifest files | Native CSP, MDM-enforced, survives `winget source reset` |
-| 2 | **PowerShell platform script** (run-once, SYSTEM context) | Drops an all-users PowerShell profile defining `wgi` / `wgup` / `wgu` wrappers; writes `settings.json` to every user profile with `interactivity.disable: true`; maps `https://installers.<domain>` into the machine-wide Intranet Zone | No CSP exists for "default winget install flags"; profile-level wrappers are the only way to force silent on user-initiated commands |
+| 2 | **PowerShell platform script** (run-once, SYSTEM context) | Drops an all-users PowerShell profile defining `wgi` / `wgup` / `wgu` wrappers; writes `settings.json` to every user profile with `interactivity.disable: true`; maps `https://installers.winget.<domain>` into the machine-wide Intranet Zone | No CSP exists for "default winget install flags"; profile-level wrappers are the only way to force silent on user-initiated commands |
 | 3 | **Intune Win32 app definition pattern** | Every repofabric-sourced app deployed by Intune itself uses the standard silent invocation as its `InstallCommandLine` / `UninstallCommandLine` | App-level enforcement of silent for Intune-driven installs (separate from the user-initiated CLI path) |
 
 Together, components 1 + 2 + 3 enforce the goal: **every winget install, upgrade, and uninstall on a managed endpoint is always silent with no options.**
@@ -265,7 +265,7 @@ Set-Alias wgup Upgrade-WingetSilent
     # is keyed on the FULL URL (scheme, host, and port), so a non-standard port is
     # honored; the Intranet Zone is the low-risk zone whose downloads skip the
     # attachment scan, so winget's Mark-of-the-Web step does not stall.
-    $installerSite = 'https://installers.example.com'
+    $installerSite = 'https://installers.winget.example.com'
     $zmk = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMapKey'
     $null = New-Item -Path $zmk -Force
     New-ItemProperty -Path $zmk -Name $installerSite -Value '1' -PropertyType String -Force | Out-Null  # 1 = Intranet Zone

@@ -21,7 +21,7 @@ The folder ships two families of assets:
    - Replace `<your-domain>` with your public domain (e.g. `example.com`)
    - Replace `<base64-DER-of-rewinged-leaf-or-issuer-cert>` with the actual cert blob captured per [`docs/Intune-EndpointConfiguration.md §2.4`](../../docs/Intune-EndpointConfiguration.md). Pin the **issuer** (durable across Let's Encrypt renewals), not the leaf.
 2. **Edit `repofabric-allowed-sources.json`:** replace `<your-domain>` to match.
-3. **Edit `Set-RfSilentDefaults.ps1`** (or pass `-InstallerHost <fqdn>` at deploy time) if your installer host is not `installers.example.com`.
+3. **Edit `Set-RfSilentDefaults.ps1`** (or pass `-InstallerSite <url>` at deploy time) if your installer host is not `installers.winget.example.com`.
 4. **Sign the PowerShell script** if your Intune tenant enforces signature checks. The script has no external dependencies.
 
 ## Verification (post-deploy)
@@ -120,7 +120,7 @@ The 0.8.0 installer route answers a PeerDist-capable BITS client with `Content-E
 No custom configuration is needed; NPM forwards the response and its headers unmodified by default. Confirm pass-through once `peerdist=on` with a single-line request that mimics BITS:
 
 ```bash
-curl -sIk -H "Accept-Encoding: identity, peerdist" -H "X-P2P-PeerDist: Version=1.0" https://installers.<your-domain>/<some-installer>
+curl -sIk -H "Accept-Encoding: identity, peerdist" -H "X-P2P-PeerDist: Version=1.0" https://installers.winget.<your-domain>/<some-installer>
 ```
 
 If you see `Content-Encoding: peerdist` and an `X-P2P-PeerDist:` response header, the proxy is passing PeerDist through correctly.

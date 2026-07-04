@@ -82,7 +82,7 @@ Three containers on the host docker network, terminated at a reverse proxy (the 
 - `repofabric-gitea`, the manifest store. One Gitea repo per virtual repo.
 - `repofabric-rewinged`, which implements the WinGet REST source protocol against the manifest tree the publisher writes.
 
-Operator browser flow: `https://winget.<domain>/admin/`, then Entra OAuth, then the admin SPA. Endpoint flow: `winget source add` against `https://winget.<domain>/api/...`, manifests are served by rewinged, installer downloads land at `https://installers.<domain>/...`.
+Operator browser flow: `https://winget.<domain>/admin/`, then Entra OAuth, then the admin SPA. Endpoint flow: `winget source add` against `https://winget.<domain>/api/...`, manifests are served by rewinged, installer downloads land at `https://installers.winget.<domain>/...`.
 
 ## Quick start
 

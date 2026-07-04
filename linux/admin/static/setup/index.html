@@ -74,8 +74,8 @@
             </div>
 
             <label>Public installer base URL <span class="req">*</span> <span class="vpill devices">Devices download from here</span> <span class="vpill auto" id="installerAutoTag" hidden>Auto-filled</span>
-              <input type="url" name="installer_base_url" placeholder="https://installers.contoso.com" data-required data-validate="url">
-              <small class="help">Where devices fetch the actual <code>.exe</code> / <code>.msi</code> files. RepoFabric rewrites every manifest's <code>InstallerUrl</code> to <code>&lt;base&gt;/&lt;pkg&gt;/&lt;ver&gt;/&lt;file&gt;</code> and serves them itself on host port 8091. <strong>Filled in from your address</strong>, edit only if downloads live on a different host.</small>
+              <input type="url" name="installer_base_url" placeholder="https://installers.winget.contoso.com" data-required data-validate="url">
+              <small class="help">Where devices fetch the actual <code>.exe</code> / <code>.msi</code> files. RepoFabric rewrites every manifest's <code>InstallerUrl</code> to <code>&lt;base&gt;/&lt;pkg&gt;/&lt;ver&gt;/&lt;file&gt;</code> and serves them on host port <code>8091</code>. <strong>Auto-filled as an <code>installers.</code> subdomain of the address above</strong>, so it sits under your source host. Give this host a DNS record, a reverse-proxy route to port <code>8091</code>, and a TLS cert that covers it — per-host issuance (the Caddy/NPM default) handles it, but a base-domain wildcard does <strong>not</strong> reach this nested name, so bring a SAN or <code>*.&lt;source-host&gt;</code> cert if you supply your own. Devices download over HTTPS and <strong>reject an untrusted or mismatched cert</strong>, so it must resolve and validate before installs work. Edit only if installers live on a different host.</small>
             </label>
           </fieldset>
 
@@ -125,7 +125,7 @@
           <div class="example-body">
             <dl class="ex-dl">
               <div class="ex-row"><dt>Their address <span class="vpill devices">devices</span></dt><dd>winget.contoso.com</dd></div>
-              <div class="ex-row"><dt>Installer downloads <span class="vpill devices">devices</span></dt><dd>installers.contoso.com</dd></div>
+              <div class="ex-row"><dt>Installer downloads <span class="vpill devices">devices</span></dt><dd>installers.winget.contoso.com</dd></div>
               <div class="ex-row"><dt>Gitea <span class="vpill internal">internal</span></dt><dd>repofabric-gitea:3000 <span class="ex-auto">auto</span></dd></div>
               <div class="ex-row"><dt>rewinged <span class="vpill internal">internal</span></dt><dd>repofabric-rewinged:8080 <span class="ex-auto">auto</span></dd></div>
               <div class="ex-row"><dt>Access token <span class="vpill secret">secret</span></dt><dd>&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull; <span class="ex-auto">minted for you</span></dd></div>

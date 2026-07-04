@@ -4,7 +4,7 @@ Run these steps in order on the host after deploying repofabric-linux. Each step
 
 ## 0. Prerequisites
 
-The companion stack from [`../deploy/docker-compose.yml`](../deploy/docker-compose.yml) is running: `repofabric-gitea` and `repofabric-rewinged`. The `repofabric` docker network exists. Nginx Proxy Manager (or another reverse proxy) routes `winget.<domain>/admin` and `winget.<domain>/setup` to `repofabric-linux:8086`, `winget.<domain>/api` to `repofabric-rewinged:8080`, and `installers.<domain>` to `repofabric-linux:8091`.
+The companion stack from [`../deploy/docker-compose.yml`](../deploy/docker-compose.yml) is running: `repofabric-gitea` and `repofabric-rewinged`. The `repofabric` docker network exists. Nginx Proxy Manager (or another reverse proxy) routes `winget.<domain>/admin` and `winget.<domain>/setup` to `repofabric-linux:8086`, `winget.<domain>/api` to `repofabric-rewinged:8080`, and `installers.winget.<domain>` to `repofabric-linux:8091`.
 
 ## 1. Build
 

@@ -489,7 +489,12 @@ document.addEventListener('keydown', ev => {
     const org = parentZone(host).split('.')[0] || 'winget';
     roCmd.textContent = `winget source add ${org} https://${host}/api`;
     if (!installerEdited && installer) {
-      installer.value = `https://installers.${parentZone(host)}`;
+      // Installer host = an `installers.` subdomain OF THE INSTANCE host (not the
+      // base zone): it is covered by the same cert (SAN or wildcard) as the
+      // source host, is unique per instance, and matches the reverse-proxy vhost
+      // the operator sets up next to the source. (A base-zone `installers.<zone>`
+      // would need its own cert and would collide across dev/test/prod instances.)
+      installer.value = `https://installers.${host}`;
       if (autoTag) autoTag.hidden = false;
       const label = installer.closest('label');
       if (label && label.classList.contains('is-invalid')) {
