@@ -168,6 +168,17 @@ UPDATE run
                                 try {
                                     if (& $mod { Update-RfMainRewinged }) { & $log 'reloaded rewinged to surface the new manifest' }
                                 } catch { & $log ('rewinged reload skipped: ' + $_.Exception.Message) }
+                                # Refresh repo_catalog now so the just-published version
+                                # shows in the UI (and retention/read APIs) immediately.
+                                # A managed sync otherwise never triggers the reconcile --
+                                # only the 5-minute cron, custom publishes, and inventory
+                                # reads do -- leaving a confusing "no published version"
+                                # window right after a sync. Best-effort: the cron is the
+                                # backstop if this fails.
+                                try {
+                                    $null = & $mod { Update-RfRepoCatalog }
+                                    & $log 'refreshed repo_catalog for the new publication'
+                                } catch { & $log ('repo_catalog refresh skipped: ' + $_.Exception.Message) }
                             }
                         } else {
                             # Acquire returned no new version (already up to date,
