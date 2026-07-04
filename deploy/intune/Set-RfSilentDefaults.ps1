@@ -16,14 +16,14 @@
   Base URL (scheme, host, and port) of the installer download endpoint to map into
   the machine-wide Intranet Zone. The full URL is used so a non-standard port is
   honored (the per-host zone map cannot express a port). Default:
-  'https://installers.example.com'.
+  'https://installers.winget.example.com'.
 
 .NOTES
   Operated by RingoSystems Heavy Industries.
 #>
 [CmdletBinding()]
 param(
-    [string]$InstallerSite = 'https://installers.example.com'
+    [string]$InstallerSite = 'https://installers.winget.example.com'
 )
 
 $ErrorActionPreference = 'Stop'

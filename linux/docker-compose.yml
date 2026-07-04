@@ -128,7 +128,7 @@ services:
       # Internal-only deployments can drop the host binding entirely and
       # rely on NPM hitting the container over the repofabric network.
       - "8086:8086"
-      # Installer static serve for the reverse-proxy host installers.<domain>.
+      # Installer static serve for the reverse-proxy host installers.winget.<domain>.
       - "8091:8091"
     networks: [repofabric]
     healthcheck:

@@ -100,9 +100,9 @@
 }
 
 # ===========================================================================
-# Installer downloads: installers.<domain> -> the Express server on :8091.
+# Installer downloads: installers.winget.<domain> -> the Express server on :8091.
 # ===========================================================================
-{$REPOFABRIC_INSTALLERS_HOST:installers.example.com} {
+{$REPOFABRIC_INSTALLERS_HOST:installers.winget.example.com} {
 	reverse_proxy {$REPOFABRIC_INSTANCE:repofabric}-linux:8091 {
 		header_up Host {host}
 		header_up X-Forwarded-Proto https

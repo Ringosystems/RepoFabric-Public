@@ -4,7 +4,7 @@
 // (matches the path convention the rest of the code already uses).
 //
 // Listens on a separate port from the admin UI so the operator's existing
-// reverse-proxy hostname for installers.<domain> (which forwards to
+// reverse-proxy hostname for installers.<source-host> (which forwards to
 // host:8091) does not need to be retargeted.
 //
 // Security posture: this is a read-only static server. No auth (clients
@@ -71,7 +71,7 @@ export function startInstallerServer(port, installersRoot) {
         // publicBaseUrl is winget.<domain>:<https-port>/admin; its origin + /api/
         // is the WinGet REST source URL the client registers.
         const sourceUrl = new URL(config.publicBaseUrl).origin + '/api/';
-        // The installer host is a different subdomain (installers.<domain>); pass it
+        // The installer host is a different subdomain (installers.<source-host>); pass it
         // so the bootstrap maps BOTH the source and installer sites into the Intranet Zone.
         const installerUrl = config.targets?.installerBaseUrl || '';
         const ps1 = buildClientBootstrapScript({

@@ -38,7 +38,7 @@ A reverse proxy terminates TLS and routes by Host header and path. On a greenfie
 |---|---|---|
 | `winget.<your-domain>/api` | `repofabric-rewinged:8080` | WinGet REST source for endpoints |
 | `winget.<your-domain>/admin/` and `/setup` | `repofabric-linux:8086` | This admin UI |
-| `installers.<your-domain>` | `repofabric-linux:8091` | Binary downloads |
+| `installers.winget.<your-domain>` | `repofabric-linux:8091` | Binary downloads |
 | `gitea.<your-domain>` | `repofabric-gitea:3000` | Manifest browsing + manual edits |
 
 The admin and the REST source share one external hostname; the proxy splits by path. This keeps the WinGet client's `--source` configuration to a single URL.
@@ -56,7 +56,7 @@ The admin and the REST source share one external hostname; the proxy splits by p
 
 1. Windows endpoint runs `winget install Mozilla.Firefox`.
 2. Client hits `winget.<your-domain>/api/...` (`repofabric-rewinged`), gets the manifest.
-3. Manifest's `InstallerUrl` points at `installers.<your-domain>/<pkg>/<ver>/<file>`, served by `repofabric-linux` on port 8091.
+3. Manifest's `InstallerUrl` points at `installers.winget.<your-domain>/<pkg>/<ver>/<file>`, served by `repofabric-linux` on port 8091.
 4. Client downloads the binary, verifies the SHA-256 from the manifest, runs the installer.
 
 The reverse proxy is the only edge surface. `repofabric-gitea` and the SQLite state are private to the docker network.

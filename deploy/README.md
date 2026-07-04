@@ -23,7 +23,7 @@ The companion compose in this directory defines only `repofabric-gitea` and `rep
 | `winget.<domain>/api/` | `repofabric-rewinged:8090` | Let's Encrypt | WinGet REST source. `winget source add` lives here. |
 | `winget.<domain>/admin/` | `repofabric-linux:8086` | Same cert as above | Entra-gated admin SPA. |
 | `winget.<domain>/setup/` | `repofabric-linux:8086` | Same cert as above | First-run wizard. The path 404s after `setup.complete` is written. |
-| `installers.<domain>/` | `repofabric-linux:8091` | Let's Encrypt | Installer binary downloads. |
+| `installers.winget.<domain>/` | `repofabric-linux:8091` | Let's Encrypt | Installer binary downloads. |
 | `gitea.<domain>/` | `repofabric-gitea:3000` | Let's Encrypt | Optional: operator-only direct access to Gitea. |
 
 ## Host layout

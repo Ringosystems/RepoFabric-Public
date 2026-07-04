@@ -64,7 +64,7 @@ function Register-RfSource {
     Local source name. Default 'repofabric'.
 .PARAMETER InstallerSite
     Optional installer origin (scheme://host[:port]) to map into the Intranet zone,
-    for example https://installers.contoso.com. Needed only for self-signed or
+    for example https://installers.winget.contoso.com. Needed only for self-signed or
     non-standard-port hosts.
 .PARAMETER CaCertPath
     Optional path to a PEM/CER CA certificate to import into LocalMachine\Root

@@ -9,9 +9,9 @@ This guide is the **bring-your-own-proxy** path: use it when you already run a r
 - NPM already running, reachable on the same docker network (`repofabric`, or your `${REPOFABRIC_INSTANCE}` network for a side-by-side instance) as the repofabric stack. The bundled `docker-compose.yml` does NOT include NPM; it is assumed to live independently. (Do not start the bundled Caddy `--profile proxy` when you front the stack with NPM — only one thing should own ports 80/443.)
 - Two DNS A or CNAME records pointing at the host's public IP:
   - `winget.<your-domain>`
-  - `installers.<your-domain>`
+  - `installers.winget.<your-domain>` (an `installers.` subdomain **of the source host**, so one instance's names — and one cert — sit together)
   - (`gitea.<your-domain>` is optional but recommended for browsing the manifest repo from a workstation.)
-- Either a Let's Encrypt-compatible HTTP-01 path (NPM's default) or a wildcard cert you already have.
+- A TLS cert covering each host. NPM's default per-host Let's Encrypt (HTTP-01) issues them automatically — the simplest path, and it just works here. If you bring your own cert, note that a base-domain wildcard (`*.<your-domain>`) covers `winget.<your-domain>` but **not** the nested `installers.winget.<your-domain>`; use per-host certs, a `*.winget.<your-domain>` wildcard, or a SAN cert listing both. A mismatched or untrusted installer cert is the classic cause of "download starts, then blocks."
 
 If your NPM is on a different docker network, attach it to `repofabric` (`docker network connect repofabric nginx-proxy-manager`) before configuring the proxy hosts, otherwise NPM cannot resolve the container hostnames in step 1.
 
@@ -61,13 +61,13 @@ client_max_body_size 2g;
 
 The 2g body limit is so the publish-custom wizard can stream MSI uploads through NPM.
 
-## 2. Proxy host: `installers.<your-domain>`
+## 2. Proxy host: `installers.winget.<your-domain>`
 
-Serves the actual binary downloads. Endpoints hit this on every install. The installer files are served by the Express static server inside `repofabric-linux` on port 8091.
+Serves the actual binary downloads. Endpoints hit this on every install. The installer files are served by the Express static server inside `repofabric-linux` on port 8091. This host must match `installer_base_url` in the setup wizard **exactly** — the wizard auto-fills it as `installers.` + your source host, so accept that value and point this proxy host at the same name.
 
 **Details tab:**
 
-- Domain Names: `installers.example.com`
+- Domain Names: `installers.winget.example.com`
 - Scheme: `http`
 - Forward Hostname / IP: `repofabric-linux`
 - Forward Port: `8091`
@@ -75,7 +75,7 @@ Serves the actual binary downloads. Endpoints hit this on every install. The ins
 - Block Common Exploits: on
 - Websockets Support: off
 
-**SSL tab:** request a cert + Force SSL.
+**SSL tab:** request a cert + Force SSL. Per-host HTTP-01 issues `installers.winget.example.com` automatically; a base-domain `*.example.com` wildcard does **not** cover it, so supply a SAN or `*.winget.example.com` cert if you bring your own.
 
 **Advanced tab:**
 
@@ -114,7 +114,7 @@ After all three hosts are saved:
 ```bash
 curl -fsS https://winget.example.com/api/information
 curl -fsS https://winget.example.com/admin/ | head -20
-curl -fsSI https://installers.example.com/   # 404 is normal -- no directory index at the root
+curl -fsSI https://installers.winget.example.com/   # 404 is normal -- no directory index at the root
 ```
 
 The first two should return rewinged's JSON and the admin's index.html. The third returns a 404 at the root (the Express static server does not list directories); that's fine as long as the SSL cert is valid. A real installer path under it resolves once a package is published.
