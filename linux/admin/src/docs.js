@@ -7,9 +7,15 @@
 //
 // The markdown rendering is intentionally simple: enough features to
 // write installation guides (headings, code fences, inline code,
-// lists, links, bold/italic, paragraphs) without pulling in a 500KB
-// library and its CSS. Pages that need anything fancier should be
+// lists, tables, links, bold/italic, paragraphs) without pulling in a
+// 500KB library and its CSS. Pages that need anything fancier should be
 // pre-rendered upstream.
+//
+// Presentation is RingoSystems Graphite Forge v1.0 (see
+// static/docs-static/docs.css): dark-native, Inter for prose, Consolas
+// for anything a machine emitted, a left rail that matches the admin
+// shell, and a ~72ch reading measure with code and tables allowed the
+// full column.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -38,15 +44,47 @@ const TOC = [
 
   { slug: 'bootstrap-script',   title: 'deploy/bootstrap.sh',            group: 'Automation' },
   { slug: 'troubleshooting',    title: 'Troubleshooting',                group: 'Operations' },
+
+  { slug: 'ingest',              title: 'RepoFabric Ingest Protocol',     group: 'Ingest API (RFIP)' },
+  { slug: 'ingest-client-guide', title: 'Client integration guide',      group: 'Ingest API (RFIP)' },
 ];
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
+// A GFM pipe table is only recognised when a header row is followed by a
+// delimiter row (|---|---|) carrying at least two columns. That guard is what
+// keeps the ASCII diagrams and the ordinary prose that happens to contain a
+// pipe from being mistaken for a table.
+const TABLE_DELIM = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/;
+
+function isTableStart(lines, i) {
+  return lines[i].includes('|') && i + 1 < lines.length && TABLE_DELIM.test(lines[i + 1]);
+}
+
+// Split a pipe row into trimmed cells, tolerating the optional leading and
+// trailing pipes that most authors write.
+function splitTableRow(row) {
+  let s = row.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|')) s = s.slice(0, -1);
+  return s.split('|').map(c => c.trim());
+}
+
+// Column alignment from the delimiter row: :--- left, ---: right, :---: centre.
+// Expressed as a class so the stylesheet owns the rule (no inline styles).
+function tableAlignClass(cell) {
+  const left = cell.startsWith(':');
+  const right = cell.endsWith(':');
+  if (left && right) return ' class="is-center"';
+  if (right) return ' class="is-right"';
+  return '';
+}
+
 // Minimal markdown renderer. Block-level: # / ## / ### headings,
-// ```fenced code, * / 1. lists, > blockquote, --- HR, paragraphs.
-// Inline: `code`, **bold**, *italic*, [text](url).
+// ```fenced code, * / 1. lists, | pipe tables, > blockquote, --- HR,
+// paragraphs. Inline: `code`, **bold**, *italic*, [text](url).
 function renderMarkdown(md) {
   const lines = md.replace(/\r\n/g, '\n').split('\n');
   const out = [];
@@ -65,7 +103,15 @@ function renderMarkdown(md) {
         i++;
       }
       i++; // skip closing fence
-      out.push(`<pre class="docs-pre"><code${lang ? ` class="lang-${escapeHtml(lang)}"` : ''}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+      // The wrapper carries the language tag and the block margin; the <pre>
+      // keeps the horizontal scroll, so the tag stays put while a long command
+      // line scrolls underneath it. The <pre class="docs-pre"><code class="lang-*">
+      // contract itself is unchanged.
+      out.push(
+        `<div class="docs-code"${lang ? ` data-lang="${escapeHtml(lang)}"` : ''}>` +
+        `<pre class="docs-pre"><code${lang ? ` class="lang-${escapeHtml(lang)}"` : ''}>${escapeHtml(codeLines.join('\n'))}</code></pre>` +
+        `</div>`
+      );
       continue;
     }
 
@@ -77,6 +123,26 @@ function renderMarkdown(md) {
       const id = slugify(h[2]);
       out.push(`<h${level} id="${id}">${text}</h${level}>`);
       i++;
+      continue;
+    }
+
+    // Pipe table. Header row + delimiter row, then body rows until the first
+    // line that is not a pipe row. The whole table rides in a scroll container
+    // so a wide reference table never widens the page itself.
+    if (isTableStart(lines, i)) {
+      const head = splitTableRow(lines[i]);
+      const aligns = splitTableRow(lines[i + 1]).map(tableAlignClass);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].includes('|') && !/^\s*$/.test(lines[i])) {
+        rows.push(splitTableRow(lines[i]));
+        i++;
+      }
+      const th = head.map((c, n) => `<th${aligns[n] || ''}>${renderInline(c)}</th>`).join('');
+      const tb = rows.map(cells =>
+        `<tr>${cells.map((c, n) => `<td${aligns[n] || ''}>${renderInline(c)}</td>`).join('')}</tr>`
+      ).join('');
+      out.push(`<div class="docs-table-wrap"><table class="docs-table"><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table></div>`);
       continue;
     }
 
@@ -129,7 +195,8 @@ function renderMarkdown(md) {
       !/^[*-]\s+/.test(lines[i]) &&
       !/^\d+\.\s+/.test(lines[i]) &&
       !/^>\s/.test(lines[i]) &&
-      !/^---+\s*$/.test(lines[i])
+      !/^---+\s*$/.test(lines[i]) &&
+      !isTableStart(lines, i)
     ) {
       pLines.push(lines[i]);
       i++;
@@ -192,29 +259,43 @@ function renderPage(slug, bodyHtml, tocActive) {
   }
   const sidebar = Array.from(groups.entries()).map(([group, items]) => `
     <li class="docs-side-group">${escapeHtml(group)}</li>
-    ${items.map(it => `<li class="docs-side-item${it.slug === tocActive ? ' is-active' : ''}"><a href="${escapeHtml(it.slug)}">${escapeHtml(it.title)}</a></li>`).join('')}
+    ${items.map(it => `<li class="docs-side-item${it.slug === tocActive ? ' is-active' : ''}"><a href="${escapeHtml(it.slug)}"${it.slug === tocActive ? ' aria-current="page"' : ''}>${escapeHtml(it.title)}</a></li>`).join('')}
   `).join('');
 
   const meta = TOC.find(t => t.slug === slug);
   const title = meta ? meta.title : 'Documentation';
+  // The eyebrow names the part of the manual the reader is standing in. It is
+  // derived from the same TOC row as the sidebar, so it never disagrees with it.
+  const eyebrow = meta ? meta.group : 'Documentation';
 
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(title)} -- RepoFabric docs</title>
+<meta name="color-scheme" content="dark">
+<title>${escapeHtml(title)} — RepoFabric documentation</title>
 <link rel="stylesheet" href="../docs-static/docs.css">
 </head><body>
+<a class="docs-skip-link" href="#doc">Skip to content</a>
 <header class="docs-header">
-  <h1><a href="index">RepoFabric documentation</a></h1>
-  <nav class="docs-top-nav">
+  <a class="docs-brand" href="index">
+    <span class="docs-brand-mark" aria-hidden="true">R</span>
+    <span class="docs-brand-text">
+      <span class="docs-brand-name">RepoFabric documentation</span>
+      <span class="docs-brand-sub">RingoSystems Heavy Industries</span>
+    </span>
+  </a>
+  <nav class="docs-top-nav" aria-label="Product">
     <a href="/admin/">Admin</a>
     <a href="/setup/">Setup wizard</a>
   </nav>
 </header>
 <div class="docs-layout">
-  <aside class="docs-sidebar"><ul>${sidebar}</ul></aside>
-  <main class="docs-body">${bodyHtml}</main>
+  <nav class="docs-sidebar" aria-label="Documentation"><ul>${sidebar}</ul></nav>
+  <main class="docs-body" id="doc">
+    <p class="docs-eyebrow">${escapeHtml(eyebrow)}</p>
+${bodyHtml}
+  </main>
 </div>
 </body></html>`;
 }
@@ -245,7 +326,7 @@ export function docsRouter() {
         res.status(404).set('Content-Type', 'text/html').send(renderPage(p, `
           <h1>Page coming soon</h1>
           <p>This page is listed in the documentation index but the markdown source has not landed yet.</p>
-          <p>Track the gap at <a href="https://github.com/Ringosystems/RepoFabric-Public/tree/main/linux/admin/static/docs">linux/admin/static/docs/</a>.</p>
+          <p>Track the gap at <a href="https://github.com/Ringosystems/RepoFabric-Public/tree/main/linux/admin/static/docs" target="_blank" rel="noopener"><code>linux/admin/static/docs/</code></a>.</p>
         `, p));
       } else {
         next(err);

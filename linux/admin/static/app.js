@@ -56,7 +56,7 @@ async function api(path, init = {}) {
 // Valid tab names. Used by activateTab + initFromHash so a typo'd or
 // stale URL hash falls back to the default tab instead of leaving the
 // page blank.
-const VALID_TABS = ['subscriptions', 'inventory', 'activity', 'bandwidth', 'settings', 'about'];
+const VALID_TABS = ['subscriptions', 'inventory', 'activity', 'bandwidth', 'apiclients', 'settings', 'about'];
 
 function activateTab(name) {
   if (!VALID_TABS.includes(name)) name = 'subscriptions';
@@ -79,6 +79,7 @@ function activateTab(name) {
     case 'inventory':      loadInventory(); break;
     case 'activity':       loadActivity(); break;
     case 'bandwidth':      loadBandwidth(); break;
+    case 'apiclients':     loadIngestClients(); break;
     case 'settings':       loadCfg(); loadHealth(); loadPopularityStatus(); loadBackupStatus(); break;
     case 'about':          loadAbout(); break;
     case 'configfabric':   loadCfFrame(); break;
@@ -1678,6 +1679,9 @@ function renderEventLabel(row) {
 // operator UPN (e.g. ringo@example.com) and pass through untouched.
 function renderActor(actor) {
   if (!actor) return 'SYSTEM';
+  // RFIP ingest rows attribute to a machine client, never a human UPN. Render
+  // them distinctly so a client id is never mistaken for an operator.
+  if (/^client:/.test(actor)) return `${actor.slice(7)} (API client)`;
   if (actor === 'SYSTEM') return 'SYSTEM (scheduled)';
   // Pre-fix rows: container hostname (repofabric@<container-id>), supervisord
   // worker label (worker_1 / worker_2 / ...), or any value matching
@@ -1755,6 +1759,25 @@ function renderActivityDetail(row) {
     }
     case 'config_saved':       return 'Saved configuration changes.';
     case 'setup_completed':    return 'Completed first-run setup wizard.';
+    // RFIP ingest client lifecycle (operator actions).
+    case 'ingest_client_registered':  return `Registered ingest client ${subj}.`;
+    case 'ingest_client_rotated':     return `Rotated credentials for ingest client ${subj}.`;
+    case 'ingest_client_suspended':   return `Suspended ingest client ${subj}.`;
+    case 'ingest_client_reactivated': return `Reactivated ingest client ${subj}.`;
+    case 'ingest_client_revoked':     return `Revoked ingest client ${subj}${d.reason ? ' — ' + d.reason : ''}.`;
+    case 'ingest_client_updated':     return `Updated ingest client ${subj}.`;
+  }
+
+  // RFIP transport rows (kind='ingest'): a client's publish/update/delete call.
+  if (row.kind === 'ingest') {
+    const repo = d.repo_id ? ` in ${d.repo_id}` : '';
+    const st   = d.http_status ? ` [${d.http_status}]` : '';
+    if (row.outcome === 'failed') {
+      const why = d.reject_reason || d.sig_verdict || 'rejected';
+      return `Ingest ${d.verb || ''} ${subj}${repo} rejected: ${why}${st}.`;
+    }
+    const bytes = (d.bytes_in && d.bytes_in > 0) ? `, ${fmtIngestBytes(d.bytes_in)}` : '';
+    return `Ingest ${d.verb || ''} ${subj}${repo} accepted${bytes}${st}.`;
   }
 
   // Unmapped event: fall back to the old compact key=value dump so the
@@ -4061,3 +4084,256 @@ async function applyRole() {
   } catch { /* leave admin-capable in the UI; the server still enforces read-only */ }
 }
 applyRole();
+
+// ===================== API Clients tab (RFIP) =====================
+// System-to-system ingest clients: register (with a one-time credential
+// reveal), inspect per-client audit, rotate, suspend/reactivate, and revoke.
+state.ingestClients = [];
+
+function fmtIngestBytes(n) {
+  n = Number(n) || 0;
+  if (n < 1024) return `${n} B`;
+  const u = ['KB','MB','GB','TB'];
+  let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
+  return `${n.toFixed(1)} ${u[i]}`;
+}
+
+function ingestStatusClass(status) {
+  return ({ active: 'status-ok', suspended: 'status-warn', revoked: 'status-fail' })[status] || 'status-skip';
+}
+
+async function loadIngestClients() {
+  try {
+    const body = await api('ingest-clients');
+    state.ingestClients = (body && body.clients) || [];
+    renderIngestClients();
+  } catch (e) {
+    toast(`Load ingest clients: ${e.message}`, 'bad');
+  }
+}
+
+function renderIngestClients() {
+  const tbody = $('#ingest-clients-table tbody');
+  const empty = $('#ingest-clients-empty');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const list = state.ingestClients || [];
+  if (empty) empty.hidden = list.length !== 0;
+  $('#ingest-clients-table').hidden = list.length === 0;
+  for (const c of list) {
+    const status = c.Status || c.status || 'active';
+    const caps   = (c.Capabilities || c.capabilities || []).join(', ');
+    const repos  = (c.AllowedRepos || c.allowedRepos || []);
+    const reposTxt = repos.length ? repos.join(', ') : '(none)';
+    const fp = (c.PublicKeyFp || c.publicKeyFp || '');
+    const fpShort = fp ? fp.slice(0, 12) + '…' : '';
+    const lastUsed = c.LastUsedAt || c.lastUsedAt;
+    const id = c.ClientId || c.clientId;
+    const isRevoked = status === 'revoked';
+    const suspendBtn = isRevoked ? '' :
+      (status === 'suspended'
+        ? `<button type="button" class="ghost" data-ic-action="reactivate" data-ic-id="${escAttr(id)}">Reactivate</button>`
+        : `<button type="button" class="ghost" data-ic-action="suspend" data-ic-id="${escAttr(id)}">Suspend</button>`);
+    const rotateBtn = isRevoked ? '' : `<button type="button" class="ghost" data-ic-action="rotate" data-ic-id="${escAttr(id)}">Rotate key</button>`;
+    const revokeBtn = isRevoked ? '' : `<button type="button" class="ghost danger" data-ic-action="revoke" data-ic-id="${escAttr(id)}">Revoke</button>`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><a href="#" data-ic-action="detail" data-ic-id="${escAttr(id)}"><strong>${escHtml(c.DisplayName || c.displayName || id)}</strong></a><br><code class="muted">${escHtml(id)}</code></td>
+      <td><span class="${ingestStatusClass(status)}">${escHtml(status)}</span></td>
+      <td class="muted">${escHtml(caps)}</td>
+      <td class="muted">${escHtml(reposTxt)}</td>
+      <td class="muted" title="${escAttr(lastUsed || '')}">${lastUsed ? formatLocalTime(lastUsed) : 'never'}</td>
+      <td><code class="muted" title="${escAttr(fp)}">${escHtml(fpShort)}</code></td>
+      <td class="ingest-actions">${suspendBtn} ${rotateBtn} ${revokeBtn}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+// Delegated action handler for the client table.
+$('#ingest-clients-table').addEventListener('click', (e) => {
+  const a = e.target.closest('[data-ic-action]');
+  if (!a) return;
+  e.preventDefault();
+  const id = a.dataset.icId;
+  switch (a.dataset.icAction) {
+    case 'detail':     openIngestClientDetail(id); break;
+    case 'rotate':     rotateIngestClientKey(id); break;
+    case 'suspend':    setIngestClientStatus(id, 'suspended'); break;
+    case 'reactivate': setIngestClientStatus(id, 'active'); break;
+    case 'revoke':     openRevokeIngestClient(id); break;
+  }
+});
+$('#btn-ingest-refresh').onclick = loadIngestClients;
+
+// -- Register ---------------------------------------------------------
+$('#btn-ingest-register').onclick = async () => {
+  // Populate the allowed-repos picker from the existing repos list.
+  try {
+    const pr = await api('settings/primary-repo');
+    const sel = $('#ingest-reg-repos');
+    sel.innerHTML = '';
+    for (const r of (pr.repos || [])) {
+      const opt = document.createElement('option');
+      opt.value = r.RepoId;
+      opt.textContent = r.DisplayName ? `${r.DisplayName} (${r.RepoId})` : r.RepoId;
+      sel.appendChild(opt);
+    }
+  } catch { /* repo list is best-effort; the client can be granted repos later */ }
+  $('#frm-ingest-register').reset();
+  $('#dlg-ingest-register').showModal();
+};
+$('#btn-ingest-register-cancel').onclick = () => $('#dlg-ingest-register').close();
+
+$('#btn-ingest-register-submit').onclick = async (e) => {
+  e.preventDefault();
+  const clientId = $('#ingest-reg-id').value.trim().toLowerCase();
+  const displayName = $('#ingest-reg-name').value.trim();
+  if (!clientId || !displayName) { toast('Client ID and display name are required.', 'bad'); return; }
+  const keymode = (document.querySelector('input[name=ingest-reg-keymode]:checked') || {}).value || 'supplied';
+  const spki = $('#ingest-reg-spki').value.trim();
+  if (keymode === 'supplied' && !spki) { toast('Provide the client public key, or choose "RepoFabric issues the key pair".', 'bad'); return; }
+  const allowedRepos = Array.from($('#ingest-reg-repos').selectedOptions).map(o => o.value);
+  const body = {
+    clientId, displayName,
+    ownerContact: $('#ingest-reg-owner').value.trim() || undefined,
+    allowedRepos,
+  };
+  if (keymode === 'issue') body.issueSigningKey = true; else body.publicKeySpki = spki;
+  try {
+    const created = await api('ingest-clients', { method: 'POST', body: JSON.stringify(body) });
+    $('#dlg-ingest-register').close();
+    showIngestReveal(created);
+    loadIngestClients();
+  } catch (err) {
+    toast(`Register failed: ${err.message}`, 'bad');
+  }
+};
+
+// -- One-time credential reveal --------------------------------------
+function showIngestReveal(resp) {
+  $('#ingest-reveal-token').textContent = resp.Token || resp.token || '';
+  $('#ingest-reveal-fp').textContent = resp.PublicKeyFp || resp.publicKeyFp || '';
+  const pk = resp.PrivateKeyPem || resp.privateKeyPem;
+  const wrap = $('#ingest-reveal-privkey-wrap');
+  if (pk) { $('#ingest-reveal-privkey').value = pk; wrap.hidden = false; }
+  else { $('#ingest-reveal-privkey').value = ''; wrap.hidden = true; }
+  const ack = $('#ingest-reveal-ack');
+  const done = $('#btn-ingest-reveal-close');
+  ack.checked = false; done.disabled = true;
+  $('#dlg-ingest-reveal').showModal();
+}
+// Scrub the one-time secrets whenever the dialog is dismissed — Done button,
+// ESC (which fires cancel->close and bypasses the button), or a programmatic
+// close — so the plaintext token/private key never lingers in the DOM.
+$('#dlg-ingest-reveal').addEventListener('close', () => {
+  $('#ingest-reveal-token').textContent = '';
+  $('#ingest-reveal-privkey').value = '';
+});
+$('#ingest-reveal-ack').onchange = (e) => { $('#btn-ingest-reveal-close').disabled = !e.target.checked; };
+$('#btn-ingest-reveal-close').onclick = () => { $('#dlg-ingest-reveal').close(); };
+
+// Generic copy buttons inside the reveal dialog.
+document.querySelectorAll('#dlg-ingest-reveal [data-copy]').forEach(btn => {
+  btn.onclick = () => {
+    const el = document.getElementById(btn.dataset.copy);
+    const text = el ? (el.value !== undefined && el.value !== '' ? el.value : el.textContent) : '';
+    navigator.clipboard.writeText(text).then(() => toast('Copied.', 'ok')).catch(() => toast('Copy failed.', 'bad'));
+  };
+});
+
+// -- Rotate / suspend / reactivate -----------------------------------
+async function rotateIngestClientKey(id) {
+  if (!confirm(`Rotate the bearer key for "${id}"? The current key stops working immediately.`)) return;
+  try {
+    const rot = await api(`ingest-clients/${encodeURIComponent(id)}/rotate`, { method: 'POST', body: JSON.stringify({}) });
+    showIngestReveal(rot);
+    loadIngestClients();
+  } catch (e) { toast(`Rotate failed: ${e.message}`, 'bad'); }
+}
+async function setIngestClientStatus(id, status) {
+  try {
+    await api(`ingest-clients/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ status }) });
+    toast(`Client ${id} ${status === 'suspended' ? 'suspended' : 'reactivated'}.`, 'ok');
+    loadIngestClients();
+  } catch (e) { toast(`Update failed: ${e.message}`, 'bad'); }
+}
+
+// -- Detail + audit drill-down ---------------------------------------
+async function openIngestClientDetail(id) {
+  try {
+    const c = await api(`ingest-clients/${encodeURIComponent(id)}`);
+    $('#ingest-detail-title').textContent = `${c.DisplayName || id} — ${id}`;
+    const repos = (c.AllowedRepos || []).join(', ') || '(none)';
+    const caps  = (c.Capabilities || []).join(', ');
+    const rows = [
+      ['Status', c.Status],
+      ['Capabilities', caps],
+      ['Allowed repos', repos],
+      ['Key fingerprint', c.PublicKeyFp],
+      ['Key prefix', `${c.KeyPrefix || ''} …${c.KeyLast4 || ''}`],
+      ['Key source', c.KeySource],
+      ['Created', c.CreatedAt ? `${formatLocalTime(c.CreatedAt)} by ${c.CreatedBy || '?'}` : ''],
+      ['Last used', c.LastUsedAt ? formatLocalTime(c.LastUsedAt) : 'never'],
+    ];
+    if (c.Status === 'revoked') rows.push(['Revoked', `${c.RevokedAt ? formatLocalTime(c.RevokedAt) : ''} by ${c.RevokedBy || '?'} — ${c.RevokedReason || ''}`]);
+    $('#ingest-detail-meta').innerHTML = rows.map(([k, v]) => `<div><span class="muted">${escHtml(k)}</span><span>${escHtml(String(v ?? ''))}</span></div>`).join('');
+    $('#btn-ingest-detail-refresh').dataset.icId = id;
+    $('#dlg-ingest-detail').showModal();
+    await loadIngestClientEvents(id);
+  } catch (e) { toast(`Load client: ${e.message}`, 'bad'); }
+}
+async function loadIngestClientEvents(id) {
+  const tbody = $('#ingest-detail-events tbody');
+  tbody.innerHTML = '<tr><td colspan="8" class="muted">Loading…</td></tr>';
+  try {
+    const body = await api(`ingest-clients/${encodeURIComponent(id)}/events?last=100`);
+    const events = (body && body.events) || [];
+    tbody.innerHTML = '';
+    if (!events.length) { tbody.innerHTML = '<tr><td colspan="8" class="muted">No calls recorded yet.</td></tr>'; return; }
+    for (const ev of events) {
+      const cls = ev.outcome === 'accepted' ? 'status-ok' : 'status-fail';
+      const reason = ev.outcome === 'accepted' ? (ev.sig_verdict || 'ok') : (ev.reject_reason || ev.sig_verdict || '');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="muted" title="${escAttr(ev.created_at)}">${formatLocalTime(ev.created_at)}</td>
+        <td><code>${escHtml(ev.verb || '')}</code></td>
+        <td>${escHtml(ev.repo_id || '')}</td>
+        <td>${escHtml((ev.package_id || '') + (ev.package_version ? '@' + ev.package_version : ''))}</td>
+        <td class="${cls}">${escHtml(ev.outcome || '')}</td>
+        <td class="muted">${escHtml(String(ev.http_status ?? ''))}</td>
+        <td class="muted">${escHtml(reason)}</td>
+        <td class="muted">${ev.bytes_in ? fmtIngestBytes(ev.bytes_in) : ''}</td>`;
+      tbody.appendChild(tr);
+    }
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="8" class="status-fail">${escHtml(e.message)}</td></tr>`;
+  }
+}
+$('#btn-ingest-detail-refresh').onclick = (e) => loadIngestClientEvents(e.target.dataset.icId);
+$('#btn-ingest-detail-close').onclick = () => $('#dlg-ingest-detail').close();
+
+// -- Revoke -----------------------------------------------------------
+let _ingestRevokeId = null;
+function openRevokeIngestClient(id) {
+  _ingestRevokeId = id;
+  $('#ingest-revoke-id').textContent = id;
+  $('#ingest-revoke-confirm').value = '';
+  $('#ingest-revoke-reason').value = '';
+  $('#btn-ingest-revoke-confirm').disabled = true;
+  $('#dlg-ingest-revoke').showModal();
+}
+function updateRevokeButton() {
+  const ok = $('#ingest-revoke-confirm').value.trim() === _ingestRevokeId && $('#ingest-revoke-reason').value.trim() !== '';
+  $('#btn-ingest-revoke-confirm').disabled = !ok;
+}
+$('#ingest-revoke-confirm').addEventListener('input', updateRevokeButton);
+$('#ingest-revoke-reason').addEventListener('input', updateRevokeButton);
+$('#btn-ingest-revoke-cancel').onclick = () => $('#dlg-ingest-revoke').close();
+$('#btn-ingest-revoke-confirm').onclick = async () => {
+  try {
+    await api(`ingest-clients/${encodeURIComponent(_ingestRevokeId)}/revoke`, { method: 'POST', body: JSON.stringify({ reason: $('#ingest-revoke-reason').value.trim() }) });
+    toast(`Client ${_ingestRevokeId} revoked.`, 'ok');
+    $('#dlg-ingest-revoke').close();
+    loadIngestClients();
+  } catch (e) { toast(`Revoke failed: ${e.message}`, 'bad'); }
+};

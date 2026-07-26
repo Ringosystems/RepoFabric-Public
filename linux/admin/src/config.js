@@ -119,6 +119,17 @@ export function loadConfig() {
       auditWrite:  opt('REPOFABRIC_AUDIT_WRITE_TOKEN',  '') !== '',
     },
 
+    // RepoFabric Ingest Protocol (RFIP). When enabled, the pre-auth
+    // /api/v1/ingest/* legs are mounted: signed JSON legs forward verbatim to
+    // the loopback pwsh listener (per-client capability + RFC 9421 enforced
+    // there), and the multipart binary push terminates in Node after validating
+    // the caller's per-client bearer against the pwsh registry. Default OFF, so
+    // a deployment that does not use system-to-system ingest exposes no new
+    // surface. Per-client credentials are managed in the API Clients UI tab.
+    ingest: {
+      enabled: (service.ingest?.enabled === true) || opt('REPOFABRIC_INGEST_ENABLED', '') === 'true',
+    },
+
     // Entra credentials. Sourced from solution.yaml first, env vars as
     // fallback. The wizard's Save persists tenant_id, client_id, and
     // client_secret into solution.yaml; env vars are an alternative for
@@ -249,6 +260,7 @@ export function m2mReadiness(cfg = config) {
   const legs = cfg.bridgeLegs || {};
   const catalogReadLeg = legs.catalogRead === true;
   const auditWriteLeg  = legs.auditWrite === true;
+  const ingestEnabled  = cfg.ingest?.enabled === true;
   const warnings = [];
   if (configfabricEnabled && !boltOnTokenSet) {
     warnings.push('configfabric integration is enabled but the bolt-on bearer (REPOFABRIC_PUBLISHER_TOKEN) is UNSET — inbound lock-gate / audit calls will 401 before any signature is checked.');
@@ -260,7 +272,7 @@ export function m2mReadiness(cfg = config) {
   }
   // L2: report the cross-host bridge legs so the operator can confirm over HTTP
   // (and at boot) which legs are wired, not just the absorption bolt-on bearer.
-  return { configfabricEnabled, boltOnTokenSet, ingestTokenSet, catalogReadLeg, auditWriteLeg, warnings };
+  return { configfabricEnabled, boltOnTokenSet, ingestTokenSet, catalogReadLeg, auditWriteLeg, ingestEnabled, warnings };
 }
 
 // 0.9.0 (FD-031 program): a half-set integration is a boot-time fatal, not a

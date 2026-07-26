@@ -1,193 +1,437 @@
-:root {
-  --bg: #0f1115;
-  --panel: #1a1d24;
-  --panel-2: #232730;
-  --border: #2a2f3a;
-  --fg: #e6e8ec;
-  --fg-dim: #9aa3b2;
-  --accent: #4f9eff;
-  --accent-2: #3a7bd5;
-  --ok: #45c785;
-  --warn: #e8b73d;
-  --bad: #e74c4c;
-  --skip: #888;
-  --mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
-  --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
+/* ============================================================================
+   RepoFabric admin — RingoSystems Graphite Forge v1.0
+   RingoSystems Heavy Industries
 
-* { box-sizing: border-box; }
+   Loads AFTER graphite-forge.css (foundation tokens + primitives) and
+   repofabric-tokens.css (the application token map). This file owns product
+   surfaces only: the seven tabs, their tables, drawers, dialogs and charts.
 
-html, body { margin: 0; height: 100%; font-family: var(--sans); background: var(--bg); color: var(--fg); font-size: 14px; }
+   TWO RULES GOVERN EVERYTHING BELOW.
 
-/* Global link styling so anchors throughout the admin are readable on
-   the dark panel. Browser default :link / :visited colors are far too
-   dark against var(--bg) and var(--panel-2); the operator could not
-   see InstallerUrl links in the detail drawer. */
+   1. No literal colour. Every colour is a token. Surfaces come from
+      --surface-0..3, lines from --border / --border-strong, state from
+      --ok / --warn / --error / --info / --muted and their --*-bg tints,
+      glass from --gf-surface-glass(-hover) / --gf-white-*, copper from
+      --accent and --gf-copper-08/18/30/36. If a value will not express in
+      those, the wrong token was picked.
+
+   2. Two faces, one split. --font-ui (Inter) is for anything a HUMAN wrote:
+      titles, prose, button labels, form labels, table headers.
+      --font-mono (Consolas) is for anything a MACHINE emitted: package ids,
+      versions, counts, sizes, hashes, paths, URLs, timestamps, phases,
+      status values, log lines, commands. That split is what makes this
+      surface scannable; do not undo it locally.
+
+   Copper is intent, selection and brand action. It is never decoration, and
+   text on copper is always --accent-fg (#101113), never white.
+   ========================================================================= */
+
+/* The base ramp, the type faces and the page wash all come from the
+   foundation. Nothing is redeclared here — margin is the one reset the
+   foundation leaves to the document. */
+html, body { margin: 0; }
+
+/* Global link styling so anchors throughout the admin are readable on the
+   dark panels. Copper reads as the action colour; the underline is tinted
+   rather than full strength so dense tables do not turn into a grid of
+   rules. Anchors that are painted as BUTTONS opt out below — they carry
+   their own surface and must not be underlined or recoloured. */
 a, a:link, a:visited {
   color: var(--accent);
   text-decoration: underline;
-  text-decoration-color: rgba(79, 158, 255, 0.45);
+  text-decoration-color: var(--gf-copper-36);
   text-underline-offset: 2px;
 }
 a:hover { color: var(--accent-2); text-decoration-color: var(--accent-2); }
-a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
 
-header { display: flex; align-items: baseline; gap: 16px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); position: relative; }
-header h1 { margin: 0; font-size: 18px; color: var(--accent); }
-.meta { color: var(--fg-dim); font-family: var(--mono); font-size: 12px; flex: 1; }
-.actions { font-size: 13px; }
-.actions { display: flex; gap: 8px; align-items: center; }
-.actions a.signout,
-.actions a.header-link { color: var(--fg-dim); text-decoration: none; padding: 6px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; }
-.actions a.signout:hover,
-.actions a.header-link:hover { color: var(--fg); background: var(--panel-2); }
+/* Button-shaped anchors: .gf-btn (topbar), .btn (CTAs), .skip-link.
+   :link / :visited is needed to outrank the global anchor colour above. */
+a.gf-btn, a.gf-btn:link, a.gf-btn:visited,
+a.btn, a.btn:link, a.btn:visited,
+a.skip-link, a.skip-link:link, a.skip-link:visited { text-decoration: none; }
+a.gf-btn, a.gf-btn:link, a.gf-btn:visited,
+a.btn, a.btn:link, a.btn:visited { color: var(--text); }
+a.skip-link, a.skip-link:link, a.skip-link:visited { color: var(--accent-fg); }
 
-nav#tabs { display: flex; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 12px; }
-nav#tabs button { background: transparent; color: var(--fg-dim); border: none; padding: 12px 18px; cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent; }
-nav#tabs button:hover { color: var(--fg); }
-nav#tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+/* The old top <header> and the old horizontal nav#tabs bar were replaced by
+   the app shell at the foot of this file (topbar + left rail), so their rules
+   — header / header h1 / .meta / .actions / .header-link / .header-compare /
+   nav#tabs / main — are gone. Nothing else was removed. */
 
-main { padding: 20px; }
 .tab { display: none; }
 .tab.active { display: block; }
 
-.toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
-.toolbar label { color: var(--fg-dim); }
-.toolbar input[type=number] { width: 60px; margin: 0 6px; }
+.toolbar { display: flex; gap: var(--s-3); align-items: center; margin-bottom: var(--s-4); flex-wrap: wrap; }
+.toolbar label { color: var(--text-dim); font-size: var(--fs-md); }
+.toolbar input[type=number] {
+  width: 64px; margin: 0 var(--s-2);
+  background: var(--surface-3); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: 5px var(--s-2);
+  font-family: var(--font-mono); font-size: var(--fs-md);
+}
 
-button { background: var(--accent); color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
-button:hover { background: var(--accent-2); }
-button:disabled { background: #444; color: #888; cursor: not-allowed; }
-button.ghost { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); }
-button.ghost:hover { background: var(--border); }
-button.danger { background: var(--bad); }
-button.danger:hover { background: #c43030; }
+/* ---------------------------------------------------------------------------
+   Buttons. Standard §6: the DEFAULT button is charcoal glass with a 1px
+   border. The copper->green gradient belongs to .primary and .primary alone —
+   the single commitment on a view (register a client, promote, save a form).
+   Everything else earns its emphasis from position, not from colour.
+------------------------------------------------------------------------- */
+button, .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+  background: var(--gf-surface-glass);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 9px var(--s-3);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: background var(--gf-ease), border-color var(--gf-ease), color var(--gf-ease);
+}
+button:hover, .btn:hover { background: var(--gf-surface-glass-hover); border-color: var(--gf-copper-36); }
+button:active, .btn:active { transform: translateY(1px); }
+button:disabled, .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+button:disabled:hover { background: var(--gf-surface-glass); border-color: var(--border); }
+
+/* .ghost is the quiet sibling: no fill until hovered. */
+button.ghost, .btn.ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+button.ghost:hover, .btn.ghost:hover { background: var(--gf-surface-glass); color: var(--text); border-color: var(--gf-copper-36); }
+button.ghost:disabled:hover, .btn.ghost:disabled:hover { background: transparent; color: var(--text-dim); border-color: var(--border); }
+
+/* The one primary commitment on a view. */
+button.primary, .btn.primary {
+  background: linear-gradient(135deg, var(--accent), var(--ok));
+  color: var(--accent-fg);
+  border: 1px solid transparent;
+  font-weight: var(--gf-weight-display);
+}
+button.primary:hover, .btn.primary:hover { filter: brightness(1.07); background: linear-gradient(135deg, var(--accent), var(--ok)); }
+
+/* Destructive: stated with a border and a tinted label, never a red slab. */
+button.danger, .btn.danger { background: var(--error-bg); color: var(--error); border-color: var(--error); }
+button.danger:hover, .btn.danger:hover { background: var(--error); color: var(--accent-fg); border-color: var(--error); }
+
+/* app-linux.css paints .toolbar a.btn as a filled copper CTA with WHITE text;
+   white on copper fails contrast and copper here would outshout the peer
+   "+ Add subscription" button beside it. Restated at :link specificity so the
+   Publish-custom CTA reads as the peer action it is. */
+.toolbar a.btn:link, .toolbar a.btn:visited {
+  background: var(--gf-surface-glass);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 9px var(--s-3);
+  font-size: var(--fs-md);
+  font-weight: 500;
+  line-height: 1.2;
+}
+.toolbar a.btn:link:hover { background: var(--gf-surface-glass-hover); border-color: var(--gf-copper-36); filter: none; }
 
 /* Row-level action buttons inside the Operator-added custom apps table.
    Compact so the column does not steal width from PackageId / Notes. */
 td.custom-actions { white-space: nowrap; }
-td.custom-actions button { padding: 4px 10px; font-size: 12px; margin-right: 4px; }
+td.custom-actions button { padding: 4px 10px; font-size: var(--fs-xs); margin-right: var(--s-1); }
 td.custom-actions button:last-child { margin-right: 0; }
 
-table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; font-family: var(--mono); font-size: 12.5px; }
-th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-th { background: var(--panel-2); color: var(--fg-dim); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; }
-tr.selected td { background: rgba(79,158,255,0.18); }
-tr:hover:not(.selected) td { background: rgba(255,255,255,0.03); cursor: pointer; }
-td.muted { color: var(--fg-dim); }
+/* ---------------------------------------------------------------------------
+   Tables. Dense but breathable: 1px hairlines, no vertical rules, no zebra.
+   The grid is machine output so the body is set in the data face; headers are
+   labels a human wrote, so they are compact uppercase Inter.
+------------------------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+th, td { padding: 9px var(--s-4); text-align: left; border-bottom: 1px solid var(--border); }
+tbody tr:last-child td { border-bottom: 0; }
+th {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-family: var(--font-ui);
+  font-weight: 640;
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+tr.selected td { background: var(--gf-copper-08); box-shadow: inset 3px 0 0 var(--accent); }
+tr:hover:not(.selected) td { background: var(--gf-surface-glass); cursor: pointer; }
+td.muted { color: var(--text-dim); }
 
-.detail { margin-top: 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 12px; }
-.detail pre { color: var(--fg); margin: 8px 0 0 0; font-family: var(--mono); font-size: 12px; overflow-x: auto; }
+/* .muted is the single most-used class in the admin (~90 call sites in the
+   markup and the renderer) and had no rule at all — every "secondary" caption
+   was rendering at full primary weight. It is the secondary text step. */
+.muted { color: var(--text-dim); }
+
+/* Machine-emitted status strings that sit in .muted spans: versions, counts,
+   snapshot times, feature-flag states. Data face. */
+#about-version,
+#inv-status,
+#bw-flag-state,
+#backup-status,
+#cleanup-status,
+#popularity-status,
+#upgrade-status { font-family: var(--font-mono); }
+
+.detail {
+  margin-top: var(--s-4);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+}
+.detail > summary { font-family: var(--font-ui); font-weight: 620; }
+.detail pre { color: var(--text); margin: var(--s-2) 0 0 0; font-family: var(--font-mono); font-size: var(--fs-xs); overflow-x: auto; }
 
 /* Structured detail drawer (replaces the JSON dump). Opens for any
    selected row across Managed / Custom / Untracked tables and renders
    six stacked cards: Identity, Installers, Detection, Versions,
-   Source, Raw manifest. */
-.detail-body { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+   Source, Raw manifest.
+
+   The cards are border-led. The left spine is deliberately NEUTRAL: six
+   copper spines stacked down the drawer would be copper used as decoration.
+   Colour on the spine is reserved for the error card. */
+.detail-body { display: flex; flex-direction: column; gap: var(--s-3); margin-top: var(--s-3); }
 .detail-card {
-  background: var(--panel-2);
+  background: var(--surface-2);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--r-md, 5px);
-  padding: 12px 16px;
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
 }
-.detail-card h4 { margin: 0 0 10px 0; font-size: 13px; color: var(--accent); display: flex; align-items: baseline; gap: 8px; font-weight: 600; }
-.detail-card h4 small { color: var(--fg-dim); font-weight: normal; font-size: 11.5px; }
+.detail-card h4 {
+  margin: 0 0 var(--s-2) 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-lg);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+  color: var(--text);
+  display: flex; align-items: baseline; gap: var(--s-2);
+}
+/* The parenthesised suffix is always a count — data face. */
+.detail-card h4 small { color: var(--text-dim); font-family: var(--font-mono); font-weight: 400; font-size: var(--fs-xs); }
 .detail-card.detail-card-err { border-left-color: var(--error); }
 .detail-card.detail-card-err strong { color: var(--error); }
 
 .detail-grid {
   display: grid;
   grid-template-columns: minmax(140px, max-content) 1fr;
-  gap: 4px 14px;
-  font-size: 12.5px;
+  gap: var(--s-1) var(--s-3);
+  font-size: var(--fs-sm);
   margin: 0;
 }
-.detail-grid dt { color: var(--fg-dim); font-weight: 500; }
-.detail-grid dd { margin: 0; color: var(--fg); word-break: break-word; }
-.detail-grid code { background: rgba(0,0,0,0.25); padding: 1px 6px; border-radius: 3px; font-family: var(--mono); font-size: 11.5px; }
-.detail-mono { font-family: var(--mono); font-size: 11px; word-break: break-all; }
+/* dt is a human-authored field label; dd holds a mix of prose (PackageName,
+   Description) and machine values, and the renderer already wraps the machine
+   ones in <code>, which the foundation sets in the data face. */
+.detail-grid dt { color: var(--text-dim); font-family: var(--font-ui); font-weight: 500; }
+.detail-grid dd { margin: 0; color: var(--text); font-family: var(--font-ui); word-break: break-word; }
+.detail-grid code {
+  background: var(--surface-3);
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+.detail-mono { font-family: var(--font-mono); font-size: var(--fs-xs); word-break: break-all; }
 
 .detail-installer {
-  background: rgba(255,255,255,0.02);
+  background: var(--gf-white-034);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
+  border-radius: var(--r-md);
+  padding: var(--s-3);
+  margin-bottom: var(--s-2);
 }
 .detail-installer:last-child { margin-bottom: 0; }
-.detail-installer-head { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.detail-installer-head { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--s-2); }
 
-.detail-versions { margin: 0; padding-left: 18px; font-size: 12.5px; }
+/* Every entry is a version string. Data face. */
+.detail-versions { margin: 0; padding-left: 18px; font-family: var(--font-mono); font-size: var(--fs-sm); }
 .detail-versions li { margin-bottom: 3px; }
 
-.detail-card.detail-raw { background: var(--panel); border-left-color: var(--fg-dim); }
-.detail-card.detail-raw > summary { cursor: pointer; color: var(--fg-dim); font-size: 12.5px; }
-.detail-card.detail-raw pre { background: black; color: #cdd; padding: 10px; border-radius: 4px; font-family: var(--mono); font-size: 11px; max-height: 320px; overflow: auto; margin: 8px 0 0 0; }
+.detail-card.detail-raw { background: var(--surface-1); border-left-color: var(--muted); }
+.detail-card.detail-raw > summary { cursor: pointer; color: var(--text-dim); font-family: var(--font-ui); font-size: var(--fs-sm); }
+.detail-card.detail-raw pre {
+  background: var(--surface-3);
+  color: var(--text-dim);
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  max-height: 320px;
+  overflow: auto;
+  margin: var(--s-2) 0 0 0;
+}
 
-.op-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.op-btn { padding: 18px; font-size: 14px; text-align: left; line-height: 1.4; }
-.op-output { background: black; color: #cdd; font-family: var(--mono); padding: 12px; border-radius: 4px; min-height: 200px; white-space: pre-wrap; font-size: 12px; }
+/* ---------------------------------------------------------------------------
+   Operations. The three sync actions are large targets that state what they
+   do; the output pane and the progress card are raw machine evidence.
+------------------------------------------------------------------------- */
+.op-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--s-3); margin-bottom: var(--s-4); }
+.op-btn {
+  display: block;
+  padding: var(--s-5);
+  font-size: var(--fs-lg);
+  text-align: left;
+  line-height: 1.4;
+  white-space: normal;
+  border-radius: var(--r-lg);
+}
+.op-output {
+  background: var(--surface-3);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  min-height: 200px;
+  white-space: pre-wrap;
+  font-size: var(--fs-xs);
+}
 
-.op-progress { background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 4px; padding: 12px 14px; margin-bottom: 12px; font-family: var(--sans); font-size: 13px; }
+.op-progress {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-3);
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+}
 .op-progress.done   { border-left-color: var(--ok); }
-.op-progress.failed { border-left-color: var(--bad); }
-.op-progress-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
-.op-progress-title { font-weight: 600; color: var(--fg); }
-.op-progress-elapsed { font-family: var(--mono); font-size: 12px; }
-.op-progress-bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
-.op-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.4s ease; width: 0; }
+.op-progress.failed { border-left-color: var(--error); }
+.op-progress-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--s-2); }
+.op-progress-title { font-weight: 620; color: var(--text); }
+.op-progress-elapsed { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-dim); }
+.op-progress-bar { height: 8px; background: var(--gf-white-065); border-radius: 999px; overflow: hidden; margin-bottom: var(--s-2); }
+.op-progress-fill { height: 100%; background: var(--accent); transition: width 0.4s ease; width: 0; }
 .op-progress.done   .op-progress-fill { background: var(--ok); }
-.op-progress.failed .op-progress-fill { background: var(--bad); }
-.op-progress-line { display: flex; gap: 10px; align-items: baseline; font-size: 12px; }
-.op-progress-phase { font-family: var(--mono); font-size: 11px; padding: 1px 6px; background: rgba(79,158,255,0.18); color: var(--accent); border-radius: 3px; font-weight: 600; }
-.op-progress.done   .op-progress-phase { background: rgba(69,199,133,0.18); color: var(--ok); }
-.op-progress.failed .op-progress-phase { background: rgba(231,76,76,0.14); color: var(--bad); }
-.op-progress-msg { color: var(--fg-dim); }
-.op-progress-counts { margin-top: 6px; font-family: var(--mono); font-size: 11px; }
+.op-progress.failed .op-progress-fill { background: var(--error); }
+.op-progress-line { display: flex; gap: var(--s-2); align-items: baseline; font-size: var(--fs-xs); }
+/* Phase, message and counts are all worker output. Data face. */
+.op-progress-phase {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  padding: 1px 6px;
+  background: var(--gf-copper-18);
+  color: var(--accent);
+  border-radius: var(--r-sm);
+  font-weight: 600;
+}
+.op-progress.done   .op-progress-phase { background: var(--ok-bg); color: var(--ok); }
+.op-progress.failed .op-progress-phase { background: var(--error-bg); color: var(--error); }
+.op-progress-msg { color: var(--text-dim); font-family: var(--font-mono); }
+.op-progress-counts { margin-top: 6px; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-dim); }
+@media (prefers-reduced-motion: reduce) { .op-progress-fill { transition: none; } }
 
-.cfg { background: black; color: var(--fg); padding: 16px; font-family: var(--mono); font-size: 12px; border-radius: 4px; max-height: 50vh; overflow: auto; }
-.cfg-warning { background: rgba(232,183,61,0.10); border: 1px solid rgba(232,183,61,0.45); color: var(--warn); padding: 10px 14px; border-radius: 4px; font-size: 12px; margin-bottom: 12px; line-height: 1.45; }
-.cfg-warning code { background: rgba(255,255,255,0.06); padding: 1px 4px; border-radius: 2px; font-family: var(--mono); }
+/* ---------------------------------------------------------------------------
+   Settings
+------------------------------------------------------------------------- */
+.cfg {
+  background: var(--surface-3);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  padding: var(--s-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  border-radius: var(--r-md);
+  max-height: 50vh;
+  overflow: auto;
+}
+.cfg-warning {
+  background: var(--warn-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  color: var(--warn);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  font-size: var(--fs-md);
+  margin-bottom: var(--s-3);
+  line-height: 1.45;
+}
+.cfg-warning code { background: var(--gf-white-065); padding: 1px 5px; border-radius: var(--r-sm); font-family: var(--font-mono); }
 
 /* Settings -> About: product header + license / third-party notice text blocks. */
-.about-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.about-head h2 { margin: 0; }
+.about-head { display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; }
+.about-head h2 { margin: 0; font-family: var(--font-ui); font-weight: var(--gf-weight-display); letter-spacing: var(--gf-tracking-title); }
 .about-text { white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
-.about-tm { margin-top: 18px; font-size: 11px; line-height: 1.5; opacity: 0.8; }
+.about-tm { margin-top: 18px; font-size: var(--fs-xs); line-height: 1.5; color: var(--muted); }
 
 /* Settings: structured GUI form */
-.cfg-form { display: flex; flex-direction: column; gap: 18px; margin-bottom: 18px; }
-.cfg-form .cfg-section { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
-.cfg-form .cfg-section h3 { margin: 0 0 12px 0; font-size: 14px; color: var(--accent); display: flex; align-items: baseline; gap: 10px; }
-.cfg-form .cfg-section h3 small { font-family: var(--mono); font-size: 11px; color: var(--fg-dim); font-weight: normal; }
-.cfg-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px 18px; }
-.cfg-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--fg-dim); }
+.cfg-form { display: flex; flex-direction: column; gap: var(--s-5); margin-bottom: var(--s-5); }
+.cfg-form .cfg-section {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s-4) var(--s-5);
+}
+.cfg-form .cfg-section h3 {
+  margin: 0 0 var(--s-3) 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-xl);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+  color: var(--text);
+  display: flex; align-items: baseline; gap: var(--s-2);
+}
+/* The suffix is the YAML key path this section writes. Data face. */
+.cfg-form .cfg-section h3 small { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-dim); font-weight: 400; letter-spacing: 0; }
+.cfg-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s-3) var(--s-5); }
+.cfg-field { display: flex; flex-direction: column; gap: var(--s-1); font-size: var(--fs-xs); color: var(--text-dim); }
 .cfg-field .cfg-label-row { display: flex; align-items: center; gap: 6px; cursor: default; }
-.cfg-field .cfg-label { color: var(--fg-dim); font-weight: 500; }
-.cfg-field .cfg-help { color: var(--fg-dim); cursor: help; font-size: 13px; line-height: 1; opacity: 0.7; }
+.cfg-field .cfg-label { color: var(--text-dim); font-family: var(--font-ui); font-weight: 500; }
+.cfg-field .cfg-help { color: var(--text-dim); cursor: help; font-size: var(--fs-md); line-height: 1; opacity: 0.7; }
 .cfg-field .cfg-help:hover, .cfg-field .cfg-help:focus { color: var(--accent); opacity: 1; outline: none; }
-.cfg-field .cfg-help-text { color: var(--fg-dim); font-size: 11px; line-height: 1.4; margin-top: 2px; opacity: 0.75; font-style: italic; }
-.cfg-field .multi-bool { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 4px 0; }
-.cfg-field .multi-bool .multi-bool-opt { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--fg); font-family: var(--mono); }
+.cfg-field .cfg-help-text { color: var(--muted); font-size: var(--fs-xs); line-height: 1.4; margin-top: 2px; font-style: italic; }
+.cfg-field .multi-bool { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); padding: var(--s-1) 0; }
+/* Architecture ids and locale codes are machine vocabulary. Data face. */
+.cfg-field .multi-bool .multi-bool-opt { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text); font-family: var(--font-mono); }
 .cfg-field .multi-bool .multi-bool-opt input[type=checkbox] { margin: 0; }
 .cfg-field .multi-bool .multi-bool-opt:has(input:disabled) { opacity: 0.65; cursor: not-allowed; }
+/* Config values are machine values — paths, URLs, counts, ids. Data face. */
 .cfg-field input[type=text], .cfg-field input[type=number], .cfg-field input[type=email], .cfg-field select, .cfg-field textarea {
-  background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px; font-family: var(--mono); font-size: 12px;
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 7px var(--s-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  transition: border-color var(--gf-ease), box-shadow var(--gf-ease);
 }
-.cfg-field input[readonly], .cfg-field textarea[readonly], .cfg-field select[disabled], .cfg-field input[disabled] { opacity: 0.65; cursor: not-allowed; }
+.cfg-field input[type=text]:focus, .cfg-field input[type=number]:focus, .cfg-field input[type=email]:focus,
+.cfg-field select:focus, .cfg-field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--gf-copper-18);
+}
+.cfg-field input[readonly], .cfg-field textarea[readonly], .cfg-field select[disabled], .cfg-field input[disabled] {
+  color: var(--text-disabled);
+  background: var(--gf-white-034);
+  cursor: not-allowed;
+}
 
-/* Custom-painted bright-green checkbox + radio for the Settings tab.
-   accent-color alone was not winning in some browsers + dark-mode
-   stacks; this paints the control ourselves so the multi-bool arch /
-   locale pickers in Subscription defaults are unmistakably visible
-   against the dark panel background.
+/* Custom-painted checkbox + radio for the Settings tab. accent-color alone was
+   not winning in some browsers + dark-mode stacks; this paints the control
+   ourselves so the multi-bool arch / locale pickers in Subscription defaults
+   are unmistakable against the dark panel.
 
-   Unchecked: hollow box with the panel-2 fill so it does not blend
-   into the section background.
-   Checked:   bright OK-green fill with a white check glyph rendered
-              via the linear-gradient trick (browser-independent, no
-              SVG asset needed).
+   Unchecked: hollow box on the input well fill so it does not blend into the
+              section background.
+   Checked:   copper — selection is copper in Graphite Forge — with the glyph
+              in --accent-fg (the graphite base). White on copper fails
+              contrast and is never used.
    Indeterminate / focus rings stay at browser defaults for a11y. */
 .cfg-field input[type=checkbox],
 .cfg-field input[type=radio] {
@@ -196,33 +440,33 @@ td.muted { color: var(--fg-dim); }
   margin: 2px 0;
   width: 18px;
   height: 18px;
-  background: var(--panel-2);
-  border: 1px solid var(--border-strong, #3a4050);
-  border-radius: 3px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
   display: inline-grid;
   place-content: center;
   cursor: pointer;
   vertical-align: middle;
-  transition: background-color 0.1s, border-color 0.1s;
+  transition: background-color var(--gf-ease), border-color var(--gf-ease);
 }
 .cfg-field input[type=radio] { border-radius: 50%; }
 .cfg-field input[type=checkbox]:hover,
 .cfg-field input[type=radio]:hover {
-  border-color: var(--ok);
+  border-color: var(--accent);
 }
 .cfg-field input[type=checkbox]:checked,
 .cfg-field input[type=radio]:checked {
-  background: var(--ok);
-  border-color: var(--ok);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 .cfg-field input[type=checkbox]:checked::before {
-  /* White checkmark drawn as a CSS pseudo-element. The unicode glyph
-     keeps things simple; sized to fit the 18px box. */
+  /* Checkmark drawn as a CSS pseudo-element. No SVG asset, no icon font —
+     this UI ships nothing from a CDN. */
   content: '';
   width: 10px;
   height: 5px;
-  border-left: 2px solid #fff;
-  border-bottom: 2px solid #fff;
+  border-left: 2px solid var(--accent-fg);
+  border-bottom: 2px solid var(--accent-fg);
   transform: rotate(-45deg) translate(1px, -1px);
 }
 .cfg-field input[type=radio]:checked::before {
@@ -230,7 +474,7 @@ td.muted { color: var(--fg-dim); }
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--accent-fg);
 }
 .cfg-field input[type=checkbox]:focus-visible,
 .cfg-field input[type=radio]:focus-visible {
@@ -248,98 +492,195 @@ td.muted { color: var(--fg-dim); }
 .cfg-advanced { padding: 0; }
 .cfg-advanced > summary {
   cursor: pointer;
-  padding: 14px 16px;
+  padding: var(--s-4) var(--s-5);
   list-style: none;
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--s-2);
   -webkit-user-select: none;
   user-select: none;
+  border-radius: var(--r-lg);
 }
 .cfg-advanced > summary::-webkit-details-marker { display: none; }
 .cfg-advanced > summary::before {
   content: "▸";
-  color: var(--fg-dim);
-  font-size: 12px;
+  color: var(--accent);
+  font-size: var(--fs-xs);
   display: inline-block;
-  transition: transform 0.15s;
+  transition: transform var(--gf-ease);
 }
 .cfg-advanced[open] > summary::before { transform: rotate(90deg); }
-.cfg-advanced-title { color: var(--accent); font-size: 14px; font-weight: 600; }
-.cfg-advanced-sub { color: var(--fg-dim); font-size: 12px; font-weight: 400; }
-.cfg-advanced-body { display: flex; flex-direction: column; gap: 18px; padding: 0 16px 16px 16px; }
+.cfg-advanced-title { color: var(--text); font-family: var(--font-ui); font-size: var(--fs-lg); font-weight: 620; }
+.cfg-advanced-sub { color: var(--text-dim); font-size: var(--fs-xs); font-weight: 400; }
+.cfg-advanced-body { display: flex; flex-direction: column; gap: var(--s-5); padding: 0 var(--s-5) var(--s-5); }
 
 /* Settings: Intune policy export card. CTA only, no fields. */
-.cfg-intune-card .cfg-intune-body { color: var(--fg-dim); font-size: 13px; line-height: 1.5; margin: 0 0 10px 0; }
+.cfg-intune-card .cfg-intune-body { color: var(--text-dim); font-size: var(--fs-md); line-height: 1.5; margin: 0 0 var(--s-3) 0; }
 .cfg-intune-card .cfg-intune-cta { margin: 0; }
 .cfg-intune-card .cfg-intune-cta a.btn {
-  display: inline-block;
-  background: var(--accent);
-  color: var(--accent-fg, white);
-  padding: 8px 14px;
-  border-radius: 4px;
+  display: inline-flex;
+  background: var(--gf-surface-glass);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 9px var(--s-3);
+  border-radius: var(--r-md);
   text-decoration: none;
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
-.cfg-intune-card .cfg-intune-cta a.btn:hover { background: var(--accent-2); }
+.cfg-intune-card .cfg-intune-cta a.btn:hover { background: var(--gf-surface-glass-hover); border-color: var(--gf-copper-36); }
 
 /* System card inside Advanced disclosure. CTA-only; houses operator
    actions that do not fit the form-based config sections. */
-.cfg-system-card .cfg-system-row { display: flex; align-items: flex-start; gap: 14px; margin: 0; flex-wrap: wrap; }
+.cfg-system-card .cfg-system-row { display: flex; align-items: flex-start; gap: var(--s-3); margin: 0; flex-wrap: wrap; }
 .cfg-system-card .cfg-system-row button { flex: 0 0 auto; }
-.cfg-system-card .cfg-system-hint { color: var(--fg-dim); font-size: 12px; line-height: 1.45; flex: 1 1 280px; }
+.cfg-system-card .cfg-system-hint { color: var(--text-dim); font-size: var(--fs-xs); line-height: 1.45; flex: 1 1 280px; }
+
+/* Client-configuration card (Settings -> how clients register this source).
+   The renderer emits these but no rule ever existed, so the list rendered as
+   a raw bulleted <ul>. Repo names, source names and URLs are machine output. */
+.cfg-clientcfg-card .cfg-clientcfg-pd { margin: 0 0 var(--s-3); font-size: var(--fs-md); line-height: 1.5; }
+.cfg-clientcfg-card .cfg-clientcfg-pd.ok { color: var(--ok); }
+.cfg-clientcfg-ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.cfg-clientcfg-row {
+  display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap;
+  padding: var(--s-2) var(--s-3);
+  background: var(--gf-white-034);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.cfg-clientcfg-name { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text); }
+.cfg-clientcfg-src  { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--info); word-break: break-all; }
+.cfg-clientcfg-mode { font-size: var(--fs-xs); }
 
 /* Phase 5 sweep: small utility classes that replace the last
    one-off inline style="..." attributes scattered across the static
    HTML. Keeping them tiny and named so future code can reuse them
    instead of reinventing inline values. */
 .u-spacer-r-right    { margin-left: auto; }
-.u-edit-hint         { margin-left: 8px; font-size: 12px; }
+.u-spacer-left       { margin-left: auto; }
+.u-edit-hint         { margin-left: var(--s-2); font-size: var(--fs-xs); }
 .u-button-spaced     { margin-left: 6px; }
-.dlg-target          { margin-bottom: 8px; }
-.dlg-explainer       { font-size: 12px; margin: 0 0 8px 0; }
+.dlg-target          { margin-bottom: var(--s-2); }
+.dlg-explainer       { font-size: var(--fs-xs); margin: 0 0 var(--s-2) 0; }
 .dlg-radio-row       { margin-top: 6px; }
-.pc-advanced-fields  { margin-top: 8px; }
+.pc-advanced-fields  { margin-top: var(--s-2); }
 
 /* Settings: shown when /api/config fails (publisher unreachable). The form
    would otherwise be silently empty; this gives the operator a clear
    reason and an in-place Retry button. */
 .cfg-unavailable {
-  background: var(--surface-1, var(--panel));
-  border: 1px solid var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid var(--border);
   border-left: 3px solid var(--warn);
-  padding: 14px 18px;
-  border-radius: var(--r-md, 5px);
-  color: var(--text, var(--fg));
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-md);
+  color: var(--text);
 }
 .cfg-unavailable strong { color: var(--warn); }
-.cfg-unavailable p { margin: 8px 0 0 0; line-height: 1.5; }
+.cfg-unavailable p { margin: var(--s-2) 0 0 0; line-height: 1.5; }
 .cfg-unavailable code {
-  background: rgba(0,0,0,0.25);
+  background: var(--surface-3);
   padding: 1px 6px;
-  border-radius: var(--r-sm, 3px);
-  font-family: var(--font-mono, var(--mono));
-  font-size: 12px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
 }
 
+/* Status words rendered into tables and summaries. Always accompanied by the
+   word itself, so colour is reinforcement and never the only signal. */
 .status-ok { color: var(--ok); }
-.status-fail { color: var(--bad); }
+.status-fail { color: var(--error); }
 .status-warn { color: var(--warn); }
-.status-skip { color: var(--skip); }
+.status-skip { color: var(--muted); }
 
-dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 20px; min-width: 540px; max-width: min(740px, 90vw); }
-dialog::backdrop { background: rgba(0,0,0,0.65); }
-dialog h2 { margin-top: 0; color: var(--accent); }
-dialog form label { display: block; margin: 12px 0; color: var(--fg-dim); }
-dialog form input, dialog form select, dialog form textarea { display: block; width: 100%; margin-top: 4px; padding: 6px 8px; background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 3px; font-family: var(--mono); }
-dialog form label.check { display: flex; align-items: center; gap: 8px; }
+/* ---------------------------------------------------------------------------
+   Dialogs. Six of the fifteen dialogs predate class="modal", so the bare
+   element carries the same Graphite Forge panel treatment the token layer
+   gives dialog.modal — same surface, same 18px radius, same backdrop.
+------------------------------------------------------------------------- */
+dialog {
+  background: var(--surface-1);
+  color: var(--text);
+  border: var(--gf-border-strong);
+  border-radius: var(--r-lg);
+  padding: var(--s-6);
+  min-width: 540px;
+  max-width: min(740px, 90vw);
+  box-shadow: var(--gf-shadow-panel);
+  /* Deliberately NOT overflow-y:auto. #dlg-sub's package typeahead parks its
+     hover-preview card outside the dialog's right edge (.pkg-hover-card,
+     left:100%); a scroll container here would clip it. Tall dialogs that need
+     scrolling are the .modal ones, which the token layer already scrolls. */
+}
+/* Scoped off .modal so the token layer keeps ownership of the modal backdrop
+   (adding opacity here would compound with its rgba and wash it out). */
+dialog:not(.modal)::backdrop { background: var(--surface-0); opacity: 0.68; }
+dialog h2 {
+  margin-top: 0;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+}
+dialog form label { display: block; margin: var(--s-3) 0; color: var(--text-dim); font-family: var(--font-ui); font-size: var(--fs-md); }
+/* Field values here are package ids, versions, hostnames, arch lists — all
+   machine vocabulary the operator is transcribing exactly. Data face. */
+dialog form input, dialog form select, dialog form textarea {
+  display: block;
+  width: 100%;
+  margin-top: var(--s-1);
+  padding: 8px var(--s-3);
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+  transition: border-color var(--gf-ease), box-shadow var(--gf-ease);
+}
+dialog form input:focus, dialog form select:focus, dialog form textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--gf-copper-18);
+}
+dialog form label.check { display: flex; align-items: center; gap: var(--s-2); }
+dialog form label.check input { width: auto; margin-top: 0; }
 dialog form textarea { height: 60px; resize: vertical; }
-dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 16px 0 0 0; padding: 0; }
+dialog menu { display: flex; justify-content: flex-end; gap: var(--s-2); margin: var(--s-4) 0 0 0; padding: 0; list-style: none; }
 
-#toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 4px; font-size: 13px; max-width: 400px; }
+/* A dialog has exactly one commitment: the submit. That is the one place the
+   copper->green gradient is earned on these views. */
+dialog menu button[type="submit"],
+dialog menu button[data-act$="-save"],
+.modal-actions button[type="submit"] {
+  background: linear-gradient(135deg, var(--accent), var(--ok));
+  color: var(--accent-fg);
+  border: 1px solid transparent;
+  font-weight: var(--gf-weight-display);
+}
+dialog menu button[type="submit"]:hover,
+dialog menu button[data-act$="-save"]:hover,
+.modal-actions button[type="submit"]:hover { filter: brightness(1.07); }
+/* Destructive submits stay destructive — .danger outranks the commitment. */
+dialog menu button[type="submit"].danger,
+.modal-actions button[type="submit"].danger { background: var(--error-bg); color: var(--error); border-color: var(--error); filter: none; }
+
+#toast {
+  position: fixed; bottom: var(--s-5); right: var(--s-5);
+  background: var(--gf-surface-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  font-size: var(--fs-md);
+  max-width: 400px;
+  box-shadow: var(--gf-shadow-panel);
+  z-index: 1000;
+}
 #toast.ok { border-left-color: var(--ok); }
-#toast.bad { border-left-color: var(--bad); }
+#toast.bad { border-left-color: var(--error); }
 
 /* Activity tab.
    Merger of the old Operations + Runs tabs. The action grid (Sync all,
@@ -351,7 +692,7 @@ nav#tabs button .nav-bridge-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
-  margin-left: 8px;
+  margin-left: var(--s-2);
   border-radius: 50%;
   background: var(--muted);
   vertical-align: middle;
@@ -363,161 +704,279 @@ nav#tabs button .nav-bridge-dot.is-error { background: var(--error); }
 .bridge-banner {
   background: var(--error-bg);
   color: var(--error);
-  border: 1px solid var(--error);
-  border-radius: var(--r-md, 5px);
-  padding: 10px 14px;
-  font-size: 13px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--error);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+  font-size: var(--fs-md);
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
 }
 /* A class selector outranks the browser's default [hidden] { display: none }
    rule, so the bridge banner used to stay on screen even when its hidden
    attribute was set. This explicit override restores the expected toggle
    behavior so setBridgeIndicator('ok') hides the banner cleanly. */
 .bridge-banner[hidden] { display: none; }
-.bridge-banner-state  { font-weight: 600; }
-.bridge-banner-detail { color: var(--text); flex: 1; }
+.bridge-banner-state  { font-weight: 620; }
+/* The detail is the last probe's own words. Data face. */
+.bridge-banner-detail { color: var(--text); font-family: var(--font-mono); font-size: var(--fs-xs); flex: 1; }
 .bridge-banner-restart { margin-left: auto; }
 
-.op-cancel-hint   { margin-left: 8px; font-size: 12px; }
+.op-cancel-hint   { margin-left: var(--s-2); font-size: var(--fs-xs); }
 
 /* Activity feed toolbar (filter chips + last-N + refresh). */
 .activity-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 16px 0 10px 0;
+  gap: var(--s-3);
+  margin: var(--s-4) 0 var(--s-3) 0;
+  flex-wrap: wrap;
 }
 .toolbar-spacer { flex: 1; }
-.activity-filters { display: flex; gap: 6px; }
+.activity-filters { display: flex; gap: 6px; flex-wrap: wrap; }
 .activity-filter {
   background: transparent;
-  color: var(--text-dim, var(--fg-dim));
+  color: var(--text-dim);
   border: 1px solid var(--border);
-  padding: 6px 12px;
+  padding: 6px var(--s-3);
   border-radius: 999px;
-  font-size: 12.5px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
-.activity-filter:hover { color: var(--text, var(--fg)); }
+.activity-filter:hover { color: var(--text); background: var(--gf-surface-glass); border-color: var(--gf-copper-36); }
+/* Selection: copper tint + copper border + weight, and aria-pressed carries it
+   for anyone who cannot see the tint. */
 .activity-filter.is-active {
-  background: var(--info-bg, rgba(79,158,255,0.18));
+  background: var(--gf-copper-08);
   color: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--gf-copper-30);
+  font-weight: 620;
 }
 .activity-last input {
-  width: 60px;
-  margin: 0 4px;
+  width: 64px;
+  margin: 0 var(--s-1);
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 5px var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
 }
 
 /* Activity table: same primitives as #sub-table / #custom-table. */
 #activity-table { width: 100%; }
 #activity-table code {
-  background: var(--surface-2, var(--panel-2));
+  background: var(--surface-3);
   padding: 1px 6px;
-  border-radius: var(--r-sm, 3px);
-  font-size: 11.5px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
 }
 
 /* Inline error banner for the Add/Edit subscription dialog. Stays visible
-   until the operator edits a field, so they don't miss it like a toast. */
-.dlg-error { background: rgba(231,76,76,0.10); border: 1px solid rgba(231,76,76,0.45); color: var(--bad); padding: 8px 10px; border-radius: 4px; font-family: var(--mono); font-size: 12px; margin: 12px 0 0 0; white-space: pre-wrap; }
+   until the operator edits a field, so they don't miss it like a toast.
+   The text is the server's own response — data face. */
+.dlg-error {
+  background: var(--error-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--error);
+  color: var(--error);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  margin: var(--s-3) 0 0 0;
+  white-space: pre-wrap;
+}
 
 /* Package-search typeahead */
 dialog form label.pkg-search { position: relative; }
-dialog form label.pkg-search-filter { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--fg-dim); cursor: pointer; }
+dialog form label.pkg-search-filter { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: var(--fs-xs); color: var(--text-dim); cursor: pointer; }
 dialog form label.pkg-search-filter input { width: auto; margin: 0; }
 dialog form label.pkg-search-filter span { -webkit-user-select: none; user-select: none; }
-dialog form label.pkg-search > span { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: nowrap; }
+dialog form label.pkg-search > span { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); flex-wrap: nowrap; }
 dialog form label.pkg-search > span > span:first-child { flex-shrink: 0; }
-dialog form label.pkg-search > span small { font-weight: normal; flex: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-dialog form label.pkg-search > span button.ghost { flex-shrink: 0; padding: 4px 12px; font-size: 12px; background: transparent; color: var(--fg-dim); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; }
-dialog form label.pkg-search > span button.ghost:not(:disabled):hover { color: var(--fg); background: var(--panel-2); }
+dialog form label.pkg-search > span small { font-weight: 400; flex: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--text-dim); }
+dialog form label.pkg-search > span button.ghost { flex-shrink: 0; padding: 5px var(--s-3); font-size: var(--fs-xs); }
 dialog form label.pkg-search > span button.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
-.pkg-results { position: absolute; left: 0; right: 0; top: 100%; z-index: 10; max-height: 260px; overflow-y: auto; background: var(--panel-2); border: 1px solid var(--border); border-radius: 0 0 4px 4px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); }
-.pkg-results .row { padding: 8px 10px; cursor: pointer; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: minmax(0,1fr) auto; column-gap: 12px; row-gap: 2px; font-family: var(--mono); font-size: 12px; }
+
+.pkg-results {
+  position: absolute; left: 0; right: 0; top: 100%; z-index: 10;
+  max-height: 260px; overflow-y: auto;
+  background: var(--gf-surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  box-shadow: var(--gf-shadow-panel);
+}
+.pkg-results .row {
+  padding: var(--s-2) var(--s-3);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  column-gap: var(--s-3);
+  row-gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
 .pkg-results .row:last-child { border-bottom: none; }
-.pkg-results .row:hover, .pkg-results .row.active { background: rgba(79,158,255,0.18); }
+.pkg-results .row:hover { background: var(--gf-surface-glass-hover); }
+/* .active is the keyboard cursor — that is a selection, so it is copper. */
+.pkg-results .row.active { background: var(--gf-copper-08); box-shadow: inset 2px 0 0 var(--accent); }
 .pkg-results .row.row-fit { box-shadow: inset 3px 0 0 var(--ok); }
-.pkg-results .row .pid { color: var(--fg); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pkg-results .row .pid { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .pkg-results .row.row-fit .pid { color: var(--ok); }
 .pkg-results .row .badges { justify-self: end; display: flex; gap: 3px; flex-shrink: 0; }
-.pkg-results .row .pname { color: var(--fg-dim); font-family: var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.pkg-results .row .pver { color: var(--accent); text-align: right; }
-.pkg-results .empty { padding: 12px; color: var(--fg-dim); text-align: center; }
+/* The display name is prose a publisher wrote. UI face. */
+.pkg-results .row .pname { color: var(--text-dim); font-family: var(--font-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pkg-results .row .pver { color: var(--info); text-align: right; }
+.pkg-results .empty { padding: var(--s-3); color: var(--text-dim); font-family: var(--font-ui); text-align: center; }
 
-/* Matrix badges: green for present, red for absent. Always visible so the
-   operator can scan four binary signals at a glance. */
-.badge { display: inline-block; font-family: var(--mono); font-size: 10px; padding: 1px 6px; border-radius: 3px; line-height: 1.4; border: 1px solid transparent; font-weight: 600; }
-.badge.on  { color: var(--ok);  background: rgba(69,199,133,0.18); border-color: rgba(69,199,133,0.45); }
-.badge.off { color: var(--bad); background: rgba(231,76,76,0.14);  border-color: rgba(231,76,76,0.40); }
-.badge.archive { color: var(--warn); background: rgba(232,183,61,0.16); border-color: rgba(232,183,61,0.50); }
-/* Popularity hint: rendered only on rows in the top 20% of the
-   current search result set's score distribution, so it signals
-   "this one stands out" rather than competing with the fitness
-   badges visually. */
-.badge.badge-popular { color: var(--accent); background: rgba(99,176,255,0.14); border-color: rgba(99,176,255,0.45); }
+/* Matrix badges: present / absent / archive, each carrying its own word so the
+   operator can scan four binary signals without relying on colour. */
+.badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  line-height: 1.4;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+.badge.on  { color: var(--ok);    background: var(--ok-bg); }
+.badge.off { color: var(--error); background: var(--error-bg); }
+.badge.archive { color: var(--warn); background: var(--warn-bg); }
+/* Popularity hint: rendered only on rows in the top 20% of the current search
+   result set's score distribution. It is a data signal, not an action, so it
+   takes the data cyan rather than copper — copper would read as "do this". */
+.badge.badge-popular { color: var(--info); background: var(--info-bg); }
+
 /* Drift banner: surfaces Gitea commits made outside RepoFabric. Sits
    above the Catalog so operators see uninvited writes quickly. */
-.drift-banner { background: rgba(232,183,61,0.12); border: 1px solid rgba(232,183,61,0.50); color: var(--fg); padding: 10px 14px; margin: 0 0 12px 0; border-radius: 4px; font-size: 13px; }
-.drift-banner .drift-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-.drift-banner .drift-title { color: var(--warn); font-weight: 600; }
-.drift-banner ul { margin: 6px 0 0 0; padding-left: 18px; }
+.drift-banner {
+  background: var(--warn-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  color: var(--text);
+  padding: var(--s-3) var(--s-4);
+  margin: 0 0 var(--s-3) 0;
+  border-radius: var(--r-md);
+  font-size: var(--fs-md);
+}
+.drift-banner .drift-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: 6px; }
+.drift-banner .drift-title { color: var(--warn); font-weight: 620; }
+/* Each line is a commit: sha, author, message. Data face. */
+.drift-banner ul { margin: 6px 0 0 0; padding-left: 18px; font-family: var(--font-mono); font-size: var(--fs-xs); }
 .drift-banner li { margin-bottom: 2px; }
-.drift-banner code { font-size: 11px; }
-.drift-banner .drift-ack { margin-left: 8px; }
+.drift-banner code { font-size: var(--fs-xs); }
+.drift-banner .drift-ack { margin-left: var(--s-2); }
 
-.fit-all { color: var(--ok); font-weight: 600; margin-left: 8px; }
-.fit-partial { color: var(--warn); margin-left: 8px; }
+.fit-all { color: var(--ok); font-weight: 620; margin-left: var(--s-2); }
+.fit-partial { color: var(--warn); margin-left: var(--s-2); }
 
 /* Hover-preview floating card. Anchored to the dropdown's right edge so it
-   floats next to the row the operator's cursor is on. */
-.pkg-hover-card { position: absolute; left: 100%; margin-left: 12px; top: 0; width: 380px; max-height: 460px; overflow-y: auto; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 12px 28px rgba(0,0,0,0.55); padding: 12px 14px; z-index: 20; font-family: var(--mono); font-size: 11px; color: var(--fg); }
-.pkg-hover-card .hover-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-.pkg-hover-card .hover-title { color: var(--accent); font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pkg-hover-card .hover-fit { flex-shrink: 0; display: flex; align-items: center; gap: 4px; }
-.pkg-hover-card .hover-meta { display: grid; grid-template-columns: 80px 1fr; gap: 2px 10px; margin: 0 0 10px 0; }
-.pkg-hover-card .hover-meta dt { color: var(--fg-dim); }
+   floats next to the row the operator's cursor is on. A selected preview
+   panel, so the ambient copper glow is permitted here per the standard. */
+.pkg-hover-card {
+  position: absolute; left: 100%; margin-left: var(--s-3); top: 0;
+  width: 380px; max-height: 460px; overflow-y: auto;
+  background: var(--gf-surface-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  box-shadow: var(--gf-shadow-panel), var(--gf-glow-copper);
+  padding: var(--s-3) var(--s-4);
+  z-index: 20;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text);
+}
+.pkg-hover-card .hover-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-2); }
+/* The title is the PackageId. Data face, primary text — not copper. */
+.pkg-hover-card .hover-title { color: var(--text); font-weight: 600; font-size: var(--fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pkg-hover-card .hover-fit { flex-shrink: 0; display: flex; align-items: center; gap: var(--s-1); }
+.pkg-hover-card .hover-meta { display: grid; grid-template-columns: 80px 1fr; gap: 2px var(--s-2); margin: 0 0 var(--s-3) 0; }
+.pkg-hover-card .hover-meta dt { color: var(--text-dim); font-family: var(--font-ui); }
 .pkg-hover-card .hover-meta dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pkg-hover-card .hover-versions { width: 100%; border-collapse: collapse; }
-.pkg-hover-card .hover-versions th { text-align: left; padding: 3px 6px; color: var(--fg-dim); border-bottom: 1px solid var(--border); font-weight: normal; }
-.pkg-hover-card .hover-versions td { padding: 3px 6px; border-bottom: 1px solid rgba(255,255,255,0.04); }
-.pkg-hover-card .hover-versions td.ver { color: var(--accent); }
-.pkg-hover-card .hover-more { margin-top: 8px; font-size: 10px; text-align: center; }
+.pkg-hover-card .hover-versions { width: 100%; border-collapse: collapse; background: none; border: 0; border-radius: 0; font-size: var(--fs-xs); }
+.pkg-hover-card .hover-versions th {
+  text-align: left; padding: 3px 6px;
+  background: none;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-ui);
+  font-weight: 640;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pkg-hover-card .hover-versions td { padding: 3px 6px; border-bottom: 1px solid var(--border); }
+.pkg-hover-card .hover-versions tr:hover:not(.selected) td { background: none; cursor: default; }
+.pkg-hover-card .hover-versions td.ver { color: var(--info); }
+.pkg-hover-card .hover-more { margin-top: var(--s-2); font-size: 10px; text-align: center; color: var(--text-dim); }
 
 #dlg-pkg-preview { min-width: 560px; max-width: 800px; }
-.pkg-preview-body { font-family: var(--mono); font-size: 12px; color: var(--fg); max-height: 60vh; overflow-y: auto; }
-.pkg-preview-body .summary { background: var(--panel-2); padding: 10px 12px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 12px; }
-.pkg-preview-body .summary dl { display: grid; grid-template-columns: 130px 1fr; gap: 4px 12px; margin: 0; }
-.pkg-preview-body .summary dt { color: var(--fg-dim); }
+.pkg-preview-body { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text); max-height: 60vh; overflow-y: auto; }
+.pkg-preview-body .summary {
+  background: var(--surface-2);
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: var(--s-3);
+}
+.pkg-preview-body .summary dl { display: grid; grid-template-columns: 130px 1fr; gap: var(--s-1) var(--s-3); margin: 0; }
+.pkg-preview-body .summary dt { color: var(--text-dim); font-family: var(--font-ui); }
 .pkg-preview-body .summary dd { margin: 0; }
-.pkg-preview-body table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.pkg-preview-body th { text-align: left; padding: 6px 8px; color: var(--fg-dim); border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--panel); }
-.pkg-preview-body td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
-.pkg-preview-body td.ver { color: var(--accent); font-weight: 600; }
-dialog menu button.primary { background: var(--accent); color: white; border: 1px solid var(--accent-2); padding: 6px 14px; cursor: pointer; border-radius: 3px; }
-dialog menu button.primary:hover { background: var(--accent-2); }
+/* overflow must stay visible or the sticky header below has no scroll ancestor. */
+.pkg-preview-body table { width: 100%; border-collapse: collapse; border: 0; border-radius: 0; background: none; overflow: visible; font-size: var(--fs-xs); }
+.pkg-preview-body th {
+  text-align: left; padding: 6px var(--s-2);
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+  background: var(--surface-1);
+}
+.pkg-preview-body td { padding: 6px var(--s-2); border-bottom: 1px solid var(--border); }
+.pkg-preview-body td.ver { color: var(--info); font-weight: 600; }
+dialog menu button.primary {
+  background: linear-gradient(135deg, var(--accent), var(--ok));
+  color: var(--accent-fg);
+  border: 1px solid transparent;
+  padding: 9px var(--s-3);
+  cursor: pointer;
+  border-radius: var(--r-md);
+  font-weight: var(--gf-weight-display);
+}
+dialog menu button.primary:hover { filter: brightness(1.07); }
 
 /* Virtual repo modal (Phase C) */
-.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: var(--s-2); margin-top: var(--s-4); }
 
 /* Multi-repo upgrade nudge shown in the Sandbox (no Docker socket): the add /
  * reconcile buttons open this instead of the non-functional multi-repo flow. */
 .upgrade-modal-body { max-width: 34rem; line-height: 1.55; }
-.upgrade-modal-body h3 { margin-top: 0; }
+.upgrade-modal-body h3 { margin-top: 0; font-family: var(--font-ui); font-weight: var(--gf-weight-display); letter-spacing: var(--gf-tracking-title); }
 
-/* "FREE" emphasis: a prominent green banner + inline green text. */
-.free-banner { margin: 6px 0 14px; padding: 11px 13px; background: rgba(74,222,128,.12); border: 1px solid rgba(74,222,128,.45); border-radius: 8px; color: #7ef0a8; font-size: 1.02rem; }
-.free-banner strong { color: #4ade80; letter-spacing: .02em; }
-.free-text { color: #4ade80; }
-
-/* Header "Sandbox vs Recommended" compare button (sandbox only). Absolutely
- * centred on the header line (middle of the screen), independent of the brand
- * and the right-hand actions. */
-.header-compare { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); cursor: pointer; font: inherit; font-size: .82rem; font-weight: 600; padding: .35rem .7rem; border-radius: 6px; border: 1px solid rgba(74,222,128,.55); background: rgba(74,222,128,.15); color: #8ff3b3; white-space: nowrap; }
-.header-compare:hover { background: rgba(74,222,128,.25); border-color: rgba(74,222,128,.8); }
+/* "FREE" emphasis: a green banner + inline green text. Green is the healthy /
+ * no-cost signal in the palette; the word "FREE" carries the meaning on its
+ * own, so the colour is reinforcement. */
+.free-banner {
+  margin: 6px 0 var(--s-3);
+  padding: var(--s-3);
+  background: var(--ok-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ok);
+  border-radius: var(--r-md);
+  color: var(--ok);
+  font-size: var(--fs-xl);
+  line-height: 1.5;
+}
+.free-banner strong { color: var(--ok); letter-spacing: .02em; }
+.free-text { color: var(--ok); }
 
 /* Sandbox vs Recommended comparison modal. The global `dialog` rule caps every
  * dialog at min(740px, 90vw); override that here so the FRAME itself is large
@@ -525,30 +984,67 @@ dialog menu button.primary:hover { background: var(--accent-2); }
  * scrollbar instead of a narrow inner frame with nested scrollbars. */
 #compare-modal { width: min(92vw, 84rem); max-width: 92vw; max-height: 88vh; overflow-y: auto; }
 .compare-modal-body { line-height: 1.5; }
-.compare-modal-body h3 { margin-top: 0; }
-.cmp-cat { margin: 20px 0 6px; font-size: 1rem; }
+.compare-modal-body h3 { margin-top: 0; font-family: var(--font-ui); font-weight: var(--gf-weight-display); letter-spacing: var(--gf-tracking-title); }
+.cmp-cat { margin: var(--s-5) 0 6px; font-family: var(--font-ui); font-size: var(--fs-xl); font-weight: var(--gf-weight-display); letter-spacing: var(--gf-tracking-title); }
 /* table-layout: fixed + identical column widths on every category table so the
  * Sandbox / Recommended columns line up across all three (the green column no
- * longer shifts left/right per table). */
-.cmp-table { width: 100%; border-collapse: collapse; font-size: .87rem; table-layout: fixed; }
-.cmp-table th, .cmp-table td { text-align: left; padding: 7px 9px; border-bottom: 1px solid rgba(255,255,255,.08); vertical-align: top; overflow-wrap: anywhere; }
+ * longer shifts left/right per table).
+ * This table is the one exception to "tables are machine output": every cell is
+ * a sentence a human wrote, so it is set in the UI face. */
+.cmp-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+  table-layout: fixed;
+}
+.cmp-table th, .cmp-table td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; }
 .cmp-table th:first-child,  .cmp-table td:first-child  { width: 20%; }
 .cmp-table th:nth-child(2), .cmp-table td:nth-child(2) { width: 38%; }
 .cmp-table th:nth-child(3), .cmp-table td:nth-child(3) { width: 42%; }
-.cmp-table thead th { color: #9aa2b1; font-weight: 600; font-size: .8rem; }
-.cmp-table tbody th { color: #cfd6e4; font-weight: 600; }
-.cmp-table td.cmp-sandbox { color: #8a93a3; }
-.cmp-table td.cmp-rec { background: rgba(74,222,128,.09); color: #e3f7ea; }
-.cmp-table td.cmp-rec strong { color: #7ef0a8; }
+.cmp-table thead th { background: none; color: var(--text-dim); font-weight: 640; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.08em; }
+.cmp-table tbody th { background: none; color: var(--text); font-weight: 620; font-size: var(--fs-md); text-transform: none; letter-spacing: normal; }
+.cmp-table tr:hover:not(.selected) td { background: none; cursor: default; }
+.cmp-table td.cmp-sandbox { color: var(--muted); }
+.cmp-table td.cmp-rec { background: var(--ok-bg); color: var(--text); }
+.cmp-table td.cmp-rec strong { color: var(--ok); }
 
-/* Per-package "Install with WinGet" card in the detail drawer. */
-.winget-source-cmd { margin: 4px 0 12px; padding: 8px 10px; background: rgba(0,0,0,.25); color: #b7becb; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .82rem; white-space: pre-wrap; word-break: break-all; }
-.winget-install-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Per-package "Install with WinGet" card in the detail drawer. A command the
+   operator will copy verbatim: data face, in a recessed well. */
+.winget-source-cmd {
+  margin: var(--s-1) 0 var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.winget-install-row { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
 /* Shrink-wrap the command box to its text so the copy button sits just after the
    command, not pushed to the far right of the row. max-width keeps a long command
    from overflowing (it wraps within the box instead). */
-.winget-install-cmd { flex: 0 1 auto; max-width: 100%; padding: 8px 10px; background: rgba(0,0,0,.35); border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .85rem; cursor: pointer; word-break: break-all; }
-.winget-install-cmd:hover { outline: 1px solid #4fa3ff; }
+.winget-install-cmd {
+  flex: 0 1 auto;
+  max-width: 100%;
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  word-break: break-all;
+  transition: border-color var(--gf-ease);
+}
+.winget-install-cmd:hover { border-color: var(--accent); }
 .winget-copy-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; padding: 7px; line-height: 0; }
 .winget-copy-btn svg { display: block; }
 
@@ -559,112 +1055,122 @@ dialog menu button.primary:hover { background: var(--accent-2); }
  * ============================================================================ */
 .catalog-layout {
   display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 16px;
+  grid-template-columns: 232px 1fr;
+  gap: var(--s-4);
   align-items: start;
 }
 
 .catalog-sidebar {
-  background: var(--panel);
+  background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--r-lg);
   padding: 0;
   display: flex;
   flex-direction: column;
   position: sticky;
-  top: 12px;
+  top: var(--s-3);
   max-height: calc(100vh - 80px);
+  overflow: hidden;
 }
 .catalog-side-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: var(--s-3);
   border-bottom: 1px solid var(--border);
-  background: var(--panel-2);
-  border-radius: 4px 4px 0 0;
+  background: var(--surface-2);
 }
 .catalog-side-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--fg-dim);
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 640;
+  color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 .catalog-side-add {
   background: transparent;
-  color: var(--fg-dim);
+  color: var(--text-dim);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  width: 22px;
-  height: 22px;
+  border-radius: var(--r-sm);
+  width: 24px;
+  height: 24px;
   line-height: 1;
-  font-size: 16px;
+  font-size: var(--fs-xl);
   cursor: pointer;
   padding: 0;
 }
-.catalog-side-add:hover { color: var(--accent); border-color: var(--accent); }
+.catalog-side-add:hover { color: var(--accent); border-color: var(--gf-copper-36); background: var(--gf-copper-08); }
 .catalog-side-list {
   list-style: none;
   margin: 0;
-  padding: 4px 0;
+  padding: var(--s-1) 6px;
   flex: 1 1 auto;
   overflow-y: auto;
 }
+/* Left navigation, standard §6: muted label, and the active item carries a
+   copper-tinted border plus a copper spine — never colour alone. */
 .catalog-side-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 7px var(--s-2);
   cursor: pointer;
-  color: var(--fg);
+  color: var(--text-dim);
+  border: 1px solid transparent;
   border-left: 2px solid transparent;
-  font-size: 13px;
-  gap: 8px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-md);
+  gap: var(--s-2);
+  transition: background var(--gf-ease), color var(--gf-ease), border-color var(--gf-ease);
 }
-.catalog-side-item:hover { background: var(--panel-2); }
+.catalog-side-item:hover { background: var(--gf-surface-glass-hover); color: var(--text); }
 .catalog-side-item.is-active {
+  border-color: var(--gf-copper-30);
   border-left-color: var(--accent);
-  background: var(--panel-2);
-  color: var(--accent);
-  font-weight: 600;
+  background: var(--gf-copper-08);
+  color: var(--text);
+  font-weight: 620;
 }
 .catalog-side-item.is-archived { opacity: 0.55; }
-.catalog-side-item .name { font-family: var(--mono); }
+/* Repo id and publication count are both machine output. */
+.catalog-side-item .name { font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .catalog-side-item .count {
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--fg-dim);
-  background: var(--bg);
+  color: var(--text-dim);
+  background: var(--surface-3);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1px 8px;
+  border-radius: 999px;
+  padding: 1px var(--s-2);
   min-width: 22px;
   text-align: center;
 }
-.catalog-side-item.is-active .count { color: var(--accent); border-color: var(--accent); }
+.catalog-side-item.is-active .count { color: var(--accent); border-color: var(--gf-copper-30); background: var(--gf-copper-08); }
 .catalog-side-footer {
   border-top: 1px solid var(--border);
-  padding: 8px 12px;
-  background: var(--panel-2);
-  border-radius: 0 0 4px 4px;
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-2);
 }
-.catalog-side-reconcile { width: 100%; font-size: 12px; }
+.catalog-side-reconcile { width: 100%; font-size: var(--fs-xs); justify-content: center; }
 
 .catalog-main { min-width: 0; }
 .catalog-main-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 12px;
-  gap: 16px;
+  margin-bottom: var(--s-3);
+  gap: var(--s-4);
 }
+/* The title IS the repo id. Data face, at section-heading size. */
 .catalog-main-title {
   margin: 0 0 2px 0;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 18px;
-  color: var(--fg);
+  font-weight: 600;
+  color: var(--text);
 }
-.catalog-main-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.catalog-main-actions { display: flex; gap: var(--s-2); flex-shrink: 0; flex-wrap: wrap; }
 
 /* ============================================================================
  * Arch picker (Subscription dialog). Renders the WinGet architecture
@@ -684,24 +1190,28 @@ dialog menu button.primary:hover { background: var(--accent-2); }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: var(--s-1) var(--s-3);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--panel-2);
+  border-radius: var(--r-md);
+  background: var(--gf-white-034);
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  -webkit-user-select: none;
   user-select: none;
+  transition: background var(--gf-ease), border-color var(--gf-ease), color var(--gf-ease);
 }
-.arch-check input { margin: 0; cursor: pointer; }
-.arch-check:hover { border-color: var(--accent); }
-.arch-check.is-checked { border-color: var(--accent); color: var(--accent); }
+.arch-check input { margin: 0; cursor: pointer; width: auto; }
+.arch-check:hover { border-color: var(--gf-copper-36); background: var(--gf-surface-glass-hover); }
+/* Checked is a selection: copper tint + copper border, alongside the checkbox
+   itself, which is the non-colour carrier of the state. */
+.arch-check.is-checked { border-color: var(--gf-copper-30); background: var(--gf-copper-08); color: var(--accent); }
 .arch-check-other { opacity: 0.55; }
 .arch-check-other:hover { opacity: 1; }
 .arch-check-other-marker {
   font-size: 10px;
-  color: var(--fg-dim);
-  margin-left: 4px;
+  color: var(--text-dim);
+  margin-left: var(--s-1);
 }
 
 /* Promotion modal: version checkbox list. Mirrors the arch picker chip
@@ -713,30 +1223,33 @@ dialog menu button.primary:hover { background: var(--accent-2); }
   margin-top: 6px;
   max-height: 180px;
   overflow-y: auto;
-  padding: 4px;
+  padding: var(--s-2);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--panel-2);
+  border-radius: var(--r-md);
+  background: var(--surface-3);
 }
 .promo-version {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
+  padding: 3px var(--s-2);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--bg);
+  border-radius: var(--r-md);
+  background: var(--gf-white-034);
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  -webkit-user-select: none;
   user-select: none;
+  transition: background var(--gf-ease), border-color var(--gf-ease), color var(--gf-ease);
 }
-.promo-version input { margin: 0; cursor: pointer; }
-.promo-version:hover { border-color: var(--accent); }
-.promo-version.is-checked { border-color: var(--accent); color: var(--accent); }
+.promo-version input { margin: 0; cursor: pointer; width: auto; }
+.promo-version:hover { border-color: var(--gf-copper-36); background: var(--gf-surface-glass-hover); }
+.promo-version.is-checked { border-color: var(--gf-copper-30); background: var(--gf-copper-08); color: var(--accent); }
 .promo-versions-empty {
+  font-family: var(--font-ui);
   font-style: italic;
-  color: var(--fg-dim);
+  color: var(--text-dim);
   padding: 6px;
 }
 
@@ -746,34 +1259,48 @@ dialog menu button.primary:hover { background: var(--accent-2); }
  * portable signal. */
 #frm-sub-arch option.arch-off-policy { font-style: italic; }
 
-/* Bandwidth dashboard (0.8.0 Wave 16c) */
+/* ============================================================================
+ * Bandwidth dashboard. Standard §7: copper is the primary series, cyan is for
+ * data points, grid lines are a hairline, and axis text is muted in the data
+ * face. Here the two stacked series carry their own meaning — savings is the
+ * healthy green the operator came for, egress is the recessive slate it is
+ * measured against — so the palette stays two-colour plus grid.
+ * ============================================================================ */
 .bw-headline {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin: 12px 0 24px 0;
+  gap: var(--s-3);
+  margin: var(--s-3) 0 var(--s-5) 0;
 }
 .bw-tile {
-  background: var(--surface-2, #f6f8fa);
-  border: 1px solid var(--border, #d0d7de);
-  border-radius: 6px;
-  padding: 14px 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s-4) var(--s-4);
 }
 .bw-tile-label {
-  font-size: 12px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 640;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted, #57606a);
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
 }
+/* A metric. Always the data face, always tight. */
 .bw-tile-value {
-  font-size: 24px;
+  font-family: var(--font-mono);
+  font-size: var(--gf-fs-metric);
+  letter-spacing: var(--gf-tracking-metric);
+  line-height: 1.0;
   font-weight: 600;
-  margin: 4px 0;
+  color: var(--text);
+  margin: 6px 0 var(--s-1);
   word-break: break-all;
 }
 .bw-tile-sub {
-  font-size: 12px;
-  color: var(--muted, #57606a);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
 }
 .bw-chart {
   background: var(--surface-1);
@@ -784,11 +1311,12 @@ dialog menu button.primary:hover { background: var(--accent-2); }
   min-height: 240px;
 }
 .bw-chart-svg { width: 100%; height: auto; display: block; font-family: var(--font-ui); }
-.bw-chart-grid     { stroke: var(--border); stroke-dasharray: 2 5; stroke-width: 1; }
+.bw-chart-grid     { stroke: var(--gf-chart-grid); stroke-dasharray: 2 5; stroke-width: 1; }
 .bw-chart-baseline { stroke: var(--border-strong); stroke-width: 1; }
-.bw-chart-axis     { font-size: var(--fs-xs); font-family: var(--font-mono); fill: var(--text-dim); }
-.bw-chart-xaxis    { font-size: var(--fs-xs); font-family: var(--font-ui);   fill: var(--text-dim); }
-/* bars: egress = calm recessive slate, saved = soft brand-green (the hero) */
+/* Both axes are machine output — byte counts and dates. Data face, muted. */
+.bw-chart-axis     { font-size: var(--fs-xs); font-family: var(--font-mono); fill: var(--gf-chart-axis); }
+.bw-chart-xaxis    { font-size: var(--fs-xs); font-family: var(--font-mono); fill: var(--gf-chart-axis); }
+/* bars: egress = calm recessive slate, saved = brand green (the hero) */
 .bw-chart-egress   { fill: var(--bw-egress); }
 .bw-chart-saved    { fill: url(#bwGradSaved); }
 .bw-chart-seam     { stroke: var(--surface-1); stroke-width: 1; }
@@ -798,100 +1326,627 @@ dialog menu button.primary:hover { background: var(--accent-2); }
 .bw-chart-bar { transition: opacity .12s ease; }
 .bw-chart-svg:hover .bw-chart-bar { opacity: .5; }
 .bw-chart-svg .bw-chart-bar:hover { opacity: 1; }
-.bw-chart-empty   { padding: 80px 0; text-align: center; color: var(--text-dim); }
+.bw-chart-empty   { padding: 80px 0; text-align: center; font-family: var(--font-ui); color: var(--text-dim); }
 @media (prefers-reduced-motion: reduce) { .bw-chart-bar { transition: none; } }
 
 /* legend chips in the chart heading */
 .bw-legend       { display: inline-flex; gap: var(--s-4); margin-left: var(--s-4);
-                   font-size: var(--fs-sm); font-weight: 400; color: var(--text-dim);
+                   font-family: var(--font-ui); font-size: var(--fs-sm); font-weight: 400; color: var(--text-dim);
                    vertical-align: middle; }
 .bw-legend-item  { display: inline-flex; align-items: center; gap: var(--s-1); }
 .bw-swatch       { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .bw-swatch-saved  { background: var(--ok); }
 .bw-swatch-egress { background: var(--bw-egress); }
-#bw-subnets-table, #bw-installers-table { width: 100%; margin-bottom: 24px; }
+#bw-subnets-table, #bw-installers-table { width: 100%; margin-bottom: var(--s-5); }
 #bw-subnets-table th, #bw-installers-table th,
 #bw-subnets-table td, #bw-installers-table td {
-  padding: 6px 10px;
+  padding: 7px var(--s-3);
   text-align: left;
-  border-bottom: 1px solid var(--border, #d0d7de);
+  border-bottom: 1px solid var(--border);
 }
-#bw-subnets-table th, #bw-installers-table th { background: var(--surface-2, #f6f8fa); }
-button[data-bw-window].active { background: var(--accent, #0969da); color: #fff; }
+#bw-subnets-table th, #bw-installers-table th { background: var(--surface-2); }
+/* Window selector: a selection, so copper tint + copper border, matching the
+   left rail and the activity filters. */
+button[data-bw-window].active {
+  background: var(--gf-copper-08);
+  border-color: var(--gf-copper-30);
+  color: var(--accent);
+  font-weight: 620;
+}
 
 /* ===================== Inventory tab ===================== */
 .inv-toolbar {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  margin-bottom: 12px;
+  display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
+  margin-bottom: var(--s-3);
 }
-.inv-toolbar label { font-size: 12px; color: var(--fg-dim, #8b949e); display: inline-flex; align-items: center; gap: 6px; }
-.inv-toolbar select { font-size: 13px; }
+.inv-toolbar label { font-size: var(--fs-xs); color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px; }
+.inv-toolbar select {
+  font-family: var(--font-mono); font-size: var(--fs-md);
+  background: var(--surface-3); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: 6px var(--s-2);
+}
+.inv-toolbar select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--gf-copper-18); }
 .inv-toolbar .inv-filter-orphans { cursor: pointer; }
 .inv-summary {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 10px 12px; margin-bottom: 12px;
-  background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
-  font-size: 13px;
+  display: flex; flex-direction: column; gap: var(--s-1);
+  padding: var(--s-3);
+  margin-bottom: var(--s-3);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  font-size: var(--fs-md);
 }
-.inv-compare { font-size: 12px; color: var(--fg-dim, #8b949e); }
+.inv-compare { font-size: var(--fs-xs); color: var(--text-dim); }
 #inv-table td.inv-vers { line-height: 2; }
 
-/* Version chips — shared by Inventory + Reconcile preview. */
+/* Version chips — shared by Inventory + Reconcile preview. Versions are
+   machine output, so the data face; state is carried by the word/strike as
+   well as the tint. */
 .ver {
-  display: inline-block; padding: 1px 6px; margin: 1px 0; border-radius: 3px;
-  font-family: ui-monospace, monospace; font-size: 11px;
+  display: inline-block; padding: 1px 6px; margin: 1px 0;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono); font-size: 11px;
   border: 1px solid var(--border);
 }
-.ver-keep   { background: rgba(69,199,133,0.14); border-color: rgba(69,199,133,0.45); color: var(--ok); }
-.ver-drop   { background: rgba(231,76,76,0.12);  border-color: rgba(231,76,76,0.45);  color: var(--bad); }
-.ver-orphan { background: rgba(232,183,61,0.14); border-color: rgba(232,183,61,0.55); color: var(--warn); text-decoration: line-through; }
-.ver-nodisk { background: var(--panel-2); border-style: dashed; color: var(--fg-dim, #8b949e); }
-.ver-pinned { box-shadow: inset 0 0 0 1px var(--fg); font-weight: 600; }
-.ver-drop-text { color: var(--bad); }
+.ver-keep   { background: var(--ok-bg);    border-color: transparent; color: var(--ok); }
+.ver-drop   { background: var(--error-bg); border-color: transparent; color: var(--error); }
+.ver-orphan { background: var(--warn-bg);  border-color: transparent; color: var(--warn); text-decoration: line-through; }
+.ver-nodisk { background: transparent; border-color: var(--border-strong); border-style: dashed; color: var(--text-dim); }
+.ver-pinned { box-shadow: inset 0 0 0 1px var(--text); font-weight: 600; }
+.ver-drop-text { color: var(--error); }
 
 /* Per-version delete (✕) inside a version chip, and the Inventory Actions column. */
 .ver .ver-del {
   border: none; background: transparent; color: inherit; cursor: pointer;
-  font-size: 10px; line-height: 1; padding: 0; margin-left: 4px; opacity: 0.4;
+  font-size: 10px; line-height: 1; padding: 0; margin-left: var(--s-1); opacity: 0.4;
 }
 .ver:hover .ver-del { opacity: 0.85; }
-.ver .ver-del:hover { opacity: 1; color: var(--bad); }
+.ver .ver-del:hover { opacity: 1; color: var(--error); background: transparent; border: none; }
 .inv-actions { white-space: nowrap; }
-.inv-actions .inv-btn { padding: 3px 9px; font-size: 12px; }
+.inv-actions .inv-btn { padding: 3px 9px; font-size: var(--fs-xs); }
 
-/* Sandbox -> Recommended upgrade panel (Settings tab, sandbox only). */
-.upgrade-card { background: var(--panel); border: 1px solid var(--accent); border-left: 3px solid var(--accent); border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; }
-.upgrade-card > h3 { margin-top: 0; }
-.upgrade-checks { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
-.upgrade-check { display: flex; gap: 10px; align-items: flex-start; background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; padding: 10px 12px; }
+/* Sandbox -> Recommended upgrade panel (Settings tab, sandbox only). This is a
+ * hero card, which is one of the three places the ambient copper glow is
+ * allowed; the copper spine states the intent without a full copper frame. */
+.upgrade-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-lg);
+  box-shadow: var(--gf-glow-copper);
+  padding: var(--s-4) var(--s-5);
+  margin-bottom: var(--s-5);
+}
+.upgrade-card > h3 { margin-top: 0; font-family: var(--font-ui); font-size: var(--fs-xxl); font-weight: var(--gf-weight-display); letter-spacing: var(--gf-tracking-title); }
+.upgrade-checks { display: flex; flex-direction: column; gap: var(--s-2); margin: var(--s-3) 0; }
+.upgrade-check {
+  display: flex; gap: var(--s-3); align-items: flex-start;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-3);
+}
 .upgrade-check .inv-pill { flex: 0 0 auto; margin-top: 1px; }
 .upgrade-check-body { flex: 1 1 auto; }
-.upgrade-check-label { font-weight: 600; margin-bottom: 2px; }
-.upgrade-fix { margin-top: 6px; font-size: 12.5px; }
-.upgrade-fix .btn { margin-left: 8px; padding: 2px 10px; }
-.upgrade-confirm { display: inline-flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 12.5px; color: var(--fg-dim); cursor: pointer; }
+.upgrade-check-label { font-family: var(--font-ui); font-weight: 620; margin-bottom: 2px; }
+.upgrade-fix { margin-top: 6px; font-size: var(--fs-sm); color: var(--text-dim); }
+.upgrade-fix .btn { margin-left: var(--s-2); padding: 3px var(--s-3); font-size: var(--fs-xs); }
+.upgrade-confirm { display: inline-flex; gap: 6px; align-items: center; margin-top: var(--s-2); font-size: var(--fs-sm); color: var(--text-dim); cursor: pointer; }
 
-/* Status pills. */
+/* Status pills. Dot + word: the label always states the state, and the dot
+   gives it a second, non-textual carrier. Seven of the eight variants lead
+   with a count, so the pill is set in the data face; the one that is a
+   sentence goes back to the UI face. */
 .inv-pill {
-  display: inline-block; padding: 1px 7px; border-radius: 10px;
-  font-size: 11px; font-weight: 600; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 1px 9px 1px 7px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
 }
-.inv-ahead       { background: rgba(69,199,133,0.16); color: var(--ok); }
-.inv-behind      { background: rgba(231,76,76,0.14);  color: var(--bad); }
-.inv-diverged    { background: rgba(232,183,61,0.16); color: var(--warn); }
-.inv-insync      { background: var(--panel-2); color: var(--fg-dim, #8b949e); }
-.inv-onlyhere    { background: rgba(69,199,133,0.12); color: var(--ok); }
-.inv-missinghere { background: rgba(231,76,76,0.12);  color: var(--bad); }
-.inv-primary     { background: var(--panel-2); color: var(--fg); }
-.inv-orphan      { background: rgba(232,183,61,0.16); color: var(--warn); }
+.inv-pill::before {
+  content: "";
+  width: 6px; height: 6px; flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+.inv-ahead       { background: var(--ok-bg);    color: var(--ok); }
+.inv-behind      { background: var(--error-bg); color: var(--error); }
+.inv-diverged    { background: var(--warn-bg);  color: var(--warn); }
+.inv-insync      { background: var(--muted-bg); color: var(--muted); }
+.inv-onlyhere    { background: var(--ok-bg);    color: var(--ok); }
+.inv-missinghere { background: var(--error-bg); color: var(--error); }
+.inv-primary     { background: var(--muted-bg); color: var(--text); font-family: var(--font-ui); }
+.inv-orphan      { background: var(--warn-bg);  color: var(--warn); }
 
 /* ===================== Reconcile preview modal ===================== */
 #dlg-reconcile { min-width: 480px; max-width: 720px; }
-.reconcile-body { max-height: 55vh; overflow-y: auto; margin: 8px 0 4px; }
-.reconcile-summary { margin-bottom: 10px; font-size: 13px; }
-.reconcile-body h4 { margin: 14px 0 6px; font-size: 13px; }
-.reconcile-tbl { width: 100%; font-size: 12px; border-collapse: collapse; }
-.reconcile-tbl th, .reconcile-tbl td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
-.reconcile-note { font-size: 11px; margin-top: 12px; }
-.bad-text { color: var(--bad); }
+.reconcile-body { max-height: 55vh; overflow-y: auto; margin: var(--s-2) 0 var(--s-1); }
+/* The summary is a set of counts. Data face. */
+.reconcile-summary { margin-bottom: var(--s-3); font-family: var(--font-mono); font-size: var(--fs-md); }
+.reconcile-body h4 { margin: var(--s-3) 0 6px; font-family: var(--font-ui); font-size: var(--fs-md); font-weight: 620; color: var(--text); }
+.reconcile-tbl {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  border-collapse: collapse;
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+.reconcile-tbl th, .reconcile-tbl td { text-align: left; padding: var(--s-1) 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.reconcile-tbl th { background: none; font-family: var(--font-ui); }
+.reconcile-tbl tr:hover:not(.selected) td { background: none; cursor: default; }
+.reconcile-note { font-family: var(--font-ui); font-size: var(--fs-xs); color: var(--text-dim); margin-top: var(--s-3); }
+.bad-text { color: var(--error); }
 .ok-text  { color: var(--ok); }
+
+/* ===================== API Clients tab (RFIP) ===================== */
+.ingest-intro { margin: var(--s-1) 0 var(--s-3); }
+.ingest-intro h3 { margin: 0 0 var(--s-1); font-family: var(--font-ui); font-size: var(--fs-xxl); font-weight: var(--gf-weight-display); letter-spacing: var(--gf-tracking-title); }
+.ingest-actions { white-space: nowrap; }
+.ingest-actions button { margin-left: var(--s-1); }
+.ingest-key-mode {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--gf-white-034);
+  padding: var(--s-2) var(--s-3);
+  margin: var(--s-2) 0;
+}
+.ingest-key-mode legend { padding: 0 var(--s-1); font-family: var(--font-ui); font-weight: 620; color: var(--text); }
+.ingest-key-mode label.radio { display: block; margin: 6px 0 2px; font-family: var(--font-ui); font-weight: 500; }
+.reveal-row { display: flex; gap: var(--s-2); align-items: flex-start; }
+/* Credentials, shown once. Data face, in a recessed well — never a light box. */
+.reveal-row code {
+  flex: 1;
+  word-break: break-all;
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+.reveal-row textarea { flex: 1; font-family: var(--font-mono); font-size: var(--fs-xs); }
+.modal.wide { max-width: 900px; width: 90vw; }
+/* Client id, fingerprint, timestamps, counters. Data face. */
+.ingest-detail-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-1) var(--s-4);
+  margin: var(--s-2) 0 var(--s-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+.ingest-detail-meta > div { display: flex; justify-content: space-between; gap: var(--s-3); border-bottom: 1px solid var(--border); padding: 3px 0; }
+menu label.ack { display: flex; align-items: center; gap: 6px; margin-right: auto; font-family: var(--font-ui); font-weight: 500; }
+
+/* ============================================================================
+   RingoSystems Graphite Forge v1.0 — application shell
+   RingoSystems Heavy Industries
+
+   Appended last so it supersedes the pre-Graphite-Forge header/nav rules above
+   without deleting them wholesale (they still carry per-tab layout that the
+   sections depend on).
+
+   Standard §6: "app surfaces may be edge-to-edge". RepoFabric is a dense
+   operations surface, not a marketing demo, so it runs edge-to-edge with a left
+   rail rather than inside the 20px marketing frame. The frame treatment is kept
+   for the entry surfaces (sign-in, setup) where it belongs.
+   ========================================================================= */
+
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+  padding: 10px 14px; border-radius: var(--r-md);
+  background: var(--accent); color: var(--accent-fg); font-weight: 640;
+}
+.skip-link:focus { left: 12px; top: 12px; }
+
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ---- Topbar ------------------------------------------------------------ */
+.app-topbar {
+  height: 70px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid rgba(255,255,255,.065);
+  background: rgba(17,19,23,.72);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  position: sticky; top: 0; z-index: 40;
+}
+.app-topbar .brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+
+.topbar-identity {
+  margin-left: var(--s-5);
+  display: flex; align-items: center; gap: var(--s-2);
+  min-width: 0;
+}
+/* Identity is machine output: whoami, tenant, auth reason. Data face. */
+.topbar-identity .meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.topbar-actions { margin-left: auto; display: flex; align-items: center; gap: var(--s-2); }
+.topbar-actions .gf-btn { font-size: var(--fs-md); }
+.topbar-actions .signout { color: var(--text-dim); }
+.topbar-actions .signout:hover { color: var(--text); }
+
+/* ---- Body: rail + content --------------------------------------------- */
+.app-body { flex: 1; display: grid; grid-template-columns: 204px minmax(0, 1fr); align-items: start; }
+
+/* ---- Left rail ---------------------------------------------------------
+   Standard §6: muted labels, active item gets a 1px copper-tinted border.
+   Grouped by operator intent, with the group label as a quiet eyebrow.        */
+nav#tabs.app-rail {
+  position: sticky;
+  top: 70px;
+  align-self: start;
+  height: calc(100vh - 70px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  padding: var(--s-5) var(--s-3);
+  margin: 0;
+  border: 0;
+  border-right: 1px solid rgba(255,255,255,.065);
+  background: rgba(22,24,28,.42);
+}
+.rail-group { display: flex; flex-direction: column; gap: 2px; }
+.rail-group--foot { margin-top: auto; }
+.rail-group-label {
+  padding: 0 var(--s-3) var(--s-1);
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+nav#tabs.app-rail button {
+  display: flex; align-items: center; gap: var(--s-3);
+  width: 100%;
+  padding: 9px var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: var(--fs-lg);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--gf-ease), color var(--gf-ease), border-color var(--gf-ease);
+}
+nav#tabs.app-rail button i {
+  width: 22px; flex: none;
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 13px;
+  color: var(--text-disabled);
+  text-align: center;
+  transition: color var(--gf-ease);
+}
+nav#tabs.app-rail button:hover { background: var(--gf-surface-glass-hover); color: var(--text); }
+nav#tabs.app-rail button:hover i { color: var(--text-dim); }
+/* Selection: surface lift + copper-tinted border + icon tint. Never colour alone. */
+nav#tabs.app-rail button.active {
+  background: var(--gf-copper-08);
+  border-color: var(--gf-copper-30);
+  color: var(--text);
+  font-weight: 620;
+}
+nav#tabs.app-rail button.active i { color: var(--accent); }
+
+/* Bridge health dot rides the Activity item. */
+nav#tabs.app-rail .nav-bridge-dot { margin-left: auto; }
+
+/* ---- Content ----------------------------------------------------------- */
+#main { padding: var(--s-6); min-width: 0; }
+#main > .tab { max-width: 1560px; }
+
+@media (max-width: 1080px) {
+  .app-body { grid-template-columns: 1fr; }
+  nav#tabs.app-rail {
+    position: static; height: auto;
+    flex-direction: row; flex-wrap: wrap; align-items: center;
+    gap: var(--s-2);
+    border-right: 0; border-bottom: 1px solid rgba(255,255,255,.065);
+  }
+  .rail-group { flex-direction: row; align-items: center; gap: var(--s-1); }
+  .rail-group--foot { margin-top: 0; }
+  .rail-group-label { display: none; }
+  nav#tabs.app-rail button { width: auto; }
+  #main { padding: var(--s-5); }
+  .topbar-identity { display: none; }
+}
+@media (max-width: 720px) {
+  .app-topbar { padding: 0 var(--s-4); }
+  .gf-brand-sub { display: none; }
+}
+
+/* ============================================================================
+   Row legibility pass — RingoSystems Graphite Forge v1.0
+   RingoSystems Heavy Industries
+
+   Operator feedback: itemised rows did not read as separate items, and the
+   Activity table wrapped Time and Actor aggressively.
+
+   The standard warns against "spreadsheet clutter", so this deliberately does
+   NOT add vertical rules or heavy borders. It uses the three cheapest signals
+   that survive a dense dark surface: a stronger 1px horizontal rule, a very low
+   alpha zebra, and more vertical air per row.
+   ========================================================================= */
+
+/* ---- Stronger row demarcation -----------------------------------------
+   .07 alpha is the standard's DEFAULT border, meant for a card edge sitting on
+   the ambient wash. Between rows of the same table it disappears. --border-strong
+   (.12) is the standard's own "active/selected" weight and is the right step up:
+   still a hairline, now actually a boundary. */
+table th,
+table td,
+.wg-table th,
+.wg-table td {
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  padding: 11px var(--s-4);          /* was 9px — a little more air per item */
+}
+table tbody tr:last-child td,
+.wg-table tbody tr:last-child td { border-bottom: 0; }
+
+/* Zebra. Kept at .022 so it registers as rhythm rather than as stripes; any
+   higher and it competes with the selected-row copper tint. */
+table tbody tr:nth-child(even) td,
+.wg-table tbody tr:nth-child(even) td { background: rgba(255,255,255,.022); }
+
+/* Hover must still win over the zebra, and selection over both. */
+table tbody tr:hover td,
+.wg-table tbody tr:hover:not(.is-selected) td { background: rgba(255,255,255,.05); }
+table tbody tr.is-selected td,
+.wg-table tbody tr.is-selected td {
+  background: var(--gf-copper-08);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Header sits on its own heavier rule so the head/body split reads first. */
+table thead th,
+.wg-table thead th { border-bottom: 1px solid rgba(255,255,255,.18); }
+
+/* The same treatment for the non-table row lists (search results, detail rows),
+   which are itemised the same way and had the same faint divider. */
+.pkg-results .row,
+.reveal-row,
+.ex-row { border-bottom: 1px solid rgba(255,255,255,.12); }
+
+/* ---- Activity: stop Time and Actor wrapping ---------------------------
+   Columns are: 1 Time · 2 Event · 3 Subject · 4 Actor · 5 Outcome · 6 Detail.
+   Time is a timestamp and Actor is a UPN or client id — both are single tokens a
+   machine produced, so wrapping them mid-value costs real legibility and buys
+   nothing. width:1% with nowrap is the shrink-to-fit idiom on a width:100%
+   table: the cell takes exactly what it needs and Detail absorbs the remainder. */
+#activity-table th:nth-child(1), #activity-table td:nth-child(1),
+#activity-table th:nth-child(2), #activity-table td:nth-child(2),
+#activity-table th:nth-child(4), #activity-table td:nth-child(4),
+#activity-table th:nth-child(5), #activity-table td:nth-child(5) {
+  white-space: nowrap;
+  width: 1%;
+}
+/* Subject is a package identifier: keep it on one line while there is room, but
+   let it break rather than force a horizontal scrollbar on a narrow window. */
+#activity-table td:nth-child(3) { overflow-wrap: anywhere; }
+/* Detail is prose plus machine values and is the only column that should wrap. */
+#activity-table td:nth-child(6) { overflow-wrap: anywhere; min-width: 22ch; }
+
+/* Below ~1200px the six columns cannot all hold their natural width; let the
+   two widest free-text columns wrap before anything else does. */
+@media (max-width: 1200px) {
+  #activity-table th:nth-child(5), #activity-table td:nth-child(5) { white-space: normal; }
+}
+
+/* ---- Content width ------------------------------------------------------
+   The 1560px cap was inherited from the pre-Graphite-Forge layout, where the
+   nav was a horizontal strip and content ran the full window. With the left
+   rail taking 232px, that cap left the dense tables noticeably narrower than
+   before on a wide display — which is what forced Activity to wrap.
+
+   Standard §5 asks for "large central surfaces, dense data views": width IS
+   the affordance for machine output, so the data tabs are uncapped and simply
+   use the window. Prose does not benefit from width, so the reading surfaces
+   (About, and the help text inside Settings) keep a measure. */
+#main > .tab { max-width: none; }
+
+/* Reading surfaces keep a comfortable measure rather than running to 2560px. */
+#tab-about .about-body,
+#tab-about p,
+#tab-settings .cfg-section > p,
+#tab-settings .help,
+#main .help { max-width: 78ch; }
+
+/* On very wide displays give the shell a little breathing room instead of
+   letting content touch the viewport edge. */
+@media (min-width: 2100px) {
+  #main { padding: var(--s-6) clamp(var(--s-6), 3vw, 88px); }
+}
+
+/* ---- Brand: the real RingoSystems identity ------------------------------
+   Standard §12 called the logo an explicit placeholder ("a rounded square with a
+   single R") pending final identity. The identity now exists, so the placeholder
+   tile is retired in favour of the vector mark.
+
+   The wordmark is HTML TEXT, not part of the image, for three reasons: it renders
+   in Inter at the standard's own weights, it stays sharp at any zoom or DPI, and
+   it can never acquire the matte fringing that the source raster had.
+
+   RingoSystems is ONE word. Only "Ringo" is heavy; "Systems" is light. That
+   contrast is the wordmark's whole signature, so it is expressed with real
+   weights (800 / 200) rather than two fonts or a baked image. */
+.gf-logo-img {
+  width: 36px; height: 36px; flex: none;
+  display: block;
+  /* No plate behind it: the mark's own charcoal package reads correctly straight
+     on the graphite surface, and the die supplies the only light. */
+  filter: drop-shadow(0 0 18px rgba(107,214,232,.16));
+}
+.rs-word { letter-spacing: -.02em; white-space: nowrap; }
+.rs-word b      { font-weight: 800; }            /* Ringo   */
+.rs-word        { font-weight: 200; }            /* Systems */
+.gf-brand-sub .rs-word { text-transform: none; } /* the wordmark is never uppercased */
+
+/* The sub-line carries the company, so let it use its real case rather than the
+   uppercase eyebrow treatment the rest of the topbar meta uses. */
+.gf-brand-sub {
+  text-transform: none;
+  letter-spacing: .01em;
+  font-size: 11.5px;
+}
+
+/* ============================================================================
+   About — readability pass + brand watermark
+   RingoSystems Heavy Industries · Graphite Forge v1.0
+
+   The page was one long single-column dump: two full licence texts inline at a
+   78ch measure, which made it several thousand pixels tall and left most of a
+   wide display empty. It now reads as a hero plus two evidence panels.
+   ========================================================================= */
+
+#tab-about { position: relative; isolation: isolate; }
+
+/* ---- Brand block ----
+   A background watermark was the wrong instrument here. At low opacity it was
+   invisible; raised, it read as a cropped fragment — a chip clipped at the top
+   corner and a wordmark drifting behind a panel — because a decorative
+   background cannot be composed against content it does not know about.
+
+   About is the one page in the product where the company identity is the
+   subject, so the lockup is now a REAL element: full strength, aligned to the
+   hero, and sized in its own right. A faint copper pool sits behind it so it
+   reads as placed rather than pasted. */
+.about-brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  min-width: 0;
+}
+.about-brand::before {
+  content: "";
+  position: absolute;
+  inset: -6% -4%;
+  background:
+    radial-gradient(closest-side, rgba(201,122,64,.16), transparent 72%),
+    radial-gradient(closest-side at 62% 38%, rgba(107,214,232,.12), transparent 70%);
+  pointer-events: none;
+}
+.about-brand img {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  display: block;
+  /* The die already emits light in the artwork; this lifts it off the graphite
+     so the mark does not read as a flat sticker. */
+  filter: drop-shadow(0 18px 46px rgba(0,0,0,.5)) drop-shadow(0 0 40px rgba(107,214,232,.10));
+}
+
+/* ---- Hero ---- */
+.about-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 460px);
+  gap: var(--s-6);
+  align-items: center;
+  margin-bottom: var(--s-6);
+}
+.about-hero-copy { max-width: 88ch; min-width: 0; }
+@media (max-width: 1180px) {
+  .about-hero { grid-template-columns: 1fr; }
+  .about-brand { justify-content: flex-start; }
+  .about-brand img { max-width: 320px; }
+}
+.about-hero .gf-eyebrow { margin-bottom: var(--s-3); }
+.about-head { display: flex; align-items: baseline; gap: var(--s-4); flex-wrap: wrap; margin: 0 0 var(--s-4); }
+.about-head h2 { font-family: var(--font-ui); }
+
+/* The version is a machine value, so it gets the data face and reads as a
+   metric rather than as prose beside the product name. */
+.about-version-pill {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  color: var(--info);
+  background: var(--info-bg);
+  border: 1px solid rgba(107,214,232,.26);
+  border-radius: 999px;
+  padding: 3px 12px;
+  white-space: nowrap;
+}
+
+/* Prose keeps a comfortable measure even though the page itself is wide. */
+.about-copy { max-width: 88ch; font-size: var(--fs-body, 15px); line-height: 1.6; }
+
+/* ---- Two evidence panels, side by side on a wide display ----
+   This is what makes the page "fit" a wide window: the licence and the
+   third-party notices are independent reference texts, so they sit beside each
+   other rather than stacking into one very tall column. */
+.about-grid {
+  display: grid;
+  /* Deliberately asymmetric. The MIT licence is a short, fixed text that needs
+     roughly 80 characters; the third-party notices are long, dense and full of
+     paths and package names that want room. Equal columns gave the shorter text
+     space it could not use. */
+  grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr);
+  gap: var(--s-5);
+  align-items: start;
+}
+@media (max-width: 1180px) { .about-grid { grid-template-columns: 1fr; } }
+.about-panel {
+  background: linear-gradient(180deg, rgba(28,32,39,.72), rgba(15,18,22,.76));
+  border: var(--gf-border-default);
+  border-radius: var(--r-lg);
+  padding: var(--s-6);
+  min-width: 0;
+}
+.about-panel h3 {
+  margin: 0 0 var(--s-3);
+  font-size: var(--fs-xl);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+  color: var(--text);
+}
+
+/* ---- Licence / notices: evidence treatment ----
+   Standard §4 puts code and evidence in the data face at 12-13px/1.4 on a muted
+   background with room to breathe. Capped in height and scrolled internally so
+   two long legal texts cannot make the page thousands of pixels tall. */
+#tab-about .about-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--gf-fs-code);
+  line-height: 1.5;
+  color: var(--text-dim);
+  background: rgba(0,0,0,.28);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--r-md);
+  padding: var(--s-4) var(--s-5);
+  margin: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+  max-width: 100%;
+}
+.about-tm { margin-top: var(--s-6); max-width: 100ch; font-size: var(--fs-xs); line-height: 1.55; color: var(--muted); }
+
+/* ---- Defensive: nothing may widen the shell ----
+   The uncapped data tabs mean a single long unbroken line (a licence URL, a
+   generated script, a wide table) can push the whole grid wider than the
+   viewport, which shifts the left rail off-screen and clips its group labels.
+   Machine output scrolls inside its own box instead. */
+#main pre, #main code, #main table { max-width: 100%; }
+#main pre { overflow-x: auto; }
+.app-body, #main { min-width: 0; }

@@ -108,11 +108,11 @@ SELECT * FROM subscription WHERE subscription_id = @SubscriptionId;
             # Determine new values
             $newTrack         = if ($PSBoundParameters.ContainsKey('Track')) { $Track } else { $current.track }
             $newPinnedVersion = if ($PSBoundParameters.ContainsKey('Version')) { $Version } else { $current.pinned_version }
-            # @() + -AsArray so single-element values round-trip as a
-            # JSON array. PowerShell unwraps single-element arrays, which
-            # would otherwise produce "x64" in the column instead of ["x64"].
-            $newArch          = if ($PSBoundParameters.ContainsKey('Arch'))   { (ConvertTo-Json -InputObject @($Arch)   -Compress -AsArray) } else { $current.arch_policy }
-            $newLocale        = if ($PSBoundParameters.ContainsKey('Locale')) { (ConvertTo-Json -InputObject @($Locale) -Compress -AsArray) } else { $current.locale_policy }
+            # [string[]] cast keeps a flat JSON array for 0/1/N. NOT -AsArray:
+            # it double-wraps an already-array -InputObject (@('x64') -> [["x64"]]),
+            # and -InputObject (unlike a pipeline) does not unwrap a single element.
+            $newArch          = if ($PSBoundParameters.ContainsKey('Arch'))   { (ConvertTo-Json -InputObject ([string[]]@($Arch))   -Compress) } else { $current.arch_policy }
+            $newLocale        = if ($PSBoundParameters.ContainsKey('Locale')) { (ConvertTo-Json -InputObject ([string[]]@($Locale)) -Compress) } else { $current.locale_policy }
             $newRetention     = if ($PSBoundParameters.ContainsKey('Retention')) { $Retention } else { $current.retention }
             $notesChanged     = $PSBoundParameters.ContainsKey('Notes')
             $newNotes         = if ($notesChanged) { $Notes } else { $current.notes }

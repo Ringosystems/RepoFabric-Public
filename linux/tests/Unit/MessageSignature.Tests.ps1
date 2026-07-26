@@ -4,6 +4,39 @@
 # the runtime trust-bundle reader. Verifies the sign/verify round-trip, tamper
 # rejection, content-digest integrity, and end-to-end resolution from a
 # root-signed fabric-trust.json produced by deploy/signing/New-RfFabricKeys.ps1.
+#
+# That script only mints FIXTURES (ECDSA P-256 keys + fabric-trust.json); the
+# subjects under test are the reader/verifier functions. It lives at the
+# REPOSITORY ROOT, outside the container image's build context (./linux), so it is
+# absent when this suite runs inside repofabric-linux. The suites below used a
+# fixed (Join-Path $PSScriptRoot '..' '..' '..') hop, which resolves to the repo
+# root in a checkout but to '/opt' in the image -- so all 16 of their tests failed
+# there on 'Cannot find path /opt/deploy/signing/New-RfFabricKeys.ps1', while
+# passing locally. That went unnoticed because CI did not gate on test failures
+# (fixed in ci.yml: $cfg.Run.Exit).
+#
+# Resolve it by walking UP for the marker instead, so any checkout layout works,
+# and skip the fixture-dependent suites with a stated reason where it genuinely
+# is not present rather than reporting them as failures.
+function Get-RfKeyGenScriptPath {
+    $dir = $PSScriptRoot
+    while ($dir) {
+        $candidate = Join-Path $dir 'deploy' 'signing' 'New-RfFabricKeys.ps1'
+        if (Test-Path -LiteralPath $candidate) { return (Resolve-Path -LiteralPath $candidate).Path }
+        $parent = Split-Path -Path $dir -Parent
+        if (-not $parent -or $parent -eq $dir) { break }
+        $dir = $parent
+    }
+    return $null
+}
+# Resolved at DISCOVERY time. It is then handed to the run phase via -ForEach on
+# each block, because a function defined here is NOT in scope inside BeforeAll:
+# Pester 5 runs discovery and execution in separate scopes, so calling it there
+# fails with "The term 'Get-RfKeyGenScriptPath' is not recognized".
+$RfKeyGenPath = Get-RfKeyGenScriptPath
+$RfKeyGenAvailable = [bool]$RfKeyGenPath
+$RfKeyGenSkipReason = 'deploy/signing/New-RfFabricKeys.ps1 (test-key fixture generator) is not present in this environment; it sits at the repo root, outside the ./linux image build context'
+if (-not $RfKeyGenAvailable) { Write-Warning "MessageSignature.Tests: skipping the 4 fixture-dependent suites. $RfKeyGenSkipReason" }
 
 Describe 'Cross-fabric M2M message signatures (RepoFabric#16)' {
     BeforeAll {
@@ -74,11 +107,11 @@ Describe 'Cross-fabric M2M message signatures (RepoFabric#16)' {
     }
 }
 
-Describe 'Runtime trust-bundle reader (RepoFabric#16)' {
+Describe 'Runtime trust-bundle reader (RepoFabric#16)' -Skip:(-not $RfKeyGenAvailable) -ForEach @(@{ KeyGen = $RfKeyGenPath }) {
     BeforeAll {
         $script:ModulePath = Resolve-Path (Join-Path $PSScriptRoot '..' '..' 'src' 'RepoFabric.psd1')
         Import-Module $script:ModulePath -Force -ErrorAction Stop
-        $script:KeyGen = Resolve-Path (Join-Path $PSScriptRoot '..' '..' '..' 'deploy' 'signing' 'New-RfFabricKeys.ps1')
+        $script:KeyGen = $KeyGen   # supplied by -ForEach (see header)
         $script:Dir = Join-Path ([System.IO.Path]::GetTempPath()) ("rf-trust-" + [guid]::NewGuid().Guid.Substring(0,8))
         & $script:KeyGen -OutDir $script:Dir | Out-Null
     }
@@ -98,12 +131,13 @@ Describe 'Runtime trust-bundle reader (RepoFabric#16)' {
     }
 
     It 'rejects a bundle that does not verify against the root key' {
-        InModuleScope RepoFabric -Parameters @{ Dir = $script:Dir } {
-            param($Dir)
+        InModuleScope RepoFabric -Parameters @{ Dir = $script:Dir; KeyGen = $script:KeyGen } {
+            param($Dir, $KeyGen)
             $other = Join-Path ([System.IO.Path]::GetTempPath()) ("rf-trust-x-" + [guid]::NewGuid().Guid.Substring(0,8))
-            $keygen = Resolve-Path (Join-Path $PSScriptRoot '..' '..' '..' 'deploy' 'signing' 'New-RfFabricKeys.ps1')
+            # $KeyGen is passed in: inside InModuleScope, $PSScriptRoot is the
+            # MODULE's directory, not the test's, so resolving it here was wrong.
             # produce a different root key, then verify the first bundle against it
-            & $keygen -OutDir $other | Out-Null
+            & $KeyGen -OutDir $other | Out-Null
             { Get-RfFabricTrustBundle -BundlePath (Join-Path $Dir 'fabric-trust.json') -RootPublicKeyPath (Join-Path $other 'root.pub') } | Should -Throw
             Remove-Item -Recurse -Force $other -ErrorAction SilentlyContinue
         }
@@ -128,11 +162,11 @@ Describe 'Runtime trust-bundle reader (RepoFabric#16)' {
     }
 }
 
-Describe 'Bridge inbound signature verification (Test-RfInboundSignature)' {
+Describe 'Bridge inbound signature verification (Test-RfInboundSignature)' -Skip:(-not $RfKeyGenAvailable) -ForEach @(@{ KeyGen = $RfKeyGenPath }) {
     BeforeAll {
         $script:ModulePath = Resolve-Path (Join-Path $PSScriptRoot '..' '..' 'src' 'RepoFabric.psd1')
         Import-Module $script:ModulePath -Force -ErrorAction Stop
-        $script:KeyGen = Resolve-Path (Join-Path $PSScriptRoot '..' '..' '..' 'deploy' 'signing' 'New-RfFabricKeys.ps1')
+        $script:KeyGen = $KeyGen   # supplied by -ForEach (see header)
         $script:Dir = Join-Path ([System.IO.Path]::GetTempPath()) ("rf-inb-" + [guid]::NewGuid().Guid.Substring(0,8))
         & $script:KeyGen -OutDir $script:Dir | Out-Null
         $script:Signing = @{
@@ -220,11 +254,11 @@ Describe 'Bridge inbound signature verification (Test-RfInboundSignature)' {
     }
 }
 
-Describe 'Outbound M2M signing (Get-RfOutboundSignatureHeaders)' {
+Describe 'Outbound M2M signing (Get-RfOutboundSignatureHeaders)' -Skip:(-not $RfKeyGenAvailable) -ForEach @(@{ KeyGen = $RfKeyGenPath }) {
     BeforeAll {
         $script:ModulePath = Resolve-Path (Join-Path $PSScriptRoot '..' '..' 'src' 'RepoFabric.psd1')
         Import-Module $script:ModulePath -Force -ErrorAction Stop
-        $script:KeyGen = Resolve-Path (Join-Path $PSScriptRoot '..' '..' '..' 'deploy' 'signing' 'New-RfFabricKeys.ps1')
+        $script:KeyGen = $KeyGen   # supplied by -ForEach (see header)
         $script:Dir = Join-Path ([System.IO.Path]::GetTempPath()) ("rf-out-" + [guid]::NewGuid().Guid.Substring(0,8))
         & $script:KeyGen -OutDir $script:Dir | Out-Null
     }
@@ -266,11 +300,11 @@ Describe 'Outbound M2M signing (Get-RfOutboundSignatureHeaders)' {
     }
 }
 
-Describe 'Reverse-proxy @authority/@target-uri reconciliation (Resolve-RfSignedRequestUri)' {
+Describe 'Reverse-proxy @authority/@target-uri reconciliation (Resolve-RfSignedRequestUri)' -Skip:(-not $RfKeyGenAvailable) -ForEach @(@{ KeyGen = $RfKeyGenPath }) {
     BeforeAll {
         $script:ModulePath = Resolve-Path (Join-Path $PSScriptRoot '..' '..' 'src' 'RepoFabric.psd1')
         Import-Module $script:ModulePath -Force -ErrorAction Stop
-        $script:KeyGen = Resolve-Path (Join-Path $PSScriptRoot '..' '..' '..' 'deploy' 'signing' 'New-RfFabricKeys.ps1')
+        $script:KeyGen = $KeyGen   # supplied by -ForEach (see header)
         $script:Dir = Join-Path ([System.IO.Path]::GetTempPath()) ("rf-rp-" + [guid]::NewGuid().Guid.Substring(0,8))
         & $script:KeyGen -OutDir $script:Dir | Out-Null
         $script:Signing = @{ mode='observe'; fabric_id='repofabric';

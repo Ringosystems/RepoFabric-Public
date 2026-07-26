@@ -14,8 +14,9 @@ import { fileURLToPath } from 'node:url';
 
 import { config, m2mReadiness, m2mFatals, currentTimezone } from './config.js';
 import { setupRouter } from './setup.js';
-import { startLogin, handleCallback, handleLocalLogin, renderLocalLogin, logout, logoutCallback, requireAuth, requireIngestToken, requireBoltOnToken } from './auth.js';
+import { startLogin, handleCallback, handleLocalLogin, renderLocalLogin, logout, logoutCallback, requireAuth, requireIngestToken, requireBoltOnToken, requireIngestClientBearer } from './auth.js';
 import { apiRouter } from './routes.js';
+import { uploader } from './upload.js';
 import { entraConnectRouter } from './entra-connect.js';
 import { upgradeRouter } from './upgrade.js';
 import { isEntraConfigured } from './entra-helper.js';
@@ -31,6 +32,18 @@ const app = express();
 
 app.set('trust proxy', 1);
 
+// Helmet supplies more CSP directives than the five declared here; one of its
+// defaults is upgrade-insecure-requests, which tells the browser to rewrite every
+// http:// request on the page to https://. Behind the reverse proxy that is
+// correct and desirable. On a deployment actually SERVED over plain http -- the
+// all-in-one sandbox profile, or any direct-to-container access -- it silently
+// breaks the product: the sign-in form POSTs to https:// on a port with no TLS,
+// so the request dies with no status, no error and no page change. The button
+// simply appears dead, which is close to unteachable as a support symptom.
+//
+// So the directive is emitted only when the configured public URL is https.
+// Setting a directive to null removes it in helmet v7+.
+const publicUrlIsHttps = /^https:/i.test(String(config.publicBaseUrl || ''));
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -39,9 +52,13 @@ app.use(helmet({
       styleSrc:   ["'self'", "'unsafe-inline'"],
       imgSrc:     ["'self'", 'data:'],
       connectSrc: ["'self'"],
+      ...(publicUrlIsHttps ? {} : { upgradeInsecureRequests: null }),
     },
   },
 }));
+if (!publicUrlIsHttps) {
+  console.warn('[server] REPOFABRIC_ADMIN_PUBLIC_URL is not https; omitting CSP upgrade-insecure-requests so forms can submit over http.');
+}
 app.use(morgan('combined'));
 // Capture the EXACT request bytes alongside the parsed JSON. The cross-host M2M
 // bridge legs (see below) carry an RFC 9421 Content-Digest the peer signed over
@@ -56,6 +73,20 @@ app.use(morgan('combined'));
 // RepoFabric#35 M2.
 if (config.bridgeLegs?.auditWrite) {
   app.post('/api/audit/events', express.raw({ type: '*/*', limit: '2mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
+}
+// Same rationale for the RFIP JSON write legs: they are forwarded verbatim to
+// the publisher, which verifies an RFC 9421 Content-Digest over the exact bytes
+// the client signed. A large signed manifest (many locales/installers) can
+// exceed express.json's 512kb cap, which would 413 the request here before the
+// publisher ever sees it. Capture the raw bytes for these paths (any
+// content-type, higher ceiling) BEFORE express.json; express.raw sets req._body
+// so express.json then skips them, and forwardToPublisher replays req.rawBody.
+// Registered here (not in the later ingest block) so it runs before express.json.
+if (config.ingest?.enabled) {
+  const ingestRaw = express.raw({ type: '*/*', limit: '8mb', verify: (req, _res, buf) => { req.rawBody = buf; } });
+  app.post('/api/v1/ingest/packages', ingestRaw);
+  app.put('/api/v1/ingest/packages/*', ingestRaw);
+  app.delete('/api/v1/ingest/packages/*', ingestRaw);
 }
 app.use(express.json({ limit: '512kb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
@@ -260,6 +291,35 @@ if (config.inSetupMode) {
     app.post('/api/audit/events', forwardToPublisher);
   }
 
+  // --- RepoFabric Ingest Protocol (RFIP) legs (pre-auth) ------------------
+  // System-to-system package ingestion. Mounted only when ingest is enabled.
+  //   * openapi.json  static, public API description (documentation).
+  //   * information + packages (POST/PUT/DELETE)  forwarded verbatim to the
+  //     loopback pwsh listener, whose per-client capability gate + RFC 9421
+  //     verifier are the sole authorities (same posture as the catalog/audit
+  //     legs above; the caller's Bearer + signature + raw body pass through).
+  //   * binaries  multipart push that terminates HERE (streaming to disk); the
+  //     caller's per-client Bearer is validated against the pwsh registry first,
+  //     and the response returns only {uploadId, sha256, sizeBytes} — never the
+  //     server path.
+  if (config.ingest.enabled) {
+    app.get('/api/v1/ingest/openapi.json', (_req, res) =>
+      res.sendFile(path.join(__dirname, '..', 'static', 'docs', 'ingest', 'openapi.json')));
+    app.get('/api/v1/ingest/information', forwardToPublisher);
+    app.post('/api/v1/ingest/packages', forwardToPublisher);
+    app.put('/api/v1/ingest/packages/*', forwardToPublisher);
+    app.delete('/api/v1/ingest/packages/*', forwardToPublisher);
+    app.post('/api/v1/ingest/binaries', requireIngestClientBearer, uploader.single('installer'), (req, res) => {
+      if (!req.file) return res.status(400).json({ error: 'multipart form field "installer" (a file) is required' });
+      res.status(201).json({
+        uploadId:     req.file.upload_id,
+        sha256:       req.file.sha256,
+        sizeBytes:    req.file.size_bytes,
+        originalName: req.file.original_name,
+      });
+    });
+  }
+
   // Everything below requires an authenticated session
   app.use('/admin', requireAuth);
 
@@ -353,6 +413,24 @@ if (config.inSetupMode) {
 // Default: send unknown paths to /admin or /setup depending on mode
 app.get('/', (_req, res) => res.redirect(config.inSetupMode ? '/setup/' : '/admin/'));
 
+// Terminal error handler (4-arg). Without it, a multer upload failure on the
+// RFIP binaries leg (or the other multipart routes) reaches Express's default
+// handler as an opaque HTML 500 with no .status. Map the common cases to the
+// documented JSON codes: an oversized installer -> 413, any other multipart
+// error (e.g. wrong/extra file field) -> 400. Detect MulterError structurally
+// (name/code) so no extra import is needed. Everything else stays a 500.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  if (err && err.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'installer exceeds the maximum upload size', maxBytes: config.uploadMaxBytes });
+    }
+    return res.status(400).json({ error: 'invalid multipart upload (expected a single file field named "installer")', code: err.code });
+  }
+  console.error('[repofabric-admin] unhandled error:', (err && err.message) ? err.message : err);
+  return res.status(500).json({ error: 'internal error' });
+});
+
 // 0.9.0 (FD-031 program): fail fast on a half-set integration. If ConfigFabric
 // integration is enabled but a required token is missing, refuse to boot rather
 // than silently degrade to 401/503 at runtime. Skipped in setup mode (nothing is
@@ -378,7 +456,7 @@ const server = app.listen(config.port, () => {
     console.log(`[repofabric-admin] authz: users=${config.auth.allowedUsers.length} groups=${config.auth.allowedGroups.length}`);
     const m = m2mReadiness();
     console.log(`[repofabric-admin] M2M bolt-on: token=${m.boltOnTokenSet ? 'set' : 'UNSET'} configfabric=${m.configfabricEnabled ? 'enabled' : 'disabled'}`);
-    console.log(`[repofabric-admin] M2M bridge legs: catalog:read=${m.catalogReadLeg ? 'on' : 'off'} audit:write=${m.auditWriteLeg ? 'on' : 'off'}`);
+    console.log(`[repofabric-admin] M2M bridge legs: catalog:read=${m.catalogReadLeg ? 'on' : 'off'} audit:write=${m.auditWriteLeg ? 'on' : 'off'} ingest=${m.ingestEnabled ? 'on' : 'off'}`);
     for (const w of m.warnings) console.warn(`[repofabric-admin] M2M WARNING: ${w}`);
   }
 });

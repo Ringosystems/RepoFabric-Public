@@ -82,9 +82,12 @@ function Update-RfCustomPackageCollisions {
                     if ($seenKeys.Add($key)) { $allMatches.Add($m) | Out-Null }
                 }
             }
-            # Always use -AsArray; an empty array means scanned-clean
-            # which the UI must distinguish from never-scanned (NULL).
-            $matchJson = (ConvertTo-Json -InputObject @($allMatches) -Compress -AsArray)
+            # Store a flat JSON array; empty means scanned-clean (distinct from
+            # NULL = never-scanned). NOT -AsArray (it double-wraps, e.g. [] -> [[]]);
+            # guard the empty case because ConvertTo-Json of @() is not '[]'. A
+            # single match stays an array under -InputObject, and Get-RfCustomPackage
+            # tolerates either shape on read.
+            $matchJson = if (@($allMatches).Count -eq 0) { '[]' } else { ConvertTo-Json -InputObject @($allMatches) -Compress -Depth 5 }
             if ($allMatches.Count -gt 0) { $withMatches++ }
             Invoke-RfSqliteQuery -DataSource $db -Query @'
 UPDATE custom_packages

@@ -3,375 +3,440 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>RepoFabric setup, RingoSystems Heavy Industries</title>
-  <link rel="stylesheet" href="../repofabric-tokens.css">
+  <meta name="color-scheme" content="dark">
+  <title>RepoFabric setup &middot; RingoSystems Heavy Industries</title>
+  <!-- RingoSystems Graphite Forge v1.0.
+       Normally a surface links graphite-forge.css then repofabric-tokens.css
+       then its own sheet, in that order. This one cannot: server.js mounts the
+       wizard as express.static(static/setup), so ../graphite-forge.css resolves
+       to /graphite-forge.css, which is not a route in setup mode (and lives
+       behind the authenticated /admin mount in normal mode). setup.css
+       therefore opens with a verbatim mirror of the foundation, the same way
+       static/docs-static/docs.css does, and states the one-line server fix that
+       would let both files drop it. Nothing here is a second opinion on the
+       standard — same token names, same values. -->
   <link rel="stylesheet" href="./setup.css">
 </head>
 <body>
-  <header>
-    <h1>RepoFabric setup</h1>
-    <p class="muted">First-run wizard. Browse the steps in any order to see what each one asks; RepoFabric checks every required answer when you Save. Secrets (Gitea PAT, Entra client secret) are entered here for the initial save and persist into the container's config files; they are NOT stored client-side.</p>
-    <p class="muted">New to the stack? The full deployment walkthrough -- companion containers, per-platform setup, reverse proxy, troubleshooting -- lives at <a href="/setup/docs/">/setup/docs/</a>. The wizard below picks up after those steps are complete.</p>
-  </header>
+<div class="setup-page">
 
-  <nav id="steps" aria-label="Setup progress">
-    <ol>
-      <li data-step="0" class="active">Welcome</li>
-      <li data-step="1">Targets</li>
-      <li data-step="2">Defaults</li>
-      <li data-step="3">Schedule</li>
-      <li data-step="4">Identity</li>
-      <li data-step="5">Optional</li>
-      <li data-step="6">Review</li>
-    </ol>
-  </nav>
+  <!-- Entry surface: framed, centred, brand-marked. Standard §6 keeps the
+       20px frame for sign-in and setup; the admin itself runs edge-to-edge. -->
+  <div class="setup-frame">
 
-  <main id="content">
-    <!-- Step 0: token entry -->
-    <section data-panel="0" class="panel">
-      <h2>Welcome</h2>
-      <p>The container is in first-run setup. Find the one-time setup token in one of two places:</p>
-      <ul>
-        <li><code>docker logs repofabric-linux</code> &mdash; printed at boot when no config exists yet</li>
-        <li><code>/var/lib/repofabric/setup-token.txt</code> on the host</li>
-      </ul>
-      <label>Setup token <span class="req">*</span>
-        <input type="text" id="setupToken" autocomplete="off" required data-required>
-        <small class="help">36-character UUID; consumed by the first valid request and then deleted.</small>
-      </label>
-      <div class="actions">
-        <button type="button" class="primary" data-next>Verify token</button>
+    <header class="setup-topbar">
+      <div class="gf-brand">
+        <div class="gf-logo" aria-hidden="true">R</div>
+        <div class="brand-text">
+          <span class="gf-brand-name">RepoFabric</span>
+          <span class="gf-brand-sub">RingoSystems Heavy Industries</span>
+        </div>
       </div>
-      <div id="tokenError" class="error" hidden></div>
-    </section>
+      <span class="gf-pill is-copper setup-stage">Setup mode</span>
+    </header>
 
-    <!-- Step 1: targets -->
-    <section data-panel="1" class="panel targets" hidden>
-      <h2>Where can devices reach RepoFabric?</h2>
-      <p>Give RepoFabric its address on your network and <strong>the rest of this page fills itself in</strong>. The plumbing between the containers is already wired, so most teams change exactly one thing here.</p>
+    <div class="setup-body">
 
-      <div class="targets-cols">
-        <div class="targets-main">
-          <!-- The one thing most teams set -->
-          <div class="lead-card">
-            <p class="lead-q">Your RepoFabric address</p>
-            <p class="lead-sub">The internal DNS name your managed devices and IT admins use to reach this server.</p>
-            <div class="lead-field">
-              <span class="lead-scheme">https://</span>
-              <input type="text" id="targetDns" spellcheck="false" autocomplete="off" placeholder="winget.contoso.com" aria-label="RepoFabric internal DNS name">
-            </div>
-            <p class="lead-hint">A split-horizon name resolved on your LAN and pointed at your reverse proxy. RepoFabric stays on your internal network, it is never published to the public internet. <span class="vpill devices">Devices connect here</span></p>
+      <header class="setup-intro">
+        <span class="gf-eyebrow">First run</span>
+        <h1 class="gf-display gf-display-2">Set up RepoFabric</h1>
+        <p class="setup-lede">Browse the steps in any order to see what each one asks; RepoFabric checks every required answer when you Save. Secrets (Gitea PAT, Entra client secret) are entered here for the initial save and persist into the container's config files; they are <strong>not</strong> stored client-side.</p>
+        <p class="setup-note">New to the stack? The full deployment walkthrough &mdash; companion containers, per-platform setup, reverse proxy, troubleshooting &mdash; lives at <a href="/setup/docs/">/setup/docs/</a>. The wizard below picks up after those steps are complete.</p>
+      </header>
+
+      <nav id="steps" aria-label="Setup progress">
+        <ol>
+          <li data-step="0" class="active"><span class="step-n">01</span><span class="step-t">Welcome</span></li>
+          <li data-step="1"><span class="step-n">02</span><span class="step-t">Targets</span></li>
+          <li data-step="2"><span class="step-n">03</span><span class="step-t">Defaults</span></li>
+          <li data-step="3"><span class="step-n">04</span><span class="step-t">Schedule</span></li>
+          <li data-step="4"><span class="step-n">05</span><span class="step-t">Identity</span></li>
+          <li data-step="5"><span class="step-n">06</span><span class="step-t">Optional</span></li>
+          <li data-step="6"><span class="step-n">07</span><span class="step-t">Review</span></li>
+        </ol>
+      </nav>
+
+      <main id="content">
+        <!-- Step 0: token entry -->
+        <section data-panel="0" class="panel">
+          <div class="panel-head">
+            <span class="panel-step">Step <b>01</b> of <b>07</b></span>
+            <h2>Welcome</h2>
           </div>
+          <p class="panel-lede">The container is in first-run setup. Find the one-time setup token in one of two places:</p>
+          <ul class="token-where">
+            <li><code>docker logs repofabric-linux</code> <span class="tw-note">printed at boot when no config exists yet</span></li>
+            <li><code>/var/lib/repofabric/setup-token.txt</code> <span class="tw-note">on the host</span></li>
+          </ul>
+          <label class="token-label">Setup token <span class="req">*</span>
+            <input type="text" id="setupToken" autocomplete="off" required data-required>
+            <small class="help">36-character UUID; consumed by the first valid request and then deleted.</small>
+          </label>
+          <div class="actions step-actions">
+            <button type="button" class="primary" data-next>Verify token</button>
+          </div>
+          <div id="tokenError" class="error" hidden></div>
+        </section>
 
-          <fieldset>
-            <legend>What your fleet uses</legend>
-            <p class="help grp-note">These two addresses are the only things outside the server that ever touch RepoFabric. Both stay on your internal network.</p>
+        <!-- Step 1: targets -->
+        <section data-panel="1" class="panel targets" hidden>
+          <div class="panel-head">
+            <span class="panel-step">Step <b>02</b> of <b>07</b></span>
+            <h2>Where can devices reach RepoFabric?</h2>
+          </div>
+          <p class="panel-lede">Give RepoFabric its address on your network and <strong>the rest of this page fills itself in</strong>. The plumbing between the containers is already wired, so most teams change exactly one thing here.</p>
 
-            <div class="field-block">
-              <div class="field-cap">WinGet source your devices add <span class="vpill devices">You hand this out</span></div>
-              <div class="readout"><span class="readout-v" id="roSource">https://&hellip;/api</span><button type="button" class="copybtn" data-copy="roSource">Copy</button></div>
-              <p class="help">Push this once from Intune and every managed device pulls approved apps from it: <code id="roCmd">winget source add &lt;name&gt; https://&hellip;/api</code>. Derived from your address, nothing to fill in.</p>
-            </div>
-
-            <label>Public installer base URL <span class="req">*</span> <span class="vpill devices">Devices download from here</span> <span class="vpill auto" id="installerAutoTag" hidden>Auto-filled</span>
-              <input type="url" name="installer_base_url" placeholder="https://installers.winget.contoso.com" data-required data-validate="url">
-              <small class="help">Where devices fetch the actual <code>.exe</code> / <code>.msi</code> files. RepoFabric rewrites every manifest's <code>InstallerUrl</code> to <code>&lt;base&gt;/&lt;pkg&gt;/&lt;ver&gt;/&lt;file&gt;</code> and serves them on host port <code>8091</code>. <strong>Auto-filled as an <code>installers.</code> subdomain of the address above</strong>, so it sits under your source host. Give this host a DNS record, a reverse-proxy route to port <code>8091</code>, and a TLS cert that covers it — per-host issuance (the Caddy/NPM default) handles it, but a base-domain wildcard does <strong>not</strong> reach this nested name, so bring a SAN or <code>*.&lt;source-host&gt;</code> cert if you supply your own. Devices download over HTTPS and <strong>reject an untrusted or mismatched cert</strong>, so it must resolve and validate before installs work. Edit only if installers live on a different host.</small>
-            </label>
-          </fieldset>
-
-          <details class="internal-wiring">
-            <summary>Internal wiring <span class="iw-sub">wired automatically, you should not need to touch this</span></summary>
-            <div class="iw-body">
-              <label>Gitea base URL <span class="req">*</span> <span class="vpill internal">Internal only</span>
-                <input type="url" name="gitea_base_url" value="http://repofabric-gitea:3000" data-required data-validate="url">
-                <small class="help">RepoFabric reaches its bundled Gitea by container name, inside the Docker network. Nothing outside the server uses this. Leave it unless you run your own Gitea.</small>
-              </label>
-              <label>Manifest repo path <span class="req">*</span> <span class="vpill internal">Internal only</span>
-                <input type="text" name="gitea_repo" value="repofabric-publisher/winget-manifests" data-required data-validate="owner-repo">
-                <small class="help">In <code>&lt;org-or-user&gt;/&lt;repo&gt;</code> form. Created automatically on first publish.</small>
-              </label>
-              <label>Gitea access token <small class="muted">(optional)</small> <span class="vpill secret">Secret, never shown</span>
-                <input type="password" name="gitea_pat" autocomplete="new-password">
-                <small class="help"><strong>Leave blank.</strong> Minted and wired for you when the bundled Gitea starts, stored in <code>solution.yaml</code> and never echoed back. Fill in only to point at your own Gitea (needs repo read+write).</small>
-              </label>
-              <div class="probe-row">
-                <button type="button" data-probe="gitea">Test Gitea connection</button>
-                <div class="probe-result" data-probe-result="gitea"></div>
+          <div class="targets-cols">
+            <div class="targets-main">
+              <!-- The one thing most teams set -->
+              <div class="lead-card">
+                <p class="lead-q">Your RepoFabric address</p>
+                <p class="lead-sub">The internal DNS name your managed devices and IT admins use to reach this server.</p>
+                <div class="lead-field">
+                  <span class="lead-scheme">https://</span>
+                  <input type="text" id="targetDns" spellcheck="false" autocomplete="off" placeholder="winget.contoso.com" aria-label="RepoFabric internal DNS name">
+                </div>
+                <p class="lead-hint">A split-horizon name resolved on your LAN and pointed at your reverse proxy. RepoFabric stays on your internal network, it is never published to the public internet. <span class="vpill devices">Devices connect here</span></p>
               </div>
 
-              <label>rewinged URL <span class="req">*</span> <span class="vpill internal">Internal only</span>
-                <input type="url" name="rewinged_url" value="http://repofabric-rewinged:8080" data-required data-validate="url">
-                <small class="help">RepoFabric's container-to-container link to the WinGet REST engine. Probe hits <code>/information</code> and reports the <code>SourceIdentifier</code>. Leave it.</small>
+              <fieldset>
+                <legend>What your fleet uses</legend>
+                <p class="help grp-note">These two addresses are the only things outside the server that ever touch RepoFabric. Both stay on your internal network.</p>
+
+                <div class="field-block">
+                  <div class="field-cap">WinGet source your devices add <span class="vpill devices">You hand this out</span></div>
+                  <div class="readout"><span class="readout-v" id="roSource">https://&hellip;/api</span><button type="button" class="copybtn" data-copy="roSource">Copy</button></div>
+                  <p class="help">Push this once from Intune and every managed device pulls approved apps from it: <code id="roCmd">winget source add &lt;name&gt; https://&hellip;/api</code>. Derived from your address, nothing to fill in.</p>
+                </div>
+
+                <label>Public installer base URL <span class="req">*</span> <span class="vpill devices">Devices download from here</span> <span class="vpill auto" id="installerAutoTag" hidden>Auto-filled</span>
+                  <input type="url" name="installer_base_url" placeholder="https://installers.winget.contoso.com" data-required data-validate="url">
+                  <small class="help">Where devices fetch the actual <code>.exe</code> / <code>.msi</code> files. RepoFabric rewrites every manifest's <code>InstallerUrl</code> to <code>&lt;base&gt;/&lt;pkg&gt;/&lt;ver&gt;/&lt;file&gt;</code> and serves them on host port <code>8091</code>. <strong>Auto-filled as an <code>installers.</code> subdomain of the address above</strong>, so it sits under your source host. Give this host a DNS record, a reverse-proxy route to port <code>8091</code>, and a TLS cert that covers it &mdash; per-host issuance (the Caddy/NPM default) handles it, but a base-domain wildcard does <strong>not</strong> reach this nested name, so bring a SAN or <code>*.&lt;source-host&gt;</code> cert if you supply your own. Devices download over HTTPS and <strong>reject an untrusted or mismatched cert</strong>, so it must resolve and validate before installs work. Edit only if installers live on a different host.</small>
+                </label>
+              </fieldset>
+
+              <details class="internal-wiring">
+                <summary>Internal wiring <span class="iw-sub">wired automatically, you should not need to touch this</span></summary>
+                <div class="iw-body">
+                  <label>Gitea base URL <span class="req">*</span> <span class="vpill internal">Internal only</span>
+                    <input type="url" name="gitea_base_url" value="http://repofabric-gitea:3000" data-required data-validate="url">
+                    <small class="help">RepoFabric reaches its bundled Gitea by container name, inside the Docker network. Nothing outside the server uses this. Leave it unless you run your own Gitea.</small>
+                  </label>
+                  <label>Manifest repo path <span class="req">*</span> <span class="vpill internal">Internal only</span>
+                    <input type="text" name="gitea_repo" value="repofabric-publisher/winget-manifests" data-required data-validate="owner-repo">
+                    <small class="help">In <code>&lt;org-or-user&gt;/&lt;repo&gt;</code> form. Created automatically on first publish.</small>
+                  </label>
+                  <label>Gitea access token <small class="muted">(optional)</small> <span class="vpill secret">Secret, never shown</span>
+                    <input type="password" name="gitea_pat" autocomplete="new-password">
+                    <small class="help"><strong>Leave blank.</strong> Minted and wired for you when the bundled Gitea starts, stored in <code>solution.yaml</code> and never echoed back. Fill in only to point at your own Gitea (needs repo read+write).</small>
+                  </label>
+                  <div class="probe-row">
+                    <button type="button" data-probe="gitea">Test Gitea connection</button>
+                    <div class="probe-result" data-probe-result="gitea"></div>
+                  </div>
+
+                  <label>rewinged URL <span class="req">*</span> <span class="vpill internal">Internal only</span>
+                    <input type="url" name="rewinged_url" value="http://repofabric-rewinged:8080" data-required data-validate="url">
+                    <small class="help">RepoFabric's container-to-container link to the WinGet REST engine. Probe hits <code>/information</code> and reports the <code>SourceIdentifier</code>. Leave it.</small>
+                  </label>
+                  <div class="probe-row">
+                    <button type="button" data-probe="rewinged">Test rewinged connection</button>
+                    <div class="probe-result" data-probe-result="rewinged"></div>
+                  </div>
+                </div>
+              </details>
+
+              <div class="actions step-actions">
+                <button type="button" data-prev>Back</button>
+                <button type="button" class="primary" data-next>Next</button>
+              </div>
+            </div>
+
+            <aside class="example" aria-label="Worked example">
+              <div class="example-head">
+                <span class="sample-tag"><span class="sample-dot"></span>Sample, not your settings</span>
+                <h3>Contoso, Ltd. <span class="fict">(fictional example)</span></h3>
+                <p>How a 180-person company fills this page in. Shown for reference only, your own values appear on the left as you type.</p>
+              </div>
+              <div class="example-body">
+                <dl class="ex-dl">
+                  <div class="ex-row"><dt>Their address <span class="vpill devices">devices</span></dt><dd>winget.contoso.com</dd></div>
+                  <div class="ex-row"><dt>Installer downloads <span class="vpill devices">devices</span></dt><dd>installers.winget.contoso.com</dd></div>
+                  <div class="ex-row"><dt>Gitea <span class="vpill internal">internal</span></dt><dd>repofabric-gitea:3000 <span class="ex-auto">auto</span></dd></div>
+                  <div class="ex-row"><dt>rewinged <span class="vpill internal">internal</span></dt><dd>repofabric-rewinged:8080 <span class="ex-auto">auto</span></dd></div>
+                  <div class="ex-row"><dt>Access token <span class="vpill secret">secret</span></dt><dd>&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull; <span class="ex-auto">minted for you</span></dd></div>
+                </dl>
+                <div class="ex-divider"></div>
+                <p class="ex-cap">What Contoso's laptops run (pushed via Intune):</p>
+                <pre class="ex-cmd"><code><span class="tok-cmd">winget source add</span> <span class="tok-arg">contoso</span> https://winget.contoso.com/api</code></pre>
+                <div class="ex-legend">
+                  <div class="ex-li"><span class="vpill devices">Devices</span><span><strong>On your network.</strong> Managed devices connect and download here. Never public.</span></div>
+                  <div class="ex-li"><span class="vpill internal">Internal</span><span><strong>Container-to-container.</strong> Never leaves the Docker network on the server.</span></div>
+                  <div class="ex-li"><span class="vpill secret">Secret</span><span><strong>Stored encrypted.</strong> Shown to no one, minted automatically.</span></div>
+                </div>
+                <div class="ex-persona">
+                  <span class="ex-av">MB</span>
+                  <span><strong>Megan Bowen</strong>, Contoso IT, signs in at <code>winget.contoso.com/admin</code> with her Microsoft work account. Staff never see the admin, their laptops just receive approved apps.</span>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- Step 2: defaults -->
+        <section data-panel="2" class="panel" hidden>
+          <div class="panel-head">
+            <span class="panel-step">Step <b>03</b> of <b>07</b></span>
+            <h2>Defaults</h2>
+          </div>
+          <p class="panel-lede">Sane defaults applied to every new subscription unless the operator overrides per-row.</p>
+          <div class="field-block">
+            <div class="field-cap">Preferred architectures</div>
+            <div class="arch-grid">
+              <label class="inline-check"><input type="checkbox" class="arch-box" value="x64" checked> x64 <span class="arch-note">64-bit, most PCs</span></label>
+              <label class="inline-check"><input type="checkbox" class="arch-box" value="arm64" checked> arm64 <span class="arch-note">Windows on ARM</span></label>
+              <label class="inline-check"><input type="checkbox" class="arch-box" value="x86"> x86 <span class="arch-note">32-bit, legacy</span></label>
+              <label class="inline-check"><input type="checkbox" class="arch-box" value="arm"> arm <span class="arch-note">32-bit ARM, rare</span></label>
+            </div>
+            <input type="hidden" name="architectures" value="x64,arm64">
+            <p class="help">Publish these architectures for each app, in the order shown. <code>x64</code> and <code>arm64</code> cover modern fleets; turn on <code>x86</code> only if you still run 32-bit apps.</p>
+          </div>
+          <label>Default locales
+            <input type="text" name="locales" value="en-US" data-validate="csv-locale">
+            <small class="help">Comma-separated BCP-47 tags (e.g. <code>en-US,fr-FR</code>). Manifests are published in every listed locale that exists upstream.</small>
+          </label>
+          <label>Retention count
+            <input type="number" name="retention_count" value="3" min="1" max="100">
+            <small class="help">Versions to keep per subscription before older ones are unpublished. Pinned versions never expire.</small>
+          </label>
+          <label>Default install scope
+            <select name="scope">
+              <option value="machine">machine (system-wide)</option>
+              <option value="user">user (per-user)</option>
+            </select>
+            <small class="help">Most apps install machine-wide. Override per subscription if a vendor only ships user-scope installers.</small>
+          </label>
+          <div class="actions step-actions">
+            <button type="button" data-prev>Back</button>
+            <button type="button" class="primary" data-next>Next</button>
+          </div>
+        </section>
+
+        <!-- Step 3: schedule / parallelism -->
+        <section data-panel="3" class="panel" hidden>
+          <div class="panel-head">
+            <span class="panel-step">Step <b>04</b> of <b>07</b></span>
+            <h2>Schedule</h2>
+          </div>
+          <p class="panel-lede">How aggressively the publisher pulls upstream and how often.</p>
+          <label>Worker pool size
+            <input type="number" name="worker_pool_size" value="4" min="1" max="32">
+            <small class="help">Parallel sync workers. Bound by CPU and network. 4 is fine for most fleets; raise if syncs are slow and Gitea + nginx aren't the bottleneck.</small>
+          </label>
+          <div class="field-block">
+            <div class="field-cap">Sync schedule</div>
+            <div class="sched-sub"><span>How often?</span>
+              <select id="schedFreq">
+                <option value="hours">Every few hours</option>
+                <option value="daily">Once a day</option>
+                <option value="weekly">Once a week</option>
+                <option value="custom">Custom (cron)</option>
+              </select>
+            </div>
+            <div class="sched-sub sched-opt" data-when="hours"><span>Run every</span>
+              <select id="schedEveryHours">
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="6" selected>6</option><option value="8">8</option><option value="12">12</option>
+              </select><span>hours</span>
+            </div>
+            <div class="sched-sub sched-opt" data-when="daily" hidden><span>At</span><input type="time" id="schedDailyTime" value="02:00"></div>
+            <div class="sched-sub sched-opt" data-when="weekly" hidden><span>On</span>
+              <select id="schedDow"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select>
+              <span>at</span><input type="time" id="schedWeeklyTime" value="02:00">
+            </div>
+            <label class="sched-sub sched-opt" data-when="custom" hidden><span>Cron</span><input type="text" id="schedCronCustom" data-validate="cron" placeholder="0 */6 * * *"></label>
+            <div class="readout"><span class="readout-v" id="schedCronOut">0 */6 * * *</span></div>
+            <input type="hidden" name="schedule_cron" value="0 */6 * * *">
+            <p class="help" id="schedHuman">Runs every 6 hours. Switch to Custom for a full five-field cron expression.</p>
+          </div>
+          <label>Index refresh threshold (hours)
+            <input type="number" name="index_refresh_threshold_hours" value="6" min="1">
+            <small class="help">Skip the (expensive) upstream-index refresh if it ran less than this many hours ago. The &ldquo;Sync (force index refresh)&rdquo; button always overrides.</small>
+          </label>
+          <div class="actions step-actions">
+            <button type="button" data-prev>Back</button>
+            <button type="button" class="primary" data-next>Next</button>
+          </div>
+        </section>
+
+        <!-- Step 4: identity -->
+        <section data-panel="4" class="panel" hidden>
+          <div class="panel-head">
+            <span class="panel-step">Step <b>05</b> of <b>07</b></span>
+            <h2>Identity (Microsoft Entra)</h2>
+          </div>
+          <p class="panel-lede">Admins sign in with Microsoft Entra. RepoFabric needs an app registration in your tenant; its redirect URI <strong>must</strong> be <code>&lt;your-public-url&gt;/admin/auth/callback</code>. Don't have one yet? Generate the commands below.</p>
+
+          <details class="entra-bootstrap" open>
+            <summary><strong>No app registration yet?</strong> Generate the setup commands</summary>
+            <p>Creating the app registration requires a <strong>Global Administrator</strong> or <strong>Privileged Role Administrator</strong> &mdash; that's an Entra rule no tool can skip. The no-install way is <a href="https://shell.azure.com" target="_blank" rel="noopener">Azure Cloud Shell</a> (you're already signed in there):</p>
+            <ol class="entra-steps">
+              <li>Click <strong>Generate commands</strong>, then copy the script.</li>
+              <li>Open <a href="https://shell.azure.com" target="_blank" rel="noopener">shell.azure.com</a> (sign in as an admin), paste, and run it.</li>
+              <li>Paste what it prints into the box below to autofill, or type the three values into the fields yourself.</li>
+            </ol>
+            <div class="actions">
+              <button type="button" id="entraGenBtn">Generate commands</button>
+            </div>
+            <div id="entraScriptBox" hidden>
+              <div class="entra-tabs">
+                <button type="button" class="entra-tab is-active" data-shell="powershell">PowerShell</button>
+                <button type="button" class="entra-tab" data-shell="bash">Bash / Cloud Shell</button>
+              </div>
+              <div class="entra-script-row">
+                <button type="button" id="entraCopyBtn" class="entra-copy">Copy</button>
+                <pre id="entraScript" class="entra-script"></pre>
+              </div>
+              <p class="help">Redirect URI it registers: <code id="entraRedirect"></code></p>
+              <label>Paste the script output <small class="muted">(optional &mdash; autofills the fields below)</small>
+                <textarea id="entraOutput" rows="4" autocomplete="off" placeholder="Paste the TENANT_ID= / CLIENT_ID= / CLIENT_SECRET= lines the script printed"></textarea>
               </label>
-              <div class="probe-row">
-                <button type="button" data-probe="rewinged">Test rewinged connection</button>
-                <div class="probe-result" data-probe-result="rewinged"></div>
+              <div class="actions">
+                <button type="button" id="entraFillBtn">Fill fields from output</button>
+                <span id="entraFillMsg" class="help"></span>
               </div>
             </div>
           </details>
 
-          <div class="actions">
+          <label>Tenant id <span class="req">*</span>
+            <input type="text" name="entra_tenant_id" data-required data-validate="guid">
+            <small class="help">GUID of the Entra tenant. Visible at <code>portal.azure.com</code> &rarr; Microsoft Entra ID &rarr; Overview.</small>
+          </label>
+          <label>Client id <span class="req">*</span>
+            <input type="text" name="entra_client_id" data-required data-validate="guid">
+            <small class="help">App registration's Application (client) ID.</small>
+          </label>
+          <label>Client secret <span class="req">*</span>
+            <input type="password" name="entra_client_secret" autocomplete="new-password" data-required>
+            <small class="help">Value of the client secret you generated for the app registration. Saved into <code>solution.yaml</code> on first save.</small>
+          </label>
+          <div class="probe-row">
+            <button type="button" data-probe="entra">Test Entra credentials</button>
+            <div class="probe-result" data-probe-result="entra"></div>
+          </div>
+          <fieldset>
+            <legend>Admin access <span class="vpill devices">full control</span></legend>
+            <p class="help">Who can change RepoFabric: add subscriptions, publish, sync, edit settings. <strong>Point this at an Entra group</strong> so access follows your existing joiner/mover/leaver process; list individual UPNs only for exceptions.</p>
+            <label>Admin group object IDs <span class="vpill auto">recommended</span>
+              <input type="text" name="allowed_groups" placeholder="11111111-2222-3333-4444-555555555555">
+              <small class="help">Comma-separated Entra group object IDs. Everyone in these groups gets full admin. The preferred way to grant access.</small>
+            </label>
+            <label>Admin user UPNs <small class="muted">(exceptions)</small>
+              <input type="text" name="allowed_users" placeholder="admin@contoso.com">
+              <small class="help">Comma-separated sign-in names for one-off admins outside the group. Add at least one admin (a group <em>or</em> a UPN) or nobody can manage RepoFabric.</small>
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>Read-only access <span class="vpill internal">view only</span></legend>
+            <p class="help">Who can sign in and see everything but change nothing (helpdesk, auditors, managers). Every write is refused for these accounts. Again, <strong>prefer a group</strong>.</p>
+            <label>Read-only group object IDs <span class="vpill auto">recommended</span>
+              <input type="text" name="readonly_groups" placeholder="99999999-8888-7777-6666-555555555555">
+              <small class="help">Comma-separated Entra group object IDs whose members get view-only access.</small>
+            </label>
+            <label>Read-only user UPNs <small class="muted">(exceptions)</small>
+              <input type="text" name="readonly_users" placeholder="auditor@contoso.com">
+              <small class="help">Comma-separated sign-in names for one-off read-only users. Optional.</small>
+            </label>
+          </fieldset>
+          <div class="actions step-actions">
             <button type="button" data-prev>Back</button>
             <button type="button" class="primary" data-next>Next</button>
           </div>
-        </div>
+        </section>
 
-        <aside class="example" aria-label="Worked example">
-          <div class="example-head">
-            <span class="sample-tag"><span class="sample-dot"></span>Sample, not your settings</span>
-            <h3>Contoso, Ltd. <span class="fict">(fictional example)</span></h3>
-            <p>How a 180-person company fills this page in. Shown for reference only, your own values appear on the left as you type.</p>
+        <!-- Step 5: optional -->
+        <section data-panel="5" class="panel" hidden>
+          <div class="panel-head">
+            <span class="panel-step">Step <b>06</b> of <b>07</b></span>
+            <h2>Optional integrations</h2>
           </div>
-          <div class="example-body">
-            <dl class="ex-dl">
-              <div class="ex-row"><dt>Their address <span class="vpill devices">devices</span></dt><dd>winget.contoso.com</dd></div>
-              <div class="ex-row"><dt>Installer downloads <span class="vpill devices">devices</span></dt><dd>installers.winget.contoso.com</dd></div>
-              <div class="ex-row"><dt>Gitea <span class="vpill internal">internal</span></dt><dd>repofabric-gitea:3000 <span class="ex-auto">auto</span></dd></div>
-              <div class="ex-row"><dt>rewinged <span class="vpill internal">internal</span></dt><dd>repofabric-rewinged:8080 <span class="ex-auto">auto</span></dd></div>
-              <div class="ex-row"><dt>Access token <span class="vpill secret">secret</span></dt><dd>&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull; <span class="ex-auto">minted for you</span></dd></div>
-            </dl>
-            <div class="ex-divider"></div>
-            <p class="ex-cap">What Contoso's laptops run (pushed via Intune):</p>
-            <pre class="ex-cmd"><code><span class="tok-cmd">winget source add</span> <span class="tok-arg">contoso</span> https://winget.contoso.com/api</code></pre>
-            <div class="ex-legend">
-              <div class="ex-li"><span class="vpill devices">Devices</span><span><strong>On your network.</strong> Managed devices connect and download here. Never public.</span></div>
-              <div class="ex-li"><span class="vpill internal">Internal</span><span><strong>Container-to-container.</strong> Never leaves the Docker network on the server.</span></div>
-              <div class="ex-li"><span class="vpill secret">Secret</span><span><strong>Stored encrypted.</strong> Shown to no one, minted automatically.</span></div>
+          <p class="panel-lede">Both sections are safe to leave blank. You can configure them later from the admin's Settings tab.</p>
+          <fieldset>
+            <legend>Email notifications</legend>
+            <p class="help">RepoFabric emails you on sync failures and a daily heartbeat. Safe to leave off; you can set it up later in Settings.</p>
+            <div class="sched-sub"><span>Delivery</span>
+              <select id="mailMethod">
+                <option value="exo">Microsoft 365 (Exchange Online, Direct Send)</option>
+                <option value="custom">Custom SMTP relay</option>
+                <option value="off">Off (no email)</option>
+              </select>
             </div>
-            <div class="ex-persona">
-              <span class="ex-av">MB</span>
-              <span><strong>Megan Bowen</strong>, Contoso IT, signs in at <code>winget.contoso.com/admin</code> with her Microsoft work account. Staff never see the admin, their laptops just receive approved apps.</span>
+
+            <div id="mailExo" class="mail-opt">
+              <label>Your email domain
+                <input type="text" id="exoDomain" placeholder="contoso.com" autocomplete="off" spellcheck="false">
+                <small class="help">RepoFabric sends straight to Microsoft 365 with <strong>no password</strong> (Direct Send). Two requirements: it delivers to <strong>internal mailboxes only</strong>, and your domain's SPF record must authorise this server's outbound public IP.</small>
+              </label>
+              <div class="field-block">
+                <div class="field-cap">Microsoft 365 endpoint <span class="vpill internal">derived</span></div>
+                <div class="readout"><span class="readout-v" id="exoHostOut">yourdomain-com.mail.protection.outlook.com</span></div>
+              </div>
+              <label>From address
+                <input type="email" id="exoFrom" placeholder="repofabric@contoso.com" autocomplete="off">
+                <small class="help">Must be on an accepted domain in your tenant. Filled in from your domain; edit if you want a different sender.</small>
+              </label>
             </div>
+
+            <div id="mailCustom" class="mail-opt" hidden>
+              <label>Host <input type="text" id="customHost" placeholder="smtp.internal.contoso.com"></label>
+              <label>Port <input type="number" id="customPort" value="25" min="1" max="65535"></label>
+              <label>From <input type="email" id="customFrom" placeholder="repofabric@contoso.com"></label>
+              <p class="help">TLS is used automatically. If the relay needs authentication, set <code>REPOFABRIC_SMTP_USERNAME</code> and <code>REPOFABRIC_SMTP_PASSWORD</code> in the container environment.</p>
+            </div>
+
+            <label id="mailToWrap">Send alerts to
+              <input type="text" name="smtp_to" placeholder="itops@contoso.com,oncall@contoso.com">
+              <small class="help">Comma-separated recipients. With Direct Send these must be mailboxes in your own tenant. Leave blank to disable outgoing email.</small>
+            </label>
+
+            <input type="hidden" name="smtp_host" value="">
+            <input type="hidden" name="smtp_port" value="25">
+            <input type="hidden" name="smtp_from" value="">
+          </fieldset>
+          <div class="actions step-actions">
+            <button type="button" data-prev>Back</button>
+            <button type="button" class="primary" data-next>Next</button>
           </div>
-        </aside>
-      </div>
-    </section>
+        </section>
 
-    <!-- Step 2: defaults -->
-    <section data-panel="2" class="panel" hidden>
-      <h2>Defaults</h2>
-      <p>Sane defaults applied to every new subscription unless the operator overrides per-row.</p>
-      <div class="field-block">
-        <div class="field-cap">Preferred architectures</div>
-        <div class="arch-grid">
-          <label class="inline-check"><input type="checkbox" class="arch-box" value="x64" checked> x64 <span class="arch-note">64-bit, most PCs</span></label>
-          <label class="inline-check"><input type="checkbox" class="arch-box" value="arm64" checked> arm64 <span class="arch-note">Windows on ARM</span></label>
-          <label class="inline-check"><input type="checkbox" class="arch-box" value="x86"> x86 <span class="arch-note">32-bit, legacy</span></label>
-          <label class="inline-check"><input type="checkbox" class="arch-box" value="arm"> arm <span class="arch-note">32-bit ARM, rare</span></label>
-        </div>
-        <input type="hidden" name="architectures" value="x64,arm64">
-        <p class="help">Publish these architectures for each app, in the order shown. <code>x64</code> and <code>arm64</code> cover modern fleets; turn on <code>x86</code> only if you still run 32-bit apps.</p>
-      </div>
-      <label>Default locales
-        <input type="text" name="locales" value="en-US" data-validate="csv-locale">
-        <small class="help">Comma-separated BCP-47 tags (e.g. <code>en-US,fr-FR</code>). Manifests are published in every listed locale that exists upstream.</small>
-      </label>
-      <label>Retention count
-        <input type="number" name="retention_count" value="3" min="1" max="100">
-        <small class="help">Versions to keep per subscription before older ones are unpublished. Pinned versions never expire.</small>
-      </label>
-      <label>Default install scope
-        <select name="scope">
-          <option value="machine">machine (system-wide)</option>
-          <option value="user">user (per-user)</option>
-        </select>
-        <small class="help">Most apps install machine-wide. Override per subscription if a vendor only ships user-scope installers.</small>
-      </label>
-      <div class="actions">
-        <button type="button" data-prev>Back</button>
-        <button type="button" class="primary" data-next>Next</button>
-      </div>
-    </section>
-
-    <!-- Step 3: schedule / parallelism -->
-    <section data-panel="3" class="panel" hidden>
-      <h2>Schedule</h2>
-      <p>How aggressively the publisher pulls upstream and how often.</p>
-      <label>Worker pool size
-        <input type="number" name="worker_pool_size" value="4" min="1" max="32">
-        <small class="help">Parallel sync workers. Bound by CPU and network. 4 is fine for most fleets; raise if syncs are slow and Gitea + nginx aren't the bottleneck.</small>
-      </label>
-      <div class="field-block">
-        <div class="field-cap">Sync schedule</div>
-        <div class="sched-sub"><span>How often?</span>
-          <select id="schedFreq">
-            <option value="hours">Every few hours</option>
-            <option value="daily">Once a day</option>
-            <option value="weekly">Once a week</option>
-            <option value="custom">Custom (cron)</option>
-          </select>
-        </div>
-        <div class="sched-sub sched-opt" data-when="hours"><span>Run every</span>
-          <select id="schedEveryHours">
-            <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="6" selected>6</option><option value="8">8</option><option value="12">12</option>
-          </select><span>hours</span>
-        </div>
-        <div class="sched-sub sched-opt" data-when="daily" hidden><span>At</span><input type="time" id="schedDailyTime" value="02:00"></div>
-        <div class="sched-sub sched-opt" data-when="weekly" hidden><span>On</span>
-          <select id="schedDow"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select>
-          <span>at</span><input type="time" id="schedWeeklyTime" value="02:00">
-        </div>
-        <label class="sched-sub sched-opt" data-when="custom" hidden><span>Cron</span><input type="text" id="schedCronCustom" data-validate="cron" placeholder="0 */6 * * *"></label>
-        <div class="readout"><span class="readout-v" id="schedCronOut">0 */6 * * *</span></div>
-        <input type="hidden" name="schedule_cron" value="0 */6 * * *">
-        <p class="help" id="schedHuman">Runs every 6 hours. Switch to Custom for a full five-field cron expression.</p>
-      </div>
-      <label>Index refresh threshold (hours)
-        <input type="number" name="index_refresh_threshold_hours" value="6" min="1">
-        <small class="help">Skip the (expensive) upstream-index refresh if it ran less than this many hours ago. The "Sync (force index refresh)" button always overrides.</small>
-      </label>
-      <div class="actions">
-        <button type="button" data-prev>Back</button>
-        <button type="button" class="primary" data-next>Next</button>
-      </div>
-    </section>
-
-    <!-- Step 4: identity -->
-    <section data-panel="4" class="panel" hidden>
-      <h2>Identity (Microsoft Entra)</h2>
-      <p>Admins sign in with Microsoft Entra. RepoFabric needs an app registration in your tenant; its redirect URI <strong>must</strong> be <code>&lt;your-public-url&gt;/admin/auth/callback</code>. Don't have one yet? Generate the commands below.</p>
-
-      <details class="entra-bootstrap" open>
-        <summary><strong>No app registration yet?</strong> Generate the setup commands</summary>
-        <p>Creating the app registration requires a <strong>Global Administrator</strong> or <strong>Privileged Role Administrator</strong> &mdash; that's an Entra rule no tool can skip. The no-install way is <a href="https://shell.azure.com" target="_blank" rel="noopener">Azure Cloud Shell</a> (you're already signed in there):</p>
-        <ol class="entra-steps">
-          <li>Click <strong>Generate commands</strong>, then copy the script.</li>
-          <li>Open <a href="https://shell.azure.com" target="_blank" rel="noopener">shell.azure.com</a> (sign in as an admin), paste, and run it.</li>
-          <li>Paste what it prints into the box below to autofill, or type the three values into the fields yourself.</li>
-        </ol>
-        <div class="actions">
-          <button type="button" id="entraGenBtn">Generate commands</button>
-        </div>
-        <div id="entraScriptBox" hidden>
-          <div class="entra-tabs">
-            <button type="button" class="entra-tab is-active" data-shell="powershell">PowerShell</button>
-            <button type="button" class="entra-tab" data-shell="bash">Bash / Cloud Shell</button>
+        <!-- Step 6: review -->
+        <section data-panel="6" class="panel" hidden>
+          <div class="panel-head">
+            <span class="panel-step">Step <b>07</b> of <b>07</b></span>
+            <h2>Review and save</h2>
           </div>
-          <div class="entra-script-row">
-            <button type="button" id="entraCopyBtn" class="entra-copy">Copy</button>
-            <pre id="entraScript" class="entra-script"></pre>
+          <p class="panel-lede">Confirm the values below. <strong>Save</strong> writes <code>service.yaml</code> and <code>solution.yaml</code>, deletes the setup token, marks setup complete, and turns the scheduled cron entries on.</p>
+
+          <div class="review-block">
+            <div class="review-head">
+              <span class="review-cap">Configuration payload</span>
+              <span class="review-fmt">JSON</span>
+            </div>
+            <pre id="reviewPayload"></pre>
           </div>
-          <p class="help">Redirect URI it registers: <code id="entraRedirect"></code></p>
-          <label>Paste the script output <small class="muted">(optional &mdash; autofills the fields below)</small>
-            <textarea id="entraOutput" rows="4" autocomplete="off" placeholder="Paste the TENANT_ID= / CLIENT_ID= / CLIENT_SECRET= lines the script printed"></textarea>
-          </label>
-          <div class="actions">
-            <button type="button" id="entraFillBtn">Fill fields from output</button>
-            <span id="entraFillMsg" class="help"></span>
+          <p class="help review-note">Secrets are masked in this preview so a screenshot of this step leaks nothing. The values you typed are what gets written.</p>
+
+          <div class="actions step-actions">
+            <button type="button" data-prev>Back</button>
+            <button type="button" class="primary" id="saveButton">Save and finish</button>
           </div>
-        </div>
-      </details>
+          <div id="saveError" class="error" hidden></div>
+        </section>
+      </main>
+    </div>
+  </div>
 
-      <label>Tenant id <span class="req">*</span>
-        <input type="text" name="entra_tenant_id" data-required data-validate="guid">
-        <small class="help">GUID of the Entra tenant. Visible at <code>portal.azure.com</code> &rarr; Microsoft Entra ID &rarr; Overview.</small>
-      </label>
-      <label>Client id <span class="req">*</span>
-        <input type="text" name="entra_client_id" data-required data-validate="guid">
-        <small class="help">App registration's Application (client) ID.</small>
-      </label>
-      <label>Client secret <span class="req">*</span>
-        <input type="password" name="entra_client_secret" autocomplete="new-password" data-required>
-        <small class="help">Value of the client secret you generated for the app registration. Saved into <code>solution.yaml</code> on first save.</small>
-      </label>
-      <div class="probe-row">
-        <button type="button" data-probe="entra">Test Entra credentials</button>
-        <div class="probe-result" data-probe-result="entra"></div>
-      </div>
-      <fieldset>
-        <legend>Admin access <span class="vpill devices">full control</span></legend>
-        <p class="help">Who can change RepoFabric: add subscriptions, publish, sync, edit settings. <strong>Point this at an Entra group</strong> so access follows your existing joiner/mover/leaver process; list individual UPNs only for exceptions.</p>
-        <label>Admin group object IDs <span class="vpill auto">recommended</span>
-          <input type="text" name="allowed_groups" placeholder="11111111-2222-3333-4444-555555555555">
-          <small class="help">Comma-separated Entra group object IDs. Everyone in these groups gets full admin. The preferred way to grant access.</small>
-        </label>
-        <label>Admin user UPNs <small class="muted">(exceptions)</small>
-          <input type="text" name="allowed_users" placeholder="admin@contoso.com">
-          <small class="help">Comma-separated sign-in names for one-off admins outside the group. Add at least one admin (a group <em>or</em> a UPN) or nobody can manage RepoFabric.</small>
-        </label>
-      </fieldset>
-      <fieldset>
-        <legend>Read-only access <span class="vpill internal">view only</span></legend>
-        <p class="help">Who can sign in and see everything but change nothing (helpdesk, auditors, managers). Every write is refused for these accounts. Again, <strong>prefer a group</strong>.</p>
-        <label>Read-only group object IDs <span class="vpill auto">recommended</span>
-          <input type="text" name="readonly_groups" placeholder="99999999-8888-7777-6666-555555555555">
-          <small class="help">Comma-separated Entra group object IDs whose members get view-only access.</small>
-        </label>
-        <label>Read-only user UPNs <small class="muted">(exceptions)</small>
-          <input type="text" name="readonly_users" placeholder="auditor@contoso.com">
-          <small class="help">Comma-separated sign-in names for one-off read-only users. Optional.</small>
-        </label>
-      </fieldset>
-      <div class="actions">
-        <button type="button" data-prev>Back</button>
-        <button type="button" class="primary" data-next>Next</button>
-      </div>
-    </section>
-
-    <!-- Step 5: optional -->
-    <section data-panel="5" class="panel" hidden>
-      <h2>Optional integrations</h2>
-      <p>Both sections are safe to leave blank. You can configure them later from the admin's Settings tab.</p>
-      <fieldset>
-        <legend>Email notifications</legend>
-        <p class="help">RepoFabric emails you on sync failures and a daily heartbeat. Safe to leave off; you can set it up later in Settings.</p>
-        <div class="sched-sub"><span>Delivery</span>
-          <select id="mailMethod">
-            <option value="exo">Microsoft 365 (Exchange Online, Direct Send)</option>
-            <option value="custom">Custom SMTP relay</option>
-            <option value="off">Off (no email)</option>
-          </select>
-        </div>
-
-        <div id="mailExo" class="mail-opt">
-          <label>Your email domain
-            <input type="text" id="exoDomain" placeholder="contoso.com" autocomplete="off" spellcheck="false">
-            <small class="help">RepoFabric sends straight to Microsoft 365 with <strong>no password</strong> (Direct Send). Two requirements: it delivers to <strong>internal mailboxes only</strong>, and your domain's SPF record must authorise this server's outbound public IP.</small>
-          </label>
-          <div class="field-block">
-            <div class="field-cap">Microsoft 365 endpoint <span class="vpill internal">derived</span></div>
-            <div class="readout"><span class="readout-v" id="exoHostOut">yourdomain-com.mail.protection.outlook.com</span></div>
-          </div>
-          <label>From address
-            <input type="email" id="exoFrom" placeholder="repofabric@contoso.com" autocomplete="off">
-            <small class="help">Must be on an accepted domain in your tenant. Filled in from your domain; edit if you want a different sender.</small>
-          </label>
-        </div>
-
-        <div id="mailCustom" class="mail-opt" hidden>
-          <label>Host <input type="text" id="customHost" placeholder="smtp.internal.contoso.com"></label>
-          <label>Port <input type="number" id="customPort" value="25" min="1" max="65535"></label>
-          <label>From <input type="email" id="customFrom" placeholder="repofabric@contoso.com"></label>
-          <p class="help">TLS is used automatically. If the relay needs authentication, set <code>REPOFABRIC_SMTP_USERNAME</code> and <code>REPOFABRIC_SMTP_PASSWORD</code> in the container environment.</p>
-        </div>
-
-        <label id="mailToWrap">Send alerts to
-          <input type="text" name="smtp_to" placeholder="itops@contoso.com,oncall@contoso.com">
-          <small class="help">Comma-separated recipients. With Direct Send these must be mailboxes in your own tenant. Leave blank to disable outgoing email.</small>
-        </label>
-
-        <input type="hidden" name="smtp_host" value="">
-        <input type="hidden" name="smtp_port" value="25">
-        <input type="hidden" name="smtp_from" value="">
-      </fieldset>
-      <div class="actions">
-        <button type="button" data-prev>Back</button>
-        <button type="button" class="primary" data-next>Next</button>
-      </div>
-    </section>
-
-    <!-- Step 6: review -->
-    <section data-panel="6" class="panel" hidden>
-      <h2>Review and save</h2>
-      <p>Confirm the values below. <strong>Save</strong> writes <code>service.yaml</code> and <code>solution.yaml</code>, deletes the setup token, marks setup complete, and turns the scheduled cron entries on.</p>
-      <pre id="reviewPayload"></pre>
-      <div class="actions">
-        <button type="button" data-prev>Back</button>
-        <button type="button" class="primary" id="saveButton">Save and finish</button>
-      </div>
-      <div id="saveError" class="error" hidden></div>
-    </section>
-  </main>
-  <script src="./setup.js" type="module"></script>
+  <p class="setup-foot">RepoFabric &middot; RingoSystems Heavy Industries</p>
+</div>
+<script src="./setup.js" type="module"></script>
 </body>
 </html>

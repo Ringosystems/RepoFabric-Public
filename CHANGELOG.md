@@ -2,6 +2,78 @@
 
 All notable changes to RepoFabric are recorded here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.9.2] - 2026-07-26
+
+### Added
+
+- **RingoSystems Graphite Forge v1.0 across every user-facing surface.** The admin
+  app, first-run setup wizard, custom-package publish, Intune deploy, Entra connect,
+  the server-rendered sign-in and auth pages, the in-product docs reader and the
+  public documentation site are all rebuilt on the published design language:
+  dark-native only, charcoal surfaces, Burnt Copper reserved for intent and
+  selection, Inter for human copy and Consolas for machine output, the published
+  type scale, the 4/8/12/16/22/32 spacing rhythm and 11/18/20px radii, borders
+  before shadows. Layered as `graphite-forge.css` (the vendored standard, `--gf-*`)
+  then `repofabric-tokens.css` (application tokens mapped onto it) then product CSS,
+  so re-skinning happens in one place. Adds `docs/design/graphite-forge-adoption.md`
+  as the standard's §11 governance record.
+- **Navigation regrouped by operator intent.** The flat seven-tab strip becomes a
+  left rail (which the standard's Linear Option B foundation calls for) grouped as
+  Operate / Measure / Govern, with About footed. Selection carries a surface lift, a
+  copper-tinted border and an icon tint rather than colour alone.
+- **Real RingoSystems identity.** The placeholder "R" tile is retired for a vector
+  mark, a compact build for 16-48px, a lockup, and a favicon. The supplied source
+  rasters could not be used on the web: both were composited on white then keyed to
+  transparency, so every exposed edge carried a white matte halo, and the lead frame
+  collapsed below ~256px. Colours are unchanged from the source; the wordmark is now
+  live text in Inter at real weights (800 / 200), so it cannot fringe.
+
+### Fixed
+
+- **CSP `upgrade-insecure-requests` broke sign-in on any plain-HTTP deployment.**
+  Helmet contributes that directive by default; behind the reverse proxy it is
+  correct, but on a deployment actually served over http it rewrote the sign-in POST
+  to https on a port with no TLS, so the request died with no status, no error and no
+  page change — the button simply appeared dead. Now emitted only when
+  `REPOFABRIC_ADMIN_PUBLIC_URL` is https, with a startup warning when relaxed.
+- **`[hidden]` was being defeated by author display rules**, so elements the SPA
+  toggles by setting `el.hidden` rendered anyway. Guarded in the foundation.
+- Itemised rows did not read as separate items (the divider sat at the standard's
+  card-edge alpha); Activity wrapped Time and Actor mid-value; the data tabs were
+  capped narrower than the window; `.muted` had no rule at all despite ~90 call
+  sites; `app-linux.css` still carried the pre-Graphite-Forge palette and
+  white-on-copper; the credential reveal fell back to a white box on a dark surface.
+
+
+### Added
+
+- **RepoFabric Ingest Protocol (RFIP) v1 — authenticated system-to-system package ingestion** (FD-038). An external system (first consumer: Kamino) can programmatically create/change/delete WinGet 1.6.0 packages and push or reference installer binaries into an allow-listed set of existing managed repos, over `/api/v1/ingest/*`. The manifest body is standard WinGet 1.6.0; a thin envelope carries the target repo, binary mode, and idempotency key. Off by default (`REPOFABRIC_INGEST_ENABLED`).
+  - **Two-factor, per-client, revocable auth**: each consumer is registered in the new **API Clients** admin tab with a revocable bearer key (salted-hash at rest, shown once) AND a pinned ECDSA P-256 key for a mandatory RFC 9421 signature. Both factors resolve from one `ingest_client` row gated on status, so a single revoke UPDATE disables both at once. The bearer maps to a new least-privilege `package:write` capability that reaches only the ingest legs.
+  - **Both binary modes**: push (staged via `POST /api/v1/ingest/binaries`, hash-bound to the signed publish, then self-hosted) and pull (manifest `InstallerUrl` + `InstallerSha256`, fetched and verified fail-closed).
+  - **Full CRUD**: create/update/delete; DELETE routes through the fail-closed FD-005 deletion lock-gate with an audited `override.force`.
+  - **Self-describing + published**: a discovery endpoint that live-probes the running rewinged for its accepted WinGet source-API versions, plus a committed OpenAPI 3.1 document, RFIP JSON schemas (`linux/schemas/ingest/`), an openspec contract, and a client integration guide with a signing recipe.
+  - **Auditing**: every ingest call (accepted or rejected) is recorded on a per-client transport ledger, surfaced in the **API Clients** drill-down and the **Activity** tab's *Ingest / API* filter; successful catalog mutations append to `publish_events` attributed to `client:<id>` (delete → `revert`, no new verb).
+  - Custom-package publish (`Publish-/Update-/Remove-RfCustomPackage`) is now **repo-aware** (`-RepoId`, promote-style config override), so custom apps can be published into any managed repo, not only `main`. Migrations 037–039.
+
+### Security
+
+- **RFIP capability clamp (privilege-escalation fix).** Per-client bearers had their registry-stored capabilities trusted verbatim, so a client row carrying `full` (settable through the unconstrained `-Capabilities`) escalated to every admin route, including reading the Gitea PAT via `/api/config`, with no signature. Capabilities are now clamped at request time to the bounded ingest set (`package:write`; never `full`), and `New-/Set-RfIngestClient` constrain the value at the source.
+- **RFIP idempotency is now per-client.** Idempotency keys were a global namespace, so two clients using the same natural key could conflict (cross-tenant DoS) or replay each other's stored response. Migration 040 rebuilds `ingest_requests` with a composite `(client_id, idempotency_key)` key.
+- **SSRF guard on pull-mode `InstallerUrl`.** Upstream (pull) mode fetched a client-supplied URL with no restriction; it now rejects non-http(s) schemes and hosts resolving to loopback/link-local/private/CGNAT/ULA/multicast addresses before fetching.
+
+### Fixed
+
+- **RFIP update/delete were non-functional**: the `PUT`/`DELETE /api/v1/ingest/packages/{id}/versions/{ver}` path parser was off-by-one (expected 8 trimmed segments, got 7), so every well-formed request returned 400. Corrected the segment indices.
+- **convert-to-subscription repo misrouting**: converting a non-`main` custom package created the managed subscription in `main` while removing the package from its real repo (data loss). It now passes the package's `repo_id`.
+- **Migration runner fail-loud**: `Invoke-RfSqliteScript` now runs sqlite3 with `-bail`, so a failed migration statement aborts (rolls back, leaves `schema_version` unchanged) instead of being silently skipped while a later migration advances the version.
+- **`Test-RfConfiguration` rewinged health check** probed `/information`; it now uses the shared `/api/information` probe and reports the advertised source-API versions.
+- **RFIP binary upload errors**: oversized/malformed multipart uploads returned an opaque 500; a terminal error handler now maps them to the documented 413/400.
+- **Large signed manifests**: the ingest JSON write legs are captured raw (like the audit leg) so a manifest over `express.json`'s 512kb cap is no longer 413'd before the publisher can verify its signature.
+- **One-time credential reveal** is now scrubbed from the DOM on any dialog dismissal (including ESC), not only the Done button; and the register dialog's Enter key no longer triggers Cancel.
+- **RFIP publish ledger** now records manifest/installer files and commit message (forensic columns were empty for ingest rows); `Import-RfIngestPublicKey` disposes its key on the error path; and the `request_sha256` doc no longer claims canonicalization it does not perform.
+
 ## [0.9.0] - 2026-07-01
 
 0.9.0 is the first public release of RepoFabric, distributed as a single container image on Docker Hub (`ringosystems/repofabric`) and GitHub Container Registry. One image serves every deployment, both production flavours and the Sandbox trial, from the same bytes. It carries the full 0.8.x feature set plus the first phase of a cross-fabric hardening program (per-repo working-tree locking and fail-fast on a half-configured integration). The remaining phases of that program (signing layers, DSCForge scopes, an integrated console) continue in subsequent releases.

@@ -99,12 +99,14 @@ RUN set -eux; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 
-# PowerShell modules. MySQLite (not PSSQLite, which has unresolved Linux DLL
-# loading bugs). Pester ships with the image so the test suite can run via
-# `docker exec`. Pin versions for reproducible builds.
+# PowerShell modules. SQLite access is via the sqlite3 CLI (a system package,
+# installed above), not a PowerShell module: System.Data.SQLite-based modules
+# (PSSQLite, MySQLite) ship glibc-only native interop and cannot load on
+# musl/Alpine, so the CLI is the one engine that works on both bases. Pester
+# ships with the image so the test suite can run via `docker exec`. Pin
+# versions for reproducible builds.
 RUN pwsh -NoLogo -NoProfile -Command \
     "Set-PSRepository PSGallery -InstallationPolicy Trusted; \
-     Install-Module MySQLite      -RequiredVersion 0.13.0 -Scope AllUsers -Force; \
      Install-Module powershell-yaml -RequiredVersion 0.4.12 -Scope AllUsers -Force; \
      Install-Module ThreadJob     -RequiredVersion 2.0.3 -Scope AllUsers -Force; \
      Install-Module Pester        -RequiredVersion 5.5.0 -Scope AllUsers -Force; \

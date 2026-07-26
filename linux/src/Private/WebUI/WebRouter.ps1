@@ -110,7 +110,13 @@ function ConvertTo-RfHashtable {
             return $h
         }
         if ($InputObject -is [System.Collections.IEnumerable] -and -not ($InputObject -is [string])) {
-            return @(foreach ($x in $InputObject) { ConvertTo-RfHashtable -InputObject $x })
+            # Unary comma is load-bearing. A bare `return @(...)` is UNROLLED on the
+            # way out of the function, so a SINGLE-element array collapses to its
+            # element: [{...}] became {...} and every one-installer package failed
+            # WinGet schema validation with 'Value is "object" but should be "array"
+            # at /Installers'. The comma emits the array as one object instead. This
+            # bites by-parameter calls too, not just piped ones.
+            return ,@(foreach ($x in $InputObject) { ConvertTo-RfHashtable -InputObject $x })
         }
         return $InputObject
     }
@@ -135,6 +141,9 @@ function Invoke-RfApiRoute {
     # when signing is enabled; null on the default path keeps Read-RfRequestJson
     # reading the stream directly).
     $script:RfRequestBodyBytes = $null
+    # Per-request RFIP ingest signature verdict, populated by the always-enforced
+    # ingest signature block below so the ingest handlers can record sig_verdict.
+    $script:RfIngestSigVerdict = $null
     try {
         $hdr = $Context.Request.Headers['X-Rf-Operator-Upn']
         if ($hdr) { $script:RfOperatorUpn = [string]$hdr }
@@ -189,6 +198,40 @@ function Invoke-RfApiRoute {
         Write-RfLog -Level $lvl -Message ("signing[$sigMode] $Method $Path keyid=$($verdict.keyid) signed=$($verdict.signed) valid=$($verdict.valid) reason='$($verdict.reason)'")
         if ($sigMode -eq 'enforce' -and -not $verdict.valid) {
             Write-RfJsonResponse -Context $Context -Status 401 -Body @{ error = 'M2M signature verification failed'; reason = $verdict.reason }
+            return
+        }
+    }
+
+    # --- RFIP ingest signature enforcement (ALWAYS on, independent of sigMode) ---
+    # Ingest mutation legs must carry a valid RFC 9421 signature verified against
+    # the pinned key of the bearer-authenticated client (Test-RfIngestSignature,
+    # DB-backed key store). This is enforced only when a per-client (package:write)
+    # bearer resolved to $script:RfIngestClient; the all-powerful 'full' admin
+    # token (RepoFabric's own Node bridge) is already maximally trusted and is not
+    # subject to this leg. An invalid/absent signature is 401, and the rejection is
+    # recorded on the transport ledger.
+    if ($script:RfIngestClient -and (Test-RfIsIngestSignedLeg -Method $Method -Path $Path)) {
+        $ingBody = Get-RfRequestBodyBytes -Request $Context.Request
+        $ingUri  = Resolve-RfSignedRequestUri -PathAndQuery $Context.Request.Url.PathAndQuery `
+            -ForwardedHost  ([string]$Context.Request.Headers['X-Forwarded-Host']) `
+            -ForwardedProto ([string]$Context.Request.Headers['X-Forwarded-Proto']) `
+            -FallbackAuthority $Context.Request.Url.Authority `
+            -FallbackTargetUri $Context.Request.Url.AbsoluteUri
+        $ingVerdict = Test-RfIngestSignature -Method $Method -TargetUri $ingUri.TargetUri `
+            -Authority $ingUri.Authority -Body $ingBody -Client $script:RfIngestClient -Headers @{
+                'Signature-Input' = [string]$Context.Request.Headers['Signature-Input']
+                'Signature'       = [string]$Context.Request.Headers['Signature']
+                'Content-Digest'  = [string]$Context.Request.Headers['Content-Digest']
+            }
+        $script:RfIngestSigVerdict = $ingVerdict
+        $lvl = if ($ingVerdict.valid) { 'Information' } else { 'Warning' }
+        Write-RfLog -Level $lvl -Message ("ingest-signing $Method $Path client=$($script:RfIngestClient.ClientId) signed=$($ingVerdict.signed) valid=$($ingVerdict.valid) reason='$($ingVerdict.reason)'")
+        if (-not $ingVerdict.valid) {
+            $verb = switch ($Method) { 'POST' { 'publish' } 'PUT' { 'update' } 'DELETE' { 'delete' } default { $Method.ToLower() } }
+            Write-RfIngestEvent -RequestId ([string]$Context.Request.Headers['X-Rf-Request-Id']) -ClientId $script:RfIngestClient.ClientId `
+                -Verb $verb -Method $Method -Path $Path -Outcome 'rejected' -HttpStatus 401 `
+                -RejectReason 'bad_signature' -SigVerdict $ingVerdict.reason -BytesIn ([long]$ingBody.Length)
+            Write-RfJsonResponse -Context $Context -Status 401 -Body @{ error = 'RFIP signature verification failed'; reason = $ingVerdict.reason }
             return
         }
     }
@@ -516,6 +559,285 @@ SELECT publish_event_id, timestamp_utc, repo_id, event_type,
                 deduped        = $result.Deduped
                 sourceFabric   = $sourceFabric
             }
+        } catch {
+            Write-RfJsonResponse -Context $Context -Status 500 -Body @{ error = $_.Exception.Message }
+        }
+        return
+    }
+
+    # ============================================================
+    # RepoFabric Ingest Protocol (RFIP) - system-to-system surface
+    # ============================================================
+    # Capability-gated to 'package:write' (per-client bearer resolved to
+    # $script:RfIngestClient) or 'full'. Mutating legs are additionally
+    # RFC 9421 signature-enforced above. Every call is recorded on the
+    # ingest_event transport ledger; successful catalog mutations also
+    # append to publish_events.
+
+    # ---- RFIP discovery ----
+    if ($Method -eq 'GET' -and $Path -eq '/api/v1/ingest/information') {
+        try {
+            $client = $script:RfIngestClient
+            if (-not $client) {
+                # full-token / admin discovery: synthesize a client that can see
+                # every existing repo, so the operator can inspect the contract.
+                $allRepos = @(Invoke-RfSqliteQuery -DataSource (Open-RfStateDatabase) -Query 'SELECT repo_id FROM virtual_repos' | ForEach-Object { [string]$_.repo_id })
+                $client = [PSCustomObject]@{ ClientId = '(admin)'; AllowedRepos = $allRepos; Capabilities = @('package:write') }
+            }
+            Write-RfJsonResponse -Context $Context -Status 200 -Body (Get-RfIngestInformation -Client $client)
+        } catch {
+            Write-RfJsonResponse -Context $Context -Status 500 -Body @{ error = $_.Exception.Message }
+        }
+        return
+    }
+
+    # ---- RFIP create / publish ----
+    if ($Method -eq 'POST' -and $Path -eq '/api/v1/ingest/packages') {
+        $client = $script:RfIngestClient
+        $rid = [string]$Context.Request.Headers['X-Rf-Request-Id']
+        if (-not $rid) { $rid = [guid]::NewGuid().ToString() }
+        $bodyBytes = Get-RfRequestBodyBytes -Request $Context.Request
+        $sigReason = if ($script:RfIngestSigVerdict) { [string]$script:RfIngestSigVerdict.reason } else { $null }
+        if (-not $client) {
+            Write-RfJsonResponse -Context $Context -Status 403 -Body @{ error = 'ingest requires a registered client credential (package:write)'; reason = 'no_client' }
+            return
+        }
+        try {
+            $body = Read-RfRequestJson -Request $Context.Request
+            if (-not $body) { Write-RfJsonResponse -Context $Context -Status 400 -Body @{ error = 'JSON body required' }; return }
+            foreach ($f in 'protocolVersion','repoId','binaryMode','idempotencyKey','manifest') {
+                if (-not $body.$f) {
+                    Write-RfIngestEvent -RequestId $rid -ClientId $client.ClientId -Verb 'publish' -Method $Method -Path $Path -Outcome 'rejected' -HttpStatus 400 -RejectReason 'missing_field' -SigVerdict $sigReason -BytesIn ([long]$bodyBytes.Length)
+                    Write-RfJsonResponse -Context $Context -Status 400 -Body @{ error = "missing required field: $f" }; return
+                }
+            }
+            if (@('1.0') -cnotcontains [string]$body.protocolVersion) {
+                Write-RfJsonResponse -Context $Context -Status 400 -Body @{ error = "unsupported protocolVersion '$([string]$body.protocolVersion)'"; supportedVersions = @('1.0') }; return
+            }
+            $repoId  = ([string]$body.repoId).ToLowerInvariant()
+            $binMode = [string]$body.binaryMode
+            if (@('local','upstream') -cnotcontains $binMode) {
+                Write-RfJsonResponse -Context $Context -Status 400 -Body @{ error = "binaryMode must be 'local' or 'upstream'" }; return
+            }
+            # Idempotency.
+            $reqSha = Get-RfRequestSha256Hex -Body $bodyBytes
+            $idem = Get-RfIngestIdempotencyRecord -ClientId $client.ClientId -Key ([string]$body.idempotencyKey) -RequestSha256 $reqSha
+            if ($idem -and $idem.Conflict) {
+                Write-RfJsonResponse -Context $Context -Status 409 -Body @{ error = 'idempotencyKey reused with a different request body'; reason = 'idempotency_conflict' }; return
+            }
+            if ($idem -and $idem.Match) {
+                $replayBody = if ($idem.Response) { $idem.Response | ConvertFrom-Json } else { @{ status = 'replayed' } }
+                Write-RfJsonResponse -Context $Context -Status ([int]$idem.HttpStatus) -Body $replayBody; return
+            }
+            # Repo allow-list (clean 403 before delegating).
+            if (-not (Test-RfIngestRepoAllowed -Client $client -RepoId $repoId)) {
+                Write-RfIngestEvent -RequestId $rid -ClientId $client.ClientId -Verb 'publish' -Method $Method -Path $Path -RepoId $repoId -Outcome 'rejected' -HttpStatus 403 -RejectReason 'repo_not_allowed' -SigVerdict $sigReason -BytesIn ([long]$bodyBytes.Length)
+                Write-RfJsonResponse -Context $Context -Status 403 -Body @{ error = "repo '$repoId' is not on this client's allow-list"; reason = 'repo_not_allowed' }; return
+            }
+            # Attribute all downstream writes to the client.
+            $script:RfOperatorUpn = "client:$($client.ClientId)"
+            # Resolve pushed binaries (local mode) with hash-binding.
+            $uploads = @()
+            if ($binMode -eq 'local') {
+                foreach ($u in @($body.installerUploads)) {
+                    $idx = if ($null -ne $u.installerIndex) { [int]$u.installerIndex } else { 0 }
+                    $uploads += (Resolve-RfIngestUpload -UploadId ([string]$u.uploadId) -DeclaredSha256 ([string]$u.sha256) -InstallerIndex $idx -OriginalName ([string]$u.originalName))
+                }
+            }
+            $manifest = ConvertTo-RfHashtable -InputObject $body.manifest
+            $result = Publish-RfIngestPackage -Client $client -RepoId $repoId -BinaryMode $binMode -Manifest $manifest -InstallerUploads $uploads -Notes ([string]$body.notes) -Confirm:$false
+            $peid = Add-RfPublishEvent -RepoId $repoId -EventType 'publish' -PackageId $result.PackageId -PackageVersion $result.Version `
+                -CustomPackageId ([int]$result.CustomId) -BinaryModeEffective $result.BinaryModeEffective -GiteaCommitSha ([string]$result.GitCommitSha) `
+                -GiteaCommitMessage ([string]$result.CommitMessage) -ManifestFiles @($result.ManifestFiles) -InstallerFiles @($result.InstallerFiles) `
+                -UpstreamInstallerUrl ([string]$result.UpstreamInstallerUrl) `
+                -Source 'ingest' -OperatorUpn "client:$($client.ClientId)" -Notes ([string]$body.notes)
+            $respObj = [ordered]@{
+                status            = 'published'
+                repoId            = $repoId
+                packageIdentifier = $result.PackageId
+                packageVersion    = $result.Version
+                binaryMode        = $result.BinaryModeEffective
+                publishEventId    = $peid
+                giteaCommitSha    = $result.GitCommitSha
+                requestId         = $rid
+            }
+            $respJson = ConvertTo-Json -InputObject $respObj -Depth 6 -Compress
+            Save-RfIngestIdempotencyRecord -Key ([string]$body.idempotencyKey) -ClientId $client.ClientId -Verb 'publish' -RepoId $repoId -PackageId $result.PackageId -PackageVersion $result.Version -RequestSha256 $reqSha -PublishEventId ([int]$peid) -HttpStatus 201 -ResponseJson $respJson
+            Write-RfIngestEvent -RequestId $rid -ClientId $client.ClientId -Verb 'publish' -Method $Method -Path $Path -RepoId $repoId -PackageId $result.PackageId -PackageVersion $result.Version -Outcome 'accepted' -HttpStatus 201 -SigVerdict $sigReason -BytesIn ([long]$bodyBytes.Length) -PublishEventId ([int]$peid)
+            Write-RfJsonResponse -Context $Context -Status 201 -Body $respObj
+        } catch {
+            $msg = $_.Exception.Message
+            $status = 500; $reason = 'error'
+            if     ($msg -like 'RepoNotAllowed:*')      { $status = 403; $reason = 'repo_not_allowed' }
+            elseif ($msg -like 'StagedHashMismatch:*')  { $status = 409; $reason = 'staged_hash_mismatch' }
+            elseif ($msg -like 'SHA256 mismatch*' -or $msg -like '*fail-closed*' -or $msg -like 'BinaryMode*') { $status = 400; $reason = 'binary_verification_failed' }
+            elseif ($msg -like 'Manifest schema validation*') { $status = 400; $reason = 'schema_invalid' }
+            Write-RfIngestEvent -RequestId $rid -ClientId $client.ClientId -Verb 'publish' -Method $Method -Path $Path -Outcome 'rejected' -HttpStatus $status -RejectReason $reason -SigVerdict $sigReason -BytesIn ([long]$bodyBytes.Length)
+            Write-RfJsonResponse -Context $Context -Status $status -Body @{ error = $msg; reason = $reason }
+        }
+        return
+    }
+
+    # ---- RFIP update (metadata) / delete ----
+    if (($Method -eq 'PUT' -or $Method -eq 'DELETE') -and $Path -like '/api/v1/ingest/packages/*') {
+        $client = $script:RfIngestClient
+        $rid = [string]$Context.Request.Headers['X-Rf-Request-Id']
+        if (-not $rid) { $rid = [guid]::NewGuid().ToString() }
+        $bodyBytes = Get-RfRequestBodyBytes -Request $Context.Request
+        $sigReason = if ($script:RfIngestSigVerdict) { [string]$script:RfIngestSigVerdict.reason } else { $null }
+        $verb = if ($Method -eq 'PUT') { 'update' } else { 'delete' }
+        if (-not $client) {
+            Write-RfJsonResponse -Context $Context -Status 403 -Body @{ error = 'ingest requires a registered client credential (package:write)'; reason = 'no_client' }
+            return
+        }
+        # Parse /api/v1/ingest/packages/{id}/versions/{ver}
+        # Path.Trim('/') strips the leading slash BEFORE Split, so the segments are
+        # 0:api 1:v1 2:ingest 3:packages 4:{PackageIdentifier} 5:versions 6:{Version}
+        # (7 elements, no leading empty). Matches the /api/ingest-clients handler below.
+        $segs = $Path.Trim('/').Split('/')
+        if ($segs.Count -ne 7 -or $segs[5] -ne 'versions') {
+            Write-RfJsonResponse -Context $Context -Status 400 -Body @{ error = 'expected /api/v1/ingest/packages/{PackageIdentifier}/versions/{Version}' }; return
+        }
+        $pkgId = [System.Uri]::UnescapeDataString($segs[4])
+        $ver   = [System.Uri]::UnescapeDataString($segs[6])
+        try {
+            $body = Read-RfRequestJson -Request $Context.Request
+            if (-not $body) { Write-RfJsonResponse -Context $Context -Status 400 -Body @{ error = 'JSON body required' }; return }
+            foreach ($f in 'repoId','idempotencyKey') {
+                if (-not $body.$f) { Write-RfJsonResponse -Context $Context -Status 400 -Body @{ error = "missing required field: $f" }; return }
+            }
+            $repoId = ([string]$body.repoId).ToLowerInvariant()
+            if (-not (Test-RfIngestRepoAllowed -Client $client -RepoId $repoId)) {
+                Write-RfIngestEvent -RequestId $rid -ClientId $client.ClientId -Verb $verb -Method $Method -Path $Path -RepoId $repoId -PackageId $pkgId -PackageVersion $ver -Outcome 'rejected' -HttpStatus 403 -RejectReason 'repo_not_allowed' -SigVerdict $sigReason -BytesIn ([long]$bodyBytes.Length)
+                Write-RfJsonResponse -Context $Context -Status 403 -Body @{ error = "repo '$repoId' is not on this client's allow-list"; reason = 'repo_not_allowed' }; return
+            }
+            # Idempotency.
+            $reqSha = Get-RfRequestSha256Hex -Body $bodyBytes
+            $idem = Get-RfIngestIdempotencyRecord -ClientId $client.ClientId -Key ([string]$body.idempotencyKey) -RequestSha256 $reqSha
+            if ($idem -and $idem.Conflict) { Write-RfJsonResponse -Context $Context -Status 409 -Body @{ error = 'idempotencyKey reused with a different body'; reason = 'idempotency_conflict' }; return }
+            if ($idem -and $idem.Match) {
+                $replayBody = if ($idem.Response) { $idem.Response | ConvertFrom-Json } else { @{ status = 'replayed' } }
+                Write-RfJsonResponse -Context $Context -Status ([int]$idem.HttpStatus) -Body $replayBody; return
+            }
+            # Resolve the custom_packages row for (repo, package).
+            $db = Open-RfStateDatabase
+            $row = Invoke-RfSqliteQuery -DataSource $db -Query 'SELECT custom_id, last_published_version FROM custom_packages WHERE repo_id = @repo AND LOWER(package_id) = LOWER(@pid)' -SqlParameters @{ repo = $repoId; pid = $pkgId } | Select-Object -First 1
+            if (-not $row) {
+                Write-RfIngestEvent -RequestId $rid -ClientId $client.ClientId -Verb $verb -Method $Method -Path $Path -RepoId $repoId -PackageId $pkgId -PackageVersion $ver -Outcome 'rejected' -HttpStatus 404 -RejectReason 'not_found' -SigVerdict $sigReason -BytesIn ([long]$bodyBytes.Length)
+                Write-RfJsonResponse -Context $Context -Status 404 -Body @{ error = "no custom package '$pkgId' in repo '$repoId'"; reason = 'not_found' }; return
+            }
+            if ([string]$row.last_published_version -ne $ver) {
+                Write-RfJsonResponse -Context $Context -Status 409 -Body @{ error = "version mismatch: '$pkgId' in '$repoId' is at '$($row.last_published_version)', not '$ver'"; reason = 'version_mismatch' }; return
+            }
+            $script:RfOperatorUpn = "client:$($client.ClientId)"
+
+            if ($Method -eq 'PUT') {
+                if (-not $body.manifest) { Write-RfJsonResponse -Context $Context -Status 400 -Body @{ error = 'manifest is required for update' }; return }
+                $manifest = ConvertTo-RfHashtable -InputObject $body.manifest
+                $upd = Update-RfCustomPackage -CustomId ([int]$row.custom_id) -Manifest $manifest -Notes ([string]$body.notes) -Confirm:$false
+                $peid = Add-RfPublishEvent -RepoId $repoId -EventType 'publish' -PackageId $upd.PackageId -PackageVersion $upd.Version `
+                    -CustomPackageId ([int]$row.custom_id) -GiteaCommitSha ([string]$upd.GitCommitSha) -Source 'ingest' -OperatorUpn "client:$($client.ClientId)" -Notes ([string]$body.notes)
+                $respObj = [ordered]@{ status = 'updated'; repoId = $repoId; packageIdentifier = $upd.PackageId; packageVersion = $upd.Version; publishEventId = $peid; giteaCommitSha = $upd.GitCommitSha; requestId = $rid }
+                $respJson = ConvertTo-Json -InputObject $respObj -Depth 6 -Compress
+                Save-RfIngestIdempotencyRecord -Key ([string]$body.idempotencyKey) -ClientId $client.ClientId -Verb 'update' -RepoId $repoId -PackageId $upd.PackageId -PackageVersion $upd.Version -RequestSha256 $reqSha -PublishEventId ([int]$peid) -HttpStatus 200 -ResponseJson $respJson
+                Write-RfIngestEvent -RequestId $rid -ClientId $client.ClientId -Verb 'update' -Method $Method -Path $Path -RepoId $repoId -PackageId $upd.PackageId -PackageVersion $upd.Version -Outcome 'accepted' -HttpStatus 200 -SigVerdict $sigReason -BytesIn ([long]$bodyBytes.Length) -PublishEventId ([int]$peid)
+                Write-RfJsonResponse -Context $Context -Status 200 -Body $respObj
+            } else {
+                # DELETE - routes through Remove-RfCustomPackage, which enforces the
+                # fail-closed deletion lock gate. override.force -> audited override.
+                $force = [bool]($body.override -and $body.override.force)
+                try {
+                    Remove-RfCustomPackage -CustomId ([int]$row.custom_id) -Force:$force -Confirm:$false | Out-Null
+                } catch {
+                    $dmsg = $_.Exception.Message
+                    if ($dmsg -like '*lock gate*') {
+                        Write-RfIngestEvent -RequestId $rid -ClientId $client.ClientId -Verb 'delete' -Method $Method -Path $Path -RepoId $repoId -PackageId $pkgId -PackageVersion $ver -Outcome 'rejected' -HttpStatus 409 -RejectReason 'deletion_gate_denied' -SigVerdict $sigReason -BytesIn ([long]$bodyBytes.Length)
+                        Write-RfJsonResponse -Context $Context -Status 409 -Body @{ error = $dmsg; reason = 'deletion_gate_denied' }; return
+                    }
+                    throw
+                }
+                $peid = Add-RfPublishEvent -RepoId $repoId -EventType 'revert' -PackageId $pkgId -PackageVersion $ver `
+                    -Source 'ingest' -OperatorUpn "client:$($client.ClientId)" -Notes ("RFIP delete" + $(if ($force) { " (forced override)" } else { '' }))
+                $respObj = [ordered]@{ status = 'deleted'; repoId = $repoId; packageIdentifier = $pkgId; packageVersion = $ver; publishEventId = $peid; forced = $force; requestId = $rid }
+                $respJson = ConvertTo-Json -InputObject $respObj -Depth 6 -Compress
+                Save-RfIngestIdempotencyRecord -Key ([string]$body.idempotencyKey) -ClientId $client.ClientId -Verb 'delete' -RepoId $repoId -PackageId $pkgId -PackageVersion $ver -RequestSha256 $reqSha -PublishEventId ([int]$peid) -HttpStatus 200 -ResponseJson $respJson
+                Write-RfIngestEvent -RequestId $rid -ClientId $client.ClientId -Verb 'delete' -Method $Method -Path $Path -RepoId $repoId -PackageId $pkgId -PackageVersion $ver -Outcome 'accepted' -HttpStatus 200 -SigVerdict $sigReason -BytesIn ([long]$bodyBytes.Length) -PublishEventId ([int]$peid)
+                Write-RfJsonResponse -Context $Context -Status 200 -Body $respObj
+            }
+        } catch {
+            $msg = $_.Exception.Message
+            $status = 500; $reason = 'error'
+            if     ($msg -like 'Manifest schema validation*') { $status = 400; $reason = 'schema_invalid' }
+            elseif ($msg -like '*mismatch*')                  { $status = 409; $reason = 'mismatch' }
+            Write-RfIngestEvent -RequestId $rid -ClientId $client.ClientId -Verb $verb -Method $Method -Path $Path -RepoId ([string]$body.repoId) -PackageId $pkgId -PackageVersion $ver -Outcome 'rejected' -HttpStatus $status -RejectReason $reason -SigVerdict $sigReason -BytesIn ([long]$bodyBytes.Length)
+            Write-RfJsonResponse -Context $Context -Status $status -Body @{ error = $msg; reason = $reason }
+        }
+        return
+    }
+
+    # ============================================================
+    # Ingest client registry (operator plane; 'full' capability only)
+    # ============================================================
+    if ($Path -eq '/api/ingest-clients' -or $Path -like '/api/ingest-clients/*') {
+        try {
+            $segs = $Path.Trim('/').Split('/')   # api / ingest-clients / {id}? / {action}?
+            $cid  = if ($segs.Count -ge 3) { [System.Uri]::UnescapeDataString($segs[2]) } else { $null }
+            $action = if ($segs.Count -ge 4) { $segs[3] } else { $null }
+
+            if ($Method -eq 'GET' -and -not $cid) {
+                Write-RfJsonResponse -Context $Context -Status 200 -Body @{ clients = @(Get-RfIngestClient) }; return
+            }
+            if ($Method -eq 'GET' -and $cid -and $action -eq 'events') {
+                $last = 100
+                try { $qLast = $Context.Request.QueryString['last']; if ($qLast) { $last = [int]$qLast } } catch { }
+                if ($last -lt 1) { $last = 1 } elseif ($last -gt 1000) { $last = 1000 }
+                $db = Open-RfStateDatabase
+                $rows = @(Invoke-RfSqliteReturning -DataSource $db -Query "SELECT ingest_event_id, request_id, client_id, verb, method, path, repo_id, package_id, package_version, outcome, http_status, reject_reason, sig_verdict, bytes_in, publish_event_id, created_at FROM ingest_event WHERE client_id = @cid ORDER BY created_at DESC LIMIT $last" -SqlParameters @{ cid = $cid })
+                Write-RfJsonResponse -Context $Context -Status 200 -Body @{ events = $rows }; return
+            }
+            if ($Method -eq 'GET' -and $cid) {
+                $c = Get-RfIngestClient -ClientId $cid
+                if (-not $c) { Write-RfJsonResponse -Context $Context -Status 404 -Body @{ error = "ingest client '$cid' not found" }; return }
+                Write-RfJsonResponse -Context $Context -Status 200 -Body $c; return
+            }
+            if ($Method -eq 'POST' -and -not $cid) {
+                $body = Read-RfRequestJson -Request $Context.Request
+                if (-not $body -or -not $body.clientId -or -not $body.displayName) { Write-RfJsonResponse -Context $Context -Status 400 -Body @{ error = 'clientId and displayName are required' }; return }
+                $newArgs = @{ ClientId = [string]$body.clientId; DisplayName = [string]$body.displayName; Confirm = $false }
+                if ($body.ownerContact) { $newArgs.OwnerContact = [string]$body.ownerContact }
+                if ($body.allowedRepos) { $newArgs.AllowedRepos = @($body.allowedRepos | ForEach-Object { [string]$_ }) }
+                if ($body.capabilities) { $newArgs.Capabilities = @($body.capabilities | ForEach-Object { [string]$_ }) }
+                if ($body.publicKeySpki) { $newArgs.PublicKeySpki = [string]$body.publicKeySpki }
+                elseif ($body.issueSigningKey) { $newArgs.IssueSigningKey = $true }
+                $created = New-RfIngestClient @newArgs
+                Write-RfJsonResponse -Context $Context -Status 201 -Body $created; return
+            }
+            if ($Method -eq 'PUT' -and $cid) {
+                $body = Read-RfRequestJson -Request $Context.Request
+                $setArgs = @{ ClientId = $cid; Confirm = $false }
+                if ($null -ne $body.displayName)  { $setArgs.DisplayName = [string]$body.displayName }
+                if ($null -ne $body.ownerContact) { $setArgs.OwnerContact = [string]$body.ownerContact }
+                if ($null -ne $body.allowedRepos) { $setArgs.AllowedRepos = @($body.allowedRepos | ForEach-Object { [string]$_ }) }
+                if ($null -ne $body.capabilities) { $setArgs.Capabilities = @($body.capabilities | ForEach-Object { [string]$_ }) }
+                if ($null -ne $body.status)       { $setArgs.Status = [string]$body.status }
+                $updated = Set-RfIngestClient @setArgs
+                Write-RfJsonResponse -Context $Context -Status 200 -Body $updated; return
+            }
+            if ($Method -eq 'POST' -and $cid -and $action -eq 'rotate') {
+                $body = Read-RfRequestJson -Request $Context.Request
+                $rotArgs = @{ ClientId = $cid; Confirm = $false }
+                if ($body.publicKeySpki) { $rotArgs.PublicKeySpki = [string]$body.publicKeySpki }
+                elseif ($body.issueSigningKey) { $rotArgs.IssueSigningKey = $true }
+                $rot = Reset-RfIngestClientKey @rotArgs
+                Write-RfJsonResponse -Context $Context -Status 200 -Body $rot; return
+            }
+            if ($Method -eq 'POST' -and $cid -and $action -eq 'revoke') {
+                $body = Read-RfRequestJson -Request $Context.Request
+                if (-not $body -or -not $body.reason) { Write-RfJsonResponse -Context $Context -Status 400 -Body @{ error = 'reason is required to revoke' }; return }
+                $rev = Revoke-RfIngestClient -ClientId $cid -Reason ([string]$body.reason) -Confirm:$false
+                Write-RfJsonResponse -Context $Context -Status 200 -Body $rev; return
+            }
+            Write-RfJsonResponse -Context $Context -Status 405 -Body @{ error = "method $Method not allowed on $Path" }
         } catch {
             Write-RfJsonResponse -Context $Context -Status 500 -Body @{ error = $_.Exception.Message }
         }
@@ -1148,7 +1470,7 @@ COMMIT;
     # + Runs). Returns rows from `run` UNION `admin_event` normalised into
     # one shape so the UI renders both kinds of events in a single ordered
     # list. Query string: ?last=N (default 50), ?type=<filter> where
-    # <filter> in {all, sync, admin, failures}; default 'all'.
+    # <filter> in {all, sync, admin, ingest, failures}; default 'all'.
     if ($Method -eq 'GET' -and $Path -eq '/api/activity') {
         $last = if ($Context.Request.QueryString['last']) { [int]$Context.Request.QueryString['last'] } else { 50 }
         if ($last -lt 1)   { $last = 50 }
@@ -1733,8 +2055,16 @@ SELECT repo_id, display_name FROM virtual_repos WHERE status = 'active' ORDER BY
             }
 
             $sourcePid = [string]$row.PackageId
+            # The new managed subscription must land in the SAME repo the custom
+            # package lives in. Since RFIP can publish custom packages into any
+            # managed repo (migration 038), a non-main package converted without
+            # -RepoId would create the subscription in 'main' while
+            # Remove-RfCustomPackage (below) removes it from its real repo -- the
+            # source repo would lose the package and 'main' would gain an
+            # unintended one.
+            $srcRepoId = if ($row.RepoId) { [string]$row.RepoId } else { 'main' }
             $note = "Converted from custom package $sourcePid (custom #$cid) via upstream-hash match"
-            $newSub = Add-RfSubscription -PackageId $targetPid -Track 'latest' -Notes $note -SyncNow:$syncNow -Confirm:$false
+            $newSub = Add-RfSubscription -PackageId $targetPid -RepoId $srcRepoId -Track 'latest' -Notes $note -SyncNow:$syncNow -Confirm:$false
             # Now drop the custom row + repo content. We always clear the
             # Gitea manifest and installer; the whole point of the convert
             # is that the upstream version (now subscribed) supersedes
@@ -1742,8 +2072,9 @@ SELECT repo_id, display_name FROM virtual_repos WHERE status = 'active' ORDER BY
             # would mean two competing source-of-truths.
             Remove-RfCustomPackage -CustomId $cid -KeepRepoContent:$false -Confirm:$false | Out-Null
 
-            Write-RfAdminEvent -EventType 'custom_converted_to_subscription' -Subject $sourcePid -Data @{
+            Write-RfAdminEvent -EventType 'custom_converted_to_subscription' -Subject $sourcePid -RepoId $srcRepoId -Data @{
                 custom_id          = $cid
+                repo_id            = $srcRepoId
                 source_package_id  = $sourcePid
                 target_package_id  = $targetPid
                 new_subscription   = if ($newSub -and $newSub.SubscriptionId) { [int]$newSub.SubscriptionId } else { $null }

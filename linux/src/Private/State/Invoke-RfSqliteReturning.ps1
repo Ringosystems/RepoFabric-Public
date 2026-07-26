@@ -45,6 +45,10 @@ function Invoke-RfSqliteReturning {
         [string]$SqliteBin = 'sqlite3'
     )
 
+    # Fail with a readable error if the engine is missing/blocked, rather than
+    # letting a $null result surface as a null-reference in some later caller.
+    Assert-RfSqliteBinary -SqliteBin $SqliteBin
+
     if ($SqlParameters -and $SqlParameters.Count -gt 0) {
         foreach ($k in $SqlParameters.Keys) {
             $literal = _ConvertTo-RfSqliteLiteral -Value $SqlParameters[$k]

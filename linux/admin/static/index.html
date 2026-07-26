@@ -3,30 +3,74 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RepoFabric admin</title>
+<title>RepoFabric — RingoSystems Heavy Industries</title>
+<meta name="color-scheme" content="dark">
+<!-- RingoSystems Graphite Forge v1.0. Order matters: foundation, then the
+     application token map, then product styles. -->
+<link rel="stylesheet" href="graphite-forge.css">
 <link rel="stylesheet" href="repofabric-tokens.css">
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="./app-linux.css">
 </head>
 <body>
-<header>
-  <h1>RepoFabric</h1>
-  <div class="meta" id="meta">loading...</div>
-  <button type="button" id="btn-compare-deployments" class="header-compare" hidden title="See what the recommended full deployment adds — capabilities, management, and security. It's free too.">⚖️ Sandbox vs Recommended</button>
-  <div class="actions">
-    <a class="header-link" href="/admin/docs/" target="_blank" rel="noopener" title="Deployment walkthrough, per-platform setup, reverse proxy, troubleshooting.">Docs</a>
-    <a class="signout" href="auth/logout">Sign out</a>
-  </div>
-</header>
-<nav id="tabs">
-  <button data-tab="subscriptions" class="active">Catalog</button>
-  <button data-tab="inventory" title="Every version actually in a repo, compared against the primary repo">Inventory</button>
-  <button data-tab="activity">Activity <span id="nav-bridge-dot" class="nav-bridge-dot" title="Bridge service status"></span></button>
-  <button data-tab="bandwidth" title="LAN peer-cache bandwidth savings">Bandwidth</button>
-  <button data-tab="settings">Settings</button>
-  <button data-tab="about" title="Version, license, and open-source attributions">About</button>
-</nav>
-<main id="main">
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="app-shell">
+
+  <!-- ===================== Topbar ===================== -->
+  <header class="app-topbar">
+    <div class="gf-brand">
+      <img class="gf-logo-img" src="assets/ringosystems-mark-compact.svg" alt="" aria-hidden="true" width="36" height="36" decoding="async">
+      <div class="brand-text">
+        <span class="gf-brand-name">RepoFabric</span>
+        <!-- RingoSystems is ONE word; only Ringo carries the heavy weight. Set as
+             HTML text rather than baked into the image so it renders in Inter at
+             the standard's weights and stays crisp at any zoom. -->
+        <span class="gf-brand-sub"><span class="rs-word"><b>Ringo</b>Systems</span> Heavy Industries</span>
+      </div>
+    </div>
+
+    <div class="topbar-identity">
+      <span class="gf-eyebrow is-muted" aria-hidden="true"></span>
+      <div class="meta" id="meta">loading&hellip;</div>
+    </div>
+
+    <div class="topbar-actions">
+      <button type="button" id="btn-compare-deployments" class="gf-btn" hidden
+              title="See what the recommended full deployment adds — capabilities, management, and security. It's free too.">Sandbox vs Recommended</button>
+      <a class="gf-btn" href="/admin/docs/" target="_blank" rel="noopener"
+         title="Deployment walkthrough, per-platform setup, reverse proxy, troubleshooting.">Docs</a>
+      <a class="gf-btn signout" href="auth/logout">Sign out</a>
+    </div>
+  </header>
+
+  <div class="app-body">
+
+    <!-- ===================== Left rail =====================
+         Standard §5/§6: left navigation, muted labels, active item carries a
+         copper-tinted border. Grouped by what the operator is trying to DO
+         rather than by which screen happens to exist. -->
+    <nav id="tabs" class="app-rail" aria-label="Sections">
+      <div class="rail-group">
+        <span class="rail-group-label">Operate</span>
+        <button data-tab="subscriptions" class="active"><i aria-hidden="true">◆</i><span>Catalog</span></button>
+        <button data-tab="inventory" title="Every version actually in a repo, compared against the primary repo"><i aria-hidden="true">▤</i><span>Inventory</span></button>
+        <button data-tab="activity"><i aria-hidden="true">◎</i><span>Activity</span><span id="nav-bridge-dot" class="nav-bridge-dot" title="Bridge service status"></span></button>
+      </div>
+      <div class="rail-group">
+        <span class="rail-group-label">Measure</span>
+        <button data-tab="bandwidth" title="LAN peer-cache bandwidth savings"><i aria-hidden="true">◇</i><span>Bandwidth</span></button>
+      </div>
+      <div class="rail-group">
+        <span class="rail-group-label">Govern</span>
+        <button data-tab="apiclients" title="System-to-system ingest clients: who/what can upload, audit trail, and revoke"><i aria-hidden="true">⌘</i><span>API Clients</span></button>
+        <button data-tab="settings"><i aria-hidden="true">⚙</i><span>Settings</span></button>
+      </div>
+      <div class="rail-group rail-group--foot">
+        <button data-tab="about" title="Version, license, and open-source attributions"><i aria-hidden="true">◈</i><span>About</span></button>
+      </div>
+    </nav>
+
+    <main id="main">
 
 <section id="tab-subscriptions" class="tab active">
   <div id="drift-banner" class="drift-banner" hidden></div>
@@ -176,6 +220,7 @@
       <button type="button" class="activity-filter is-active" data-filter="all" aria-pressed="true">All</button>
       <button type="button" class="activity-filter" data-filter="sync" aria-pressed="false">Sync</button>
       <button type="button" class="activity-filter" data-filter="admin" aria-pressed="false">Admin actions</button>
+      <button type="button" class="activity-filter" data-filter="ingest" aria-pressed="false">Ingest / API</button>
       <button type="button" class="activity-filter" data-filter="failures" aria-pressed="false">Failures only</button>
     </div>
     <span class="toolbar-spacer"></span>
@@ -189,6 +234,109 @@
     <tbody></tbody>
   </table>
 </section>
+
+<!-- ===================== API Clients (RFIP) ===================== -->
+<section id="tab-apiclients" class="tab">
+  <div class="ingest-intro">
+    <h3>System-to-system ingest clients</h3>
+    <span class="muted">Registered consumers of the RepoFabric Ingest Protocol (e.g. Kamino). Each client authenticates with a bearer key <strong>and</strong> a required RFC 9421 signature; revoking a client disables both at once.</span>
+  </div>
+  <div class="toolbar">
+    <span class="toolbar-spacer"></span>
+    <button type="button" id="btn-ingest-register" class="primary" title="Register a new ingest client and issue its credentials">Register client</button>
+    <button type="button" id="btn-ingest-refresh" class="ghost">Refresh</button>
+  </div>
+  <div id="ingest-clients-empty" class="muted" hidden>No ingest clients registered yet. Click “Register client” to onboard a consumer.</div>
+  <table id="ingest-clients-table">
+    <thead><tr>
+      <th>Client</th><th>Status</th><th>Capabilities</th><th>Allowed repos</th><th>Last used</th><th>Key fingerprint</th><th>Actions</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<!-- Register ingest client -->
+<dialog id="dlg-ingest-register" class="modal">
+  <h3>Register ingest client</h3>
+  <form id="frm-ingest-register" method="dialog">
+    <label>Client ID (slug)
+      <input id="ingest-reg-id" required pattern="[a-z0-9][a-z0-9-]{0,62}" placeholder="kamino" title="Lower-case letters, digits, hyphens. Doubles as the RFC 9421 keyid the client signs with.">
+    </label>
+    <label>Display name
+      <input id="ingest-reg-name" required placeholder="Kamino build pipeline">
+    </label>
+    <label>Owner / contact (optional)
+      <input id="ingest-reg-owner" placeholder="platform-team@example.com">
+    </label>
+    <label>Allowed repos
+      <select id="ingest-reg-repos" multiple size="4" title="Repos this client may publish into"></select>
+    </label>
+    <fieldset class="ingest-key-mode">
+      <legend>Signing key</legend>
+      <label class="radio"><input type="radio" name="ingest-reg-keymode" value="supplied" checked> Client supplies its public key (recommended)</label>
+      <label>Public key (base64 SPKI DER, P-256)
+        <textarea id="ingest-reg-spki" rows="3" placeholder="MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE..."></textarea>
+      </label>
+      <label class="radio"><input type="radio" name="ingest-reg-keymode" value="issue"> RepoFabric issues the key pair (private key shown once)</label>
+    </fieldset>
+    <menu>
+      <button type="button" id="btn-ingest-register-cancel" class="ghost">Cancel</button>
+      <button type="submit" id="btn-ingest-register-submit" value="default" class="primary">Register + issue</button>
+    </menu>
+  </form>
+</dialog>
+
+<!-- One-time credential reveal -->
+<dialog id="dlg-ingest-reveal" class="modal">
+  <h3>Save these credentials now</h3>
+  <p class="muted">They are shown <strong>once</strong> and can never be retrieved again. Convey them to the client over a secure channel.</p>
+  <label>Bearer token
+    <div class="reveal-row"><code id="ingest-reveal-token"></code><button type="button" class="ghost" data-copy="ingest-reveal-token">Copy</button></div>
+  </label>
+  <div id="ingest-reveal-privkey-wrap" hidden>
+    <label>Private key (PKCS#8 PEM) — RepoFabric-issued
+      <div class="reveal-row"><textarea id="ingest-reveal-privkey" rows="5" readonly></textarea><button type="button" class="ghost" data-copy="ingest-reveal-privkey">Copy</button></div>
+    </label>
+  </div>
+  <label>Public key fingerprint (SHA-256): <code id="ingest-reveal-fp"></code></label>
+  <menu>
+    <label class="ack"><input type="checkbox" id="ingest-reveal-ack"> I have stored these credentials securely.</label>
+    <button type="button" id="btn-ingest-reveal-close" class="primary" disabled>Done</button>
+  </menu>
+</dialog>
+
+<!-- Per-client detail + audit drill-down -->
+<dialog id="dlg-ingest-detail" class="modal wide">
+  <h3 id="ingest-detail-title">Client</h3>
+  <div id="ingest-detail-meta" class="ingest-detail-meta"></div>
+  <div class="toolbar">
+    <strong>Recent activity</strong>
+    <span class="toolbar-spacer"></span>
+    <button type="button" id="btn-ingest-detail-refresh" class="ghost">Refresh</button>
+  </div>
+  <table id="ingest-detail-events">
+    <thead><tr><th>Time</th><th>Verb</th><th>Repo</th><th>Package</th><th>Outcome</th><th>Status</th><th>Reason / signature</th><th>Bytes</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <menu>
+    <button type="button" id="btn-ingest-detail-close" class="ghost">Close</button>
+  </menu>
+</dialog>
+
+<!-- Revoke confirmation -->
+<dialog id="dlg-ingest-revoke" class="modal">
+  <h3>Revoke ingest client</h3>
+  <p class="muted">Revocation is <strong>immediate and permanent</strong>. It disables both the bearer key and the signing key. To pause reversibly instead, use Suspend.</p>
+  <p>Revoking <code id="ingest-revoke-id"></code>. Type the client ID to confirm:</p>
+  <input id="ingest-revoke-confirm" placeholder="client id">
+  <label>Reason (required)
+    <input id="ingest-revoke-reason" required placeholder="e.g. pipeline decommissioned">
+  </label>
+  <menu>
+    <button type="button" id="btn-ingest-revoke-cancel" class="ghost">Cancel</button>
+    <button type="button" id="btn-ingest-revoke-confirm" class="danger" disabled>Revoke</button>
+  </menu>
+</dialog>
 
 <!-- Reconcile retention preview -> apply modal -->
 <dialog id="dlg-reconcile" class="modal">
@@ -390,20 +538,42 @@
 </section>
 
 <section id="tab-about" class="tab">
-  <div class="about-head">
-    <h2 id="about-product">RepoFabric</h2>
-    <span class="muted" id="about-version">loading...</span>
+  <!-- The full lockup sits behind this page as a low-opacity watermark; see
+       #tab-about::before in app.css. Decorative only, aria-hidden by virtue of
+       being a background. -->
+  <header class="about-hero">
+    <div class="about-hero-copy">
+      <span class="gf-eyebrow">RingoSystems Heavy Industries</span>
+      <div class="about-head">
+        <h2 id="about-product" class="gf-display gf-display-2">RepoFabric</h2>
+        <span class="about-version-pill" id="about-version">loading...</span>
+      </div>
+      <p class="about-copy muted" id="about-copyright"></p>
+      <p class="about-copy">Project repository:
+        <a id="about-repo" href="https://github.com/Ringosystems/RepoFabric" target="_blank" rel="noopener">github.com/Ringosystems/RepoFabric</a>
+      </p>
+    </div>
+    <!-- The identity is shown, not hinted at. About is the one page where the
+         company mark belongs at full strength, so it is a real element here
+         rather than a cropped background wash. -->
+    <div class="about-brand">
+      <img src="assets/ringosystems-lockup.svg" alt="RingoSystems Heavy Industries" width="760" height="668">
+    </div>
+  </header>
+
+  <div class="about-grid">
+    <section class="about-panel">
+      <h3>License</h3>
+      <p class="muted about-copy">RepoFabric is released under the MIT License.</p>
+      <pre id="about-license" class="cfg about-text">loading license...</pre>
+    </section>
+
+    <section class="about-panel">
+      <h3>Open-source attributions</h3>
+      <p class="muted about-copy">RepoFabric includes and builds upon third-party open-source software. The notices below reproduce the copyright and license texts their licenses require. The authoritative copy ships with the source as <code>THIRD-PARTY-NOTICES.md</code>.</p>
+      <pre id="about-notices" class="cfg about-text">loading third-party notices...</pre>
+    </section>
   </div>
-  <p class="muted" id="about-copyright"></p>
-  <p>Project repository: <a id="about-repo" href="https://github.com/Ringosystems/RepoFabric" target="_blank" rel="noopener">github.com/Ringosystems/RepoFabric</a></p>
-
-  <h3>License</h3>
-  <p class="muted">RepoFabric is released under the MIT License.</p>
-  <pre id="about-license" class="cfg about-text">loading license...</pre>
-
-  <h3>Open-source attributions</h3>
-  <p class="muted">RepoFabric includes and builds upon third-party open-source software. The notices below reproduce the copyright and license texts their licenses require. The authoritative copy ships with the source as <code>THIRD-PARTY-NOTICES.md</code>.</p>
-  <pre id="about-notices" class="cfg about-text">loading third-party notices...</pre>
 
   <p class="muted about-tm">WinGet, Intune, Microsoft Entra ID, BranchCache, Delivery Optimization, and Windows are trademarks of the Microsoft group of companies. Docker is a trademark of Docker, Inc. All other trademarks are the property of their respective owners; their use here is nominative and does not imply endorsement.</p>
 </section>
@@ -466,7 +636,9 @@
   </table>
 </section>
 
-</main>
+    </main>
+  </div>
+</div>
 
 <dialog id="dlg-sub">
   <form id="frm-sub">

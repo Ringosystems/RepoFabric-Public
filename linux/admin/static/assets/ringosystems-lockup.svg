@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 668" width="760" height="668" role="img" aria-label="RingoSystems Heavy Industries">
+  <title>RingoSystems Heavy Industries</title>
+  <!--
+    RingoSystems vertical lockup — mark + wordmark. RingoSystems Heavy Industries.
+    RingoSystems Graphite Forge v1.0. Self-contained: no external refs, no webfont.
+
+    THE WORDMARK IS THE REFACTOR. The source raster was composited on white then
+    keyed, so every glyph carried a white matte halo. This is live text in the
+    standard's face (Inter, §4). RingoSystems is ONE word and only "Ringo" is
+    heavy: real weights, 800 against 200, at the standard's -.045em display
+    tracking. HEAVY INDUSTRIES takes wide positive tracking so a short uppercase
+    line reads as a descriptor.
+
+    Fill is an explicit light value, not currentColor: an SVG embedded via <img>
+    is an independent document and cannot inherit the host page's colour, so
+    currentColor resolved to near-black and vanished on graphite. Graphite Forge
+    is dark-native only, so light is simply correct. Override .rs-wordmark for a
+    light-background export.
+
+    Mark geometry is generated from ringosystems-mark.svg so the two cannot drift.
+  -->
+<defs>
+    <linearGradient id="L-shell" x1=".15" y1="0" x2=".85" y2="1">
+      <stop offset="0" stop-color="#454E59"/><stop offset=".45" stop-color="#2E343C"/><stop offset="1" stop-color="#1C2127"/>
+    </linearGradient>
+    <linearGradient id="L-bezel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F2F6FA"/><stop offset=".22" stop-color="#A9B2BC"/>
+      <stop offset=".45" stop-color="#E4EAF0"/><stop offset=".68" stop-color="#79818B"/>
+      <stop offset=".86" stop-color="#C8D0D8"/><stop offset="1" stop-color="#6B737C"/>
+    </linearGradient>
+    <radialGradient id="L-die" cx=".5" cy=".5" r=".66">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset=".07" stop-color="#CDF4FF"/>
+      <stop offset=".22" stop-color="#5FC8EE"/><stop offset=".46" stop-color="#2183D4"/>
+      <stop offset=".74" stop-color="#125595"/><stop offset="1" stop-color="#0B3A6B"/>
+    </radialGradient>
+    <pattern id="L-lattice" width="9" height="9" patternUnits="userSpaceOnUse">
+      <circle cx="4.5" cy="4.5" r="1.5" fill="#D8F4FF" fill-opacity=".5"/>
+    </pattern>
+    <filter id="L-bloom" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="13"/></filter>
+    <filter id="L-edge" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+    <clipPath id="L-dieclip"><rect x="170" y="170" width="172" height="172" rx="9"/></clipPath>
+  </defs>
+  <g transform="translate(124 -4)">
+
+  <!-- ===================== Lead frame =====================
+       Eight per side on a 30px pitch. Each breaks outward from centre so the set
+       fans, matching the source. Inner five copper, outer three steel. -->
+  <g fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#B87840">
+      <path d="M151 118v-22l-30-34"/><path d="M181 118v-22l-21-34"/><path d="M211 118v-22l-13-34"/><path d="M241 118v-22l-4-34"/><path d="M271 118v-22l4-34"/>
+    </g>
+    <g stroke="#8B939C">
+      <path d="M301 118v-22l13-34"/><path d="M331 118v-22l21-34"/><path d="M361 118v-22l30-34"/>
+    </g>
+    <g stroke="#B87840">
+      <path d="M151 394v22l-30 34"/><path d="M181 394v22l-21 34"/><path d="M211 394v22l-13 34"/><path d="M241 394v22l-4 34"/><path d="M271 394v22l4 34"/>
+    </g>
+    <g stroke="#8B939C">
+      <path d="M301 394v22l13 34"/><path d="M331 394v22l21 34"/><path d="M361 394v22l30 34"/>
+    </g>
+    <g stroke="#B87840">
+      <path d="M118 151h-22l-34-30"/><path d="M118 181h-22l-34-21"/><path d="M118 211h-22l-34-13"/><path d="M118 241h-22l-34-4"/><path d="M118 271h-22l-34 4"/>
+    </g>
+    <g stroke="#8B939C">
+      <path d="M118 301h-22l-34 13"/><path d="M118 331h-22l-34 21"/><path d="M118 361h-22l-34 30"/>
+    </g>
+    <g stroke="#B87840">
+      <path d="M394 151h22l34-30"/><path d="M394 181h22l34-21"/><path d="M394 211h22l34-13"/><path d="M394 241h22l34-4"/><path d="M394 271h22l34 4"/>
+    </g>
+    <g stroke="#8B939C">
+      <path d="M394 301h22l34 13"/><path d="M394 331h22l34 21"/><path d="M394 361h22l34 30"/>
+    </g>
+  </g>
+
+  <!-- Ring pads. Light core, as in the source — this highlight is what makes the
+       lead frame read at small sizes. -->
+  <g fill="#F4F7FA" stroke-width="5.5">
+    <g stroke="#B87840">
+      <circle cx="121" cy="62" r="8"/><circle cx="160" cy="62" r="8"/><circle cx="198" cy="62" r="8"/><circle cx="237" cy="62" r="8"/><circle cx="275" cy="62" r="8"/>
+      <circle cx="121" cy="450" r="8"/><circle cx="160" cy="450" r="8"/><circle cx="198" cy="450" r="8"/><circle cx="237" cy="450" r="8"/><circle cx="275" cy="450" r="8"/>
+      <circle cx="62" cy="121" r="8"/><circle cx="62" cy="160" r="8"/><circle cx="62" cy="198" r="8"/><circle cx="62" cy="237" r="8"/><circle cx="62" cy="275" r="8"/>
+      <circle cx="450" cy="121" r="8"/><circle cx="450" cy="160" r="8"/><circle cx="450" cy="198" r="8"/><circle cx="450" cy="237" r="8"/><circle cx="450" cy="275" r="8"/>
+    </g>
+    <g stroke="#8B939C">
+      <circle cx="314" cy="62" r="8"/><circle cx="352" cy="62" r="8"/><circle cx="391" cy="62" r="8"/>
+      <circle cx="314" cy="450" r="8"/><circle cx="352" cy="450" r="8"/><circle cx="391" cy="450" r="8"/>
+      <circle cx="62" cy="314" r="8"/><circle cx="62" cy="352" r="8"/><circle cx="62" cy="391" r="8"/>
+      <circle cx="450" cy="314" r="8"/><circle cx="450" cy="352" r="8"/><circle cx="450" cy="391" r="8"/>
+    </g>
+  </g>
+
+  <!-- ===================== Package: layered ===================== -->
+  <rect x="110" y="110" width="292" height="292" rx="26" fill="url(#L-shell)"/>
+  <rect x="110.75" y="110.75" width="290.5" height="290.5" rx="25.25" fill="none" stroke="#5A636E" stroke-width="1.5"/>
+  <rect x="118" y="118" width="276" height="276" rx="21" fill="none" stroke="#151A1F" stroke-opacity=".8" stroke-width="2"/>
+  <!-- recessed step -->
+  <rect x="132" y="132" width="248" height="248" rx="18" fill="#20252C"/>
+  <rect x="132" y="132" width="248" height="248" rx="18" fill="none" stroke="#0F1216" stroke-opacity=".7" stroke-width="1.5"/>
+
+  <!-- Machined bezel: shade, body, highlight. -->
+  <rect x="150" y="150" width="212" height="212" rx="18" fill="none" stroke="#0E1216" stroke-opacity=".7" stroke-width="20"/>
+  <rect x="150" y="150" width="212" height="212" rx="18" fill="none" stroke="url(#L-bezel)" stroke-width="16"/>
+  <rect x="143" y="143" width="226" height="226" rx="22" fill="none" stroke="#EEF3F8" stroke-opacity=".28" stroke-width="1.5"/>
+  <rect x="159" y="159" width="194" height="194" rx="13" fill="none" stroke="#0B0E12" stroke-opacity=".6" stroke-width="2"/>
+
+  <!-- Bond-pad combs along all four die edges. -->
+  <g stroke="#96A0AB" stroke-width="2.2" stroke-linecap="round" opacity=".85">
+    <g>
+      <path d="M186 163v7"/><path d="M196 163v7"/><path d="M206 163v7"/><path d="M216 163v7"/><path d="M226 163v7"/><path d="M236 163v7"/><path d="M246 163v7"/><path d="M256 163v7"/><path d="M266 163v7"/><path d="M276 163v7"/><path d="M286 163v7"/><path d="M296 163v7"/><path d="M306 163v7"/><path d="M316 163v7"/><path d="M326 163v7"/>
+      <path d="M186 342v7"/><path d="M196 342v7"/><path d="M206 342v7"/><path d="M216 342v7"/><path d="M226 342v7"/><path d="M236 342v7"/><path d="M246 342v7"/><path d="M256 342v7"/><path d="M266 342v7"/><path d="M276 342v7"/><path d="M286 342v7"/><path d="M296 342v7"/><path d="M306 342v7"/><path d="M316 342v7"/><path d="M326 342v7"/>
+      <path d="M163 186h7"/><path d="M163 196h7"/><path d="M163 206h7"/><path d="M163 216h7"/><path d="M163 226h7"/><path d="M163 236h7"/><path d="M163 246h7"/><path d="M163 256h7"/><path d="M163 266h7"/><path d="M163 276h7"/><path d="M163 286h7"/><path d="M163 296h7"/><path d="M163 306h7"/><path d="M163 316h7"/><path d="M163 326h7"/>
+      <path d="M342 186h7"/><path d="M342 196h7"/><path d="M342 206h7"/><path d="M342 216h7"/><path d="M342 226h7"/><path d="M342 236h7"/><path d="M342 246h7"/><path d="M342 256h7"/><path d="M342 266h7"/><path d="M342 276h7"/><path d="M342 286h7"/><path d="M342 296h7"/><path d="M342 306h7"/><path d="M342 316h7"/><path d="M342 326h7"/>
+    </g>
+  </g>
+
+  <!-- Corner fasteners -->
+  <g>
+    <g fill="#1B2026" stroke="#69727D" stroke-width="2.5">
+      <circle cx="145" cy="145" r="9"/><circle cx="367" cy="145" r="9"/><circle cx="145" cy="367" r="9"/><circle cx="367" cy="367" r="9"/>
+    </g>
+    <g fill="none" stroke="#39414A" stroke-width="1.5">
+      <circle cx="145" cy="145" r="4.5"/><circle cx="367" cy="145" r="4.5"/><circle cx="145" cy="367" r="4.5"/><circle cx="367" cy="367" r="4.5"/>
+    </g>
+  </g>
+
+  <!-- ===================== Die ===================== -->
+  <rect x="170" y="170" width="172" height="172" rx="9" fill="#062744"/>
+  <rect x="170" y="170" width="172" height="172" rx="9" fill="url(#L-die)"/>
+  <g clip-path="url(#L-dieclip)"><rect x="170" y="170" width="172" height="172" fill="url(#L-lattice)"/></g>
+  <!-- edge glow, then core bloom -->
+  <rect x="170" y="170" width="172" height="172" rx="9" fill="none" stroke="#67D8F5" stroke-width="4" opacity=".7" filter="url(#L-edge)"/>
+  <circle cx="256" cy="256" r="30" fill="#E6FBFF" fill-opacity=".92" filter="url(#L-bloom)"/>
+  <circle cx="256" cy="256" r="6.5" fill="#FFFFFF"/>
+  <rect x="170.75" y="170.75" width="170.5" height="170.5" rx="8.5" fill="none" stroke="#A7EDFF" stroke-opacity=".85" stroke-width="1.5"/>
+  </g>
+
+  <g class="rs-wordmark" fill="#F7F9FB" text-anchor="middle"
+     font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">
+    <text x="380" y="586" font-size="106" letter-spacing="-4.8">
+      <tspan font-weight="800">Ringo</tspan><tspan font-weight="200">Systems</tspan>
+    </text>
+    <text x="380" y="642" font-size="29" font-weight="500" letter-spacing="10.5" fill-opacity=".82">HEAVY INDUSTRIES</text>
+  </g>
+</svg>

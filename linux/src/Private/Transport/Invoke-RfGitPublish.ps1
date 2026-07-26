@@ -83,7 +83,14 @@ function Invoke-RfGitPublish {
     # Run git with optional auth header. Stdout/stderr merged; throws on non-zero exit.
     $runGit = {
         param([string[]]$ArgList, [switch]$Auth)
-        $fullArgs = @()
+        # Pin the global attributes/excludes files to /dev/null. The service runs
+        # as a non-root user while HOME is still /root, so every git invocation
+        # emitted "warning: unable to access '/root/.config/git/attributes':
+        # Permission denied" into the captured output. Harmless, but it rode along
+        # in every error message and sent operators chasing a permissions problem
+        # that had nothing to do with the actual failure. Repo-level
+        # .gitattributes is unaffected.
+        $fullArgs = @('-c', 'core.attributesFile=/dev/null', '-c', 'core.excludesFile=/dev/null')
         if ($Auth) {
             $fullArgs += @('-c', "http.$cloneUrl.extraHeader=$extraHeader")
             $fullArgs += @('-c', "http.extraHeader=$extraHeader")
@@ -240,6 +247,15 @@ function Invoke-RfGitPublish {
             & $runGit -ArgList @('push', 'origin', $branch) -Auth | Out-Null
         } catch {
             & $runGit -ArgList @('reset', '--hard', "origin/$branch") 2>$null | Out-Null
+            # Gitea refuses an unauthorised push via its pre-receive hook, which
+            # reads like branch protection. Only on this failure path (zero cost to
+            # a successful publish) ask Gitea whether the real cause is a missing
+            # write grant, and append the concrete fix.
+            $pushErr = $_.Exception.Message
+            if ($pushErr -match 'pre-receive hook declined|permission denied for writing|\b403\b') {
+                $diag = Get-RfGiteaPushDiagnosis -Configuration $Configuration -RepoPath ([string]$target.gitea_repo)
+                if ($diag) { throw "$pushErr`n`n$diag" }
+            }
             throw
         }
 

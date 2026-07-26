@@ -61,6 +61,24 @@ function Test-RfIsSignedLeg {
     return $false
 }
 
+function Test-RfIsIngestSignedLeg {
+    <#
+    .SYNOPSIS
+        True if a (method, path) is a mutating RFIP ingest leg that MUST carry an
+        RFC 9421 signature verified against the client's pinned key
+        (Test-RfIngestSignature). Distinct from Test-RfIsSignedLeg because ingest
+        uses the DB-backed per-client key store, not the fabric trust bundle, and
+        is ALWAYS enforced independent of the cross-fabric signing.mode.
+        The discovery GETs are read-only (unsigned) and the binary push leg is
+        multipart + hash-bound (terminates in Node), so neither is included here.
+    #>
+    [OutputType([bool])]
+    param([Parameter(Mandatory)][string]$Method, [Parameter(Mandatory)][string]$Path)
+    if ($Method -eq 'POST' -and $Path -eq   '/api/v1/ingest/packages')  { return $true }
+    if (($Method -eq 'PUT' -or $Method -eq 'DELETE') -and $Path -like '/api/v1/ingest/packages/*') { return $true }
+    return $false
+}
+
 function Resolve-RfSignedRequestUri {
     <#
     .SYNOPSIS

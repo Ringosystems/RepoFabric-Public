@@ -39,6 +39,10 @@ function Invoke-RfSqliteScript {
         [string]$SqliteBin = 'sqlite3'
     )
 
+    # Fail with a readable error if the engine is missing/blocked, rather than
+    # letting a $null result surface as a null-reference in some later caller.
+    Assert-RfSqliteBinary -SqliteBin $SqliteBin
+
     # PRAGMA busy_timeout is connection-scoped; the sqlite3 CLI opens a
     # fresh connection. Prepend it inline so multi-statement scripts
     # (migrations, cascade deletes, bulk index writes) wait for
@@ -53,7 +57,14 @@ function Invoke-RfSqliteScript {
         [System.IO.File]::WriteAllText($tmp, $Script)
         $stderrFile = [System.IO.Path]::GetTempFileName()
         try {
-            $stdout = & $SqliteBin $DataSource ".read $tmp" 2>$stderrFile
+            # -bail: stop and exit non-zero on the FIRST failed statement. Without
+            # it, sqlite3 continues past an error (e.g. a mid-transaction failure
+            # or a lock that outlasts busy_timeout) and exits 0 if the last
+            # statement succeeds, so a partially-applied migration would go
+            # undetected while a later migration still advances schema_version.
+            # -bail makes the runner throw, the (uncommitted) transaction rolls
+            # back, schema_version is unchanged, and boot retries cleanly.
+            $stdout = & $SqliteBin -bail $DataSource ".read $tmp" 2>$stderrFile
             $exit = $LASTEXITCODE
             if ($exit -ne 0) {
                 $err = if (Test-Path $stderrFile) { (Get-Content -Raw -Path $stderrFile) } else { '' }

@@ -1,0 +1,120 @@
+# RepoFabric single-container image, Alpine/musl variant.
+#
+# Functionally identical to linux/Dockerfile but built on Alpine (musl) instead
+# of Debian. The only thing that made the PowerShell backend Debian-only was the
+# SQLite access layer: it now uses the sqlite3 CLI (musl-native) instead of a
+# System.Data.SQLite-based module (glibc-only), so the same code runs on both.
+#
+# Why bother: the Debian image carries ~68 HIGH/CRITICAL CVEs (all stuck unfixed
+# upstream, dominated by the perl and python tails that exiftool and supervisor
+# pull in); on Alpine those packages are current and the same image scans at a
+# couple of fixable findings, at roughly half the size.
+
+ARG INCLUDE_CONFIGFABRIC=false
+
+# Base images as build args so a reproducible build can pin them to digests.
+ARG BASE_NODE_IMAGE=node:20-alpine
+ARG BASE_PWSH_IMAGE=mcr.microsoft.com/powershell:lts-alpine-3.20
+
+# ---------- stage 1: build the Node admin -----------------------------------
+FROM ${BASE_NODE_IMAGE} AS node-builder
+
+ARG NPM_INSTALL_MODE=ci
+WORKDIR /build/admin
+# better-sqlite3 is a native addon; on musl it may need to compile rather than
+# use a prebuilt, so provide the toolchain. node:20-alpine and the runtime's apk
+# nodejs are both Node 20, so the built addon is ABI-compatible at runtime.
+RUN apk add --no-cache python3 make g++
+COPY admin/package.json admin/package-lock.json* ./
+RUN if [ "$NPM_INSTALL_MODE" = "ci" ] && [ -f package-lock.json ]; then \
+        npm ci --omit=dev --no-audit --no-fund; \
+    else \
+        npm install --omit=dev --no-audit --no-fund; \
+    fi
+COPY admin/src ./src
+COPY admin/static ./static
+
+# ---------- optional ConfigFabric vendor source (selected by build ARG) -----
+FROM busybox AS cf-false
+RUN mkdir -p /cf/src /cf/static
+
+FROM busybox AS cf-true
+COPY vendor/configfabric/linux/src           /cf/src
+COPY vendor/configfabric/linux/admin/static  /cf/static
+
+FROM cf-${INCLUDE_CONFIGFABRIC} AS cf-vendor
+
+# ---------- stage 2: final image --------------------------------------------
+FROM ${BASE_PWSH_IMAGE}
+
+# OS deps via apk (main + community). apk upgrade pulls the latest Alpine
+# security patches on every build, the same posture as the Debian image's
+# apt-get dist-upgrade. docker-cli is the client only (no daemon) so the
+# pwsh-bridge can spawn and tear down per-repo Rewinged containers over the host
+# docker socket. sqlite provides the sqlite3 CLI, the SQLite engine for the
+# PowerShell backend. bash is needed by the entrypoint and helper scripts.
+#   openssl    : entrypoint.sh generates the one-time setup token (Debian base
+#                ships it; Alpine does not).
+#   shadow     : groupadd / usermod, used by entrypoint.sh to grant the
+#                repofabric user the host docker socket's group (busybox lacks
+#                them). 'shadow' also provides getent for the same block.
+RUN set -eux; \
+    apk upgrade --no-cache; \
+    apk add --no-cache \
+        bash ca-certificates curl gnupg openssl shadow supervisor dcron git \
+        sqlite tini tzdata msitools unzip exiftool \
+        nodejs docker-cli; \
+    # supervisord.conf (shared with the Debian image) runs the cron daemon as
+    # /usr/sbin/cron -f; Alpine's dcron daemon is 'crond', so alias it so the
+    # same supervisord program works on both bases. dcron's crond supports -f.
+    ln -sf "$(command -v crond)" /usr/sbin/cron
+
+# PowerShell modules. powershell-yaml + ThreadJob are the runtime deps; Pester
+# ships so the suite can run via `docker exec`. No SQLite module is installed,
+# by design (the sqlite3 CLI is the engine). Pin versions for reproducibility.
+RUN pwsh -NoLogo -NoProfile -Command \
+    "Set-PSRepository PSGallery -InstallationPolicy Trusted; \
+     Install-Module powershell-yaml -RequiredVersion 0.4.12 -Scope AllUsers -Force; \
+     Install-Module ThreadJob     -RequiredVersion 2.0.3 -Scope AllUsers -Force; \
+     Install-Module Pester        -RequiredVersion 5.5.0 -Scope AllUsers -Force; \
+     Install-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.1.1 -Scope AllUsers -Force"
+
+# UNRAID nobody/users uid:gid for volume compatibility. GID 100 is the existing
+# 'users' group on Alpine, so create only the repofabric user (uid 99) in it.
+RUN adduser -u 99 -G users -D -s /sbin/nologin -h /var/lib/repofabric repofabric 2>/dev/null || true
+
+# Node admin from builder.
+COPY --from=node-builder /build/admin /opt/repofabric-admin
+
+# PowerShell module.
+COPY src /opt/repofabric/src
+
+# ConfigFabric absorption (empty by default; vendored tree when built with
+# --build-arg INCLUDE_CONFIGFABRIC=true). All inert unless CONFIGFABRIC_ENABLED.
+COPY --from=cf-vendor /cf/src     /opt/configfabric/src
+COPY --from=cf-vendor /cf/static  /opt/repofabric-admin/static/cf
+
+# Vendored WinGet manifest schemas + Pester unit tests.
+COPY schemas /opt/repofabric/schemas
+COPY tests /opt/repofabric/tests
+
+# Supervisor, cron, entrypoint. Alpine's dcron reads per-user crontabs from
+# /etc/crontabs/<user>, so the crontab is installed there directly (the Debian
+# image imports it with `crontab -u`).
+COPY supervisord.conf /etc/supervisor/conf.d/repofabric.conf
+COPY crontab /etc/crontabs/repofabric
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY initial-index.sh /usr/local/bin/initial-index.sh
+RUN chmod 0755 /usr/local/bin/entrypoint.sh /usr/local/bin/initial-index.sh && chmod 0600 /etc/crontabs/repofabric
+
+# Persistent state and config live under /var/lib/repofabric (bind-mounted from
+# the host).
+RUN mkdir -p /var/lib/repofabric /var/cache/repofabric/manifests /etc/repofabric && \
+    chown -R 99:100 /var/lib/repofabric /var/cache/repofabric
+
+EXPOSE 8086 8091
+
+# tini and supervisord are resolved via PATH (Alpine installs tini at /sbin,
+# supervisord at /usr/bin; both differ from Debian, so let the OS find them).
+ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint.sh"]
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/repofabric.conf"]

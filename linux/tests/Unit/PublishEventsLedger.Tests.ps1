@@ -80,6 +80,19 @@ Describe 'publish_events ledger: source_fabric + identity override' {
         }
     }
 
+    It 'stores manifest_files_json as a FLAT array (no -AsArray double-nesting)' {
+        InModuleScope RepoFabric -Parameters @{ Db = $script:Db.DatabasePath } {
+            param($Db)
+            $id = Add-RfPublishEvent -DataSource $Db -RepoId 'main' -EventType 'publish' `
+                -PackageId 'Flat.Test' -PackageVersion '1.0.0' -Source 'sync' `
+                -ManifestFiles @('Flat.Test.yaml', 'Flat.Test.installer.yaml', 'Flat.Test.locale.en-US.yaml')
+            $j = @(Invoke-RfSqliteQuery -DataSource $Db -Query 'SELECT manifest_files_json FROM publish_events WHERE publish_event_id = @Id;' -SqlParameters @{ Id = $id })[0].manifest_files_json
+            # Must be a flat array of strings, NOT [["a","b","c"]].
+            ([string]$j).StartsWith('[["') | Should -BeFalse
+            @(ConvertFrom-Json ([string]$j))[0] | Should -Be 'Flat.Test.yaml'
+        }
+    }
+
     It 'Add-RfPublishEvent honors a caller-supplied TimestampUtc' {
         InModuleScope RepoFabric -Parameters @{ Db = $script:Db.DatabasePath } {
             param($Db)

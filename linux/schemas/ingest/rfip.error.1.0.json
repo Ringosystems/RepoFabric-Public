@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repofabric.dev/schemas/ingest/rfip.error.1.0.json",
+  "title": "RepoFabric Ingest Protocol - error response v1.0",
+  "description": "Uniform error body returned by the ingest surface on any non-success status.",
+  "type": "object",
+  "required": ["error"],
+  "properties": {
+    "error": { "type": "string", "description": "Human-readable message." },
+    "reason": {
+      "type": "string",
+      "description": "Stable machine-readable slug.",
+      "examples": [
+        "no_client", "missing_field", "repo_not_allowed", "idempotency_conflict",
+        "staged_hash_mismatch", "binary_verification_failed", "schema_invalid",
+        "version_mismatch", "not_found", "deletion_gate_denied", "bad_signature"
+      ]
+    },
+    "supportedVersions": { "type": "array", "items": { "type": "string" }, "description": "Present on an unsupported protocolVersion (400)." },
+    "allowed": { "type": "array", "items": { "type": "string" }, "description": "Present when a value was outside an allowed set." }
+  }
+}

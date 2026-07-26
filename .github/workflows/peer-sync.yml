@@ -1,0 +1,72 @@
+name: peer-sync
+# Layer 1 of the cross-repo comms pipeline (docs/cross-repo-comms-automation.md).
+# Deterministic mirror of integration-issue activity to the paired issue on the
+# partner fabric repo, plus the awaiting-peer / peer-acked label state machine.
+# No AI. Inert until the PEER_REPO_TOKEN secret is set.
+
+on:
+  issues:
+    types: [closed]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    if: contains(join(github.event.issue.labels.*.name, ','), 'integration')
+    steps:
+      - name: Guard (token present, not a bot, not already a mirror)
+        id: guard
+        env:
+          PEER_REPO_TOKEN: ${{ secrets.PEER_REPO_TOKEN }}
+          ACTOR_TYPE: ${{ github.event.comment.user.type }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          if [ -z "$PEER_REPO_TOKEN" ]; then echo "no PEER_REPO_TOKEN; skipping (pipeline not yet activated)"; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$ACTOR_TYPE" = "Bot" ]; then echo "bot actor; skipping (loop guard)"; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          case "$COMMENT_BODY" in *"<!-- auto-mirrored"*) echo "already a mirror; skipping (loop guard)"; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0 ;; esac
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Extract paired peer issue from the body marker
+        id: peer
+        if: steps.guard.outputs.go == 'true'
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          peer=$(printf '%s' "$ISSUE_BODY" | grep -oiE 'peer:[[:space:]]*[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+' | head -1 | grep -oE '[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+')
+          if [ -z "$peer" ]; then echo "no '<!-- peer: owner/repo#N -->' marker; skipping"; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "ref=$peer" >> "$GITHUB_OUTPUT"
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Mirror to the paired issue and update labels
+        if: steps.peer.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PEER_REPO_TOKEN }}
+          PEER: ${{ steps.peer.outputs.ref }}
+          SELF_REPO: ${{ github.repository }}
+          SELF_NUM: ${{ github.event.issue.number }}
+          SRC_URL: ${{ github.event.issue.html_url }}
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -euo pipefail
+          peer_repo="${PEER%#*}"; peer_num="${PEER##*#}"
+          if [ "$EVENT" = "issue_comment" ]; then
+            excerpt=$(printf '%s' "$COMMENT_BODY" | head -c 600)
+            body=$(printf '<!-- auto-mirrored src=%s -->\n**Partner update on `%s#%s`** by @%s:\n\n> %s\n\n[View the full comment](%s)\n\n_Mirrored by peer-sync._' \
+              "$COMMENT_URL" "$SELF_REPO" "$SELF_NUM" "$COMMENT_AUTHOR" "$excerpt" "$COMMENT_URL")
+            gh issue comment "$peer_num" -R "$peer_repo" --body "$body"
+            gh issue edit "$peer_num" -R "$peer_repo" --add-label "peer-acked,auto-mirrored" || true
+            gh issue edit "$SELF_NUM"  -R "$SELF_REPO"  --add-label "awaiting-peer" || true
+          elif [ "$EVENT" = "issues" ] && [ "$ACTION" = "closed" ]; then
+            body=$(printf '<!-- auto-mirrored -->\nThe paired issue `%s#%s` was **closed**: %s\n\n_Mirrored by peer-sync._' "$SELF_REPO" "$SELF_NUM" "$SRC_URL")
+            gh issue comment "$peer_num" -R "$peer_repo" --body "$body"
+            gh issue edit "$peer_num" -R "$peer_repo" --add-label "peer-acked,auto-mirrored" || true
+          fi

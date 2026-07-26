@@ -21,9 +21,29 @@ function Invoke-RfStateMigration {
                 Wraps the SQL with PRAGMA legacy_alter_table = ON; ... OFF; so
                 SQLite 3.25+ does not rewrite FK target names when renaming.
 
-        Each migration file is idempotent (CREATE TABLE IF NOT EXISTS, etc.).
         Partial application leaves the DB in a recoverable state because the
         BEGIN ... COMMIT inside the composed SQL rolls back on error.
+
+        NOT ALL MIGRATIONS ARE IDEMPOTENT. This block used to claim they were
+        ("each migration file is idempotent (CREATE TABLE IF NOT EXISTS, etc.)"),
+        which is false for roughly 17 of the 42 files and is precisely the false
+        assumption that produced the 038 outage: 038 re-ran a bare
+        ALTER TABLE ... ADD COLUMN that 020 already performs, and SQLite has no
+        IF NOT EXISTS for columns, so every fresh database died on
+        "duplicate column name". Correctness rests on the schema_version gate
+        below applying each file exactly once, NOT on files being re-runnable.
+
+        When adding a migration:
+          * Take the NEXT UNUSED number. Never reuse one: the version is read
+            once before the loop and files with prefix <= it are skipped, so a
+            duplicate number is skipped FOREVER on any DB already at that
+            version, and the DB still reports itself fully migrated. Two files
+            numbered 037 silently cost every affected database its ingest_client
+            and ingest_event tables.
+          * Give it its own migration_NNN_at marker; a shared marker makes a
+            partially applied version indistinguishable from a healthy one.
+          * Before adding a column, check whether an earlier migration already
+            adds it.
 
     .PARAMETER DataSource
         Path to the SQLite database file.
@@ -34,9 +54,7 @@ function Invoke-RfStateMigration {
         [string]$DataSource
     )
 
-    Import-Module MySQLite -ErrorAction Stop
-
-    # Bootstrap state_meta if missing. Single-statement DDL, safe via MySQLite.
+    # Bootstrap state_meta if missing. Single-statement DDL via the sqlite3 CLI.
     Invoke-RfSqliteQuery -DataSource $DataSource -Query @'
 CREATE TABLE IF NOT EXISTS state_meta (
     key   TEXT PRIMARY KEY,

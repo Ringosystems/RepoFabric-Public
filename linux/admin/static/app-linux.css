@@ -1,36 +1,68 @@
-/* Linux fork additions. Layered on top of app.css. */
+/* Linux fork additions. Layered on top of app.css.
+ *
+ * RingoSystems Graphite Forge v1.0 — re-cut.
+ * This sheet loads LAST on index.html, so anything it declares wins. It used to
+ * carry the pre-Graphite-Forge palette (#d6dae3, #8a8f99, #2a2f3a, #2a2213 and
+ * white-on-accent), which meant the flagship Catalog view kept rendering parts
+ * of itself in the old language no matter what the token layer said. Every
+ * literal is now a token, so this file can never drift from the standard again.
+ */
 
-details > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+details > summary { cursor: pointer; font-weight: 620; padding: var(--s-2) 0; }
 
-/* Anchor styled as toolbar button so /publish-custom.html can be middle-
-   click-able while looking native next to the JS-driven buttons. */
+/* Anchor styled as a toolbar button so /publish-custom.html stays middle-
+   click-able while looking native beside the JS-driven buttons.
+   Charcoal glass by default — the copper gradient is reserved for the single
+   primary commitment on a view, and this is not it. */
 .toolbar a.btn {
-  display: inline-block;
-  background: var(--accent);
-  color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  background: var(--gf-surface-glass);
+  border: 1px solid rgba(255,255,255,.08);
+  color: var(--text);
   text-decoration: none;
-  padding: 8px 14px;
-  border-radius: 4px;
-  font-size: 13px;
+  padding: 8px var(--s-3);
+  border-radius: var(--r-md);
+  font-size: var(--fs-md);
   line-height: 1;
+  transition: background var(--gf-ease), border-color var(--gf-ease);
 }
-.toolbar a.btn:hover { filter: brightness(1.1); }
+.toolbar a.btn:hover {
+  background: var(--gf-surface-glass-hover);
+  border-color: var(--gf-copper-36);
+  filter: none;
+}
 
-/* Combined subscriptions tab: managed + custom + untracked stacked
-   with a solid divider so the operator sees what is managed vs what
-   was added by hand. */
-.combined-head { margin: 20px 0 6px 0; font-size: 14px; font-weight: 600; color: #d6dae3; }
-.combined-head small { font-weight: 400; color: #8a8f99; margin-left: 6px; }
-.combined-head-inline { display: inline; margin: 0; font-size: 14px; font-weight: 600; color: #d6dae3; }
+/* Combined subscriptions tab: managed + custom + untracked stacked with a
+   divider so the operator sees what is managed vs what was added by hand. */
+.combined-head {
+  margin: var(--s-5) 0 var(--s-2);
+  font-size: var(--fs-lg);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+  color: var(--text);
+}
+.combined-head small { font-weight: 400; color: var(--text-dim); margin-left: var(--s-2); }
+.combined-head-inline {
+  display: inline;
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+  color: var(--text);
+}
 .combined-divider {
   border: 0;
-  border-top: 2px solid #2a2f3a;
-  margin: 22px 0 8px 0;
+  border-top: 1px solid rgba(255,255,255,.07);   /* borders before shadows: hairline, not a 2px slab */
+  margin: var(--s-5) 0 var(--s-2);
 }
-.combined-untracked { margin-top: 16px; }
-.combined-untracked > summary { padding: 6px 0; }
+.combined-untracked { margin-top: var(--s-4); }
+.combined-untracked > summary { padding: var(--s-2) 0; }
 #custom-table tbody tr { cursor: default; }
-#untracked-table tbody tr { color: #8a8f99; }
+/* Untracked rows are present-but-unmanaged: recede them, but keep the row
+   readable. Colour is not the only signal — they sit under their own heading. */
+#untracked-table tbody tr { color: var(--text-dim); }
 
 /* ===== Read-only mode =====================================================
  * Applied (via body.rf-readonly, set in app.js from /admin/api/features role)
@@ -39,14 +71,17 @@ details > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
  * controls so a read-only operator sees a clean, view-only UI. Read controls
  * (Refresh, filters, tab nav, window pickers) are deliberately left alone. */
 .rf-readonly-banner {
-  background: #2a2213;
-  color: #e8b94b;
-  border-bottom: 1px solid #e8b94b;
-  padding: 8px 20px;
-  font-size: 13px;
-  font-weight: 600;
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-bottom: 1px solid rgba(246,200,95,.34);
+  padding: var(--s-3) var(--s-6);
+  font-size: var(--fs-md);
+  font-weight: 620;
   text-align: center;
 }
+/* State is stated, not merely tinted. */
+.rf-readonly-banner::before { content: "◔  "; font-family: var(--font-mono); }
+
 body.rf-readonly #btn-vrepo-add,
 body.rf-readonly #btn-vrepo-reconcile,
 body.rf-readonly #btn-vrepo-reconcile-retention,

@@ -171,19 +171,20 @@ function Test-RfConfiguration {
         }
 
         # rewinged check: the linux fork stores the base URL at
-        # target.rewinged_url (Get-RfConfiguration); ping /information
-        # which is the WinGet REST source root endpoint.
+        # target.rewinged_url (Get-RfConfiguration). Reuse the shared probe so
+        # this health check hits the correct WinGet REST source root
+        # (/api/information, not /information) exactly like RFIP discovery, and
+        # surfaces the advertised source-API versions. rewinged_url is the
+        # internal container URL (http), so no sandbox-TLS handling is needed.
         if ($config.target.rewinged_url) {
-            try {
-                $rwUri = "$($config.target.rewinged_url.TrimEnd('/'))/information"
-                $rwTls = & $sandboxTls $rwUri
-                $resp = Invoke-RestMethod -Uri $rwUri -Method Get -TimeoutSec 10 -ErrorAction Stop @rwTls
-                Add-Result 'rewinged: /information' 'Pass' "source_identifier=$($resp.Data.SourceIdentifier ?? '<unknown>')"
-            } catch {
-                Add-Result 'rewinged: /information' 'Warn' "Reachability check failed (non-blocking): $($_.Exception.Message)"
+            $rwInfo = Get-RfRewingedInformation -Configuration $config -CacheSeconds 0 -TimeoutSec 10
+            if ($rwInfo.Reachable) {
+                Add-Result 'rewinged: /api/information' 'Pass' "source_identifier=$($rwInfo.SourceIdentifier); versions=$(@($rwInfo.ServerSupportedVersions) -join ',')"
+            } else {
+                Add-Result 'rewinged: /api/information' 'Warn' "Reachability check failed (non-blocking): $($rwInfo.Error)"
             }
         } else {
-            Add-Result 'rewinged: /information' 'Skip' 'target.rewinged_url not set.'
+            Add-Result 'rewinged: /api/information' 'Skip' 'target.rewinged_url not set.'
         }
 
         Add-Result 'SMTP: relay reachability' 'Skip' 'Use Test-RfNotification to probe SMTP.'

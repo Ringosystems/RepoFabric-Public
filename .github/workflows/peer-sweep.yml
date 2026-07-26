@@ -1,0 +1,49 @@
+name: peer-sweep
+# Layer 3 of the cross-repo comms pipeline (docs/cross-repo-comms-automation.md).
+# Scheduled safety net: nudges integration items that breach their response SLA
+# on either repo, so the back-and-forth never silently stalls. Inert until the
+# PEER_REPO_TOKEN secret is set.
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'   # every 2 hours
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Nudge past-SLA awaiting-* items on both repos
+        env:
+          GH_TOKEN: ${{ secrets.PEER_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then echo "no PEER_REPO_TOKEN; skipping (pipeline not yet activated)"; exit 0; fi
+          repos="Ringosystems/RepoFabric Ringosystems/ConfigFabric"
+          now=$(date -u +%s)
+          sla_decision=$((24*3600))   # decisions: nudge after 24h
+          sla_ack=$((4*3600))         # awaiting a peer ack: nudge after 4h
+          for r in $repos; do
+            gh issue list -R "$r" --state open --label integration \
+              --json number,labels,updatedAt --limit 100 > items.json || { echo "list failed for $r"; continue; }
+            jq -c '.[]' items.json | while read -r row; do
+              num=$(echo "$row" | jq -r '.number')
+              upd=$(echo "$row" | jq -r '.updatedAt')
+              labels=$(echo "$row" | jq -r '[.labels[].name] | join(",")')
+              ts=$(date -u -d "$upd" +%s 2>/dev/null || echo "$now")
+              age=$(( now - ts ))
+              case "$labels" in
+                *awaiting-decision*)
+                  if [ "$age" -gt "$sla_decision" ]; then
+                    gh issue comment "$num" -R "$r" --body "<!-- auto-mirrored -->:hourglass_flowing_sand: This cross-fabric decision has been awaiting ratification for over 24h. Nudging so it does not stall. _(peer-sweep)_" || true
+                  fi ;;
+                *awaiting-peer*)
+                  if [ "$age" -gt "$sla_ack" ]; then
+                    gh issue comment "$num" -R "$r" --body "<!-- auto-mirrored -->:hourglass_flowing_sand: Awaiting a partner-repo response for over 4h. Nudging. _(peer-sweep)_" || true
+                  fi ;;
+              esac
+            done
+          done

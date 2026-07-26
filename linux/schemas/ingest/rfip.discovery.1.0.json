@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repofabric.dev/schemas/ingest/rfip.discovery.1.0.json",
+  "title": "RepoFabric Ingest Protocol - discovery response v1.0",
+  "description": "Response of GET /api/v1/ingest/information. The runtime source of truth a consumer negotiates against.",
+  "type": "object",
+  "required": ["protocol", "supportedVersions", "transportPath", "manifestSchemaVersion", "binaryModes", "auth"],
+  "properties": {
+    "protocol": { "type": "string", "const": "repofabric-ingest" },
+    "supportedVersions": { "type": "array", "items": { "type": "string" } },
+    "transportPath": { "type": "string" },
+    "manifestSchemaVersion": { "type": "string", "description": "WinGet manifest schema RepoFabric validates and writes (vendored)." },
+    "sourceApi": {
+      "type": "object",
+      "description": "Live-probed from the running rewinged image; reachable=false if unreachable.",
+      "properties": {
+        "sourceIdentifier": { "type": ["string", "null"] },
+        "serverSupportedVersions": { "type": "array", "items": { "type": "string" } },
+        "reachable": { "type": "boolean" },
+        "probedAt": { "type": "string" }
+      }
+    },
+    "maxUploadBytes": { "type": "integer" },
+    "binaryModes": { "type": "array", "items": { "type": "string", "enum": ["local", "upstream"] } },
+    "allowedRepos": { "type": "array", "items": { "type": "string" }, "description": "The calling client's effective allow-list (existing repos only)." },
+    "auth": {
+      "type": "object",
+      "required": ["bearer", "signature"],
+      "properties": {
+        "bearer": { "type": "string" },
+        "signature": { "type": "string" },
+        "coveredComponents": { "type": "array", "items": { "type": "string" } },
+        "signatureRequired": { "type": "boolean" }
+      }
+    },
+    "openapi": { "type": "string" }
+  }
+}

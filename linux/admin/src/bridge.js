@@ -79,6 +79,18 @@ export const bridge = {
     return pubFetch('/api/publish-events' + (tail ? `?${tail}` : ''));
   },
 
+  // Ingest clients (RFIP registry). Operator plane; proxied with the full
+  // publisher token, operator UPN forwarded so register/rotate/revoke are
+  // attributed correctly in admin_event. Secret material (token / private key)
+  // is returned only in the register/rotate responses and shown once by the UI.
+  listIngestClients:     ()        => pubFetch('/api/ingest-clients'),
+  getIngestClient:       (id)      => pubFetch(`/api/ingest-clients/${encodeURIComponent(id)}`),
+  registerIngestClient:  (b)       => pubFetch('/api/ingest-clients',                                    { method: 'POST', body: JSON.stringify(b) }),
+  updateIngestClient:    (id, b)   => pubFetch(`/api/ingest-clients/${encodeURIComponent(id)}`,          { method: 'PUT',  body: JSON.stringify(b) }),
+  rotateIngestClientKey: (id, b)   => pubFetch(`/api/ingest-clients/${encodeURIComponent(id)}/rotate`,   { method: 'POST', body: JSON.stringify(b || {}) }),
+  revokeIngestClient:    (id, b)   => pubFetch(`/api/ingest-clients/${encodeURIComponent(id)}/revoke`,   { method: 'POST', body: JSON.stringify(b || {}) }),
+  listIngestClientEvents:(id, last) => pubFetch(`/api/ingest-clients/${encodeURIComponent(id)}/events${last ? `?last=${encodeURIComponent(last)}` : ''}`),
+
   // Subscriptions (managed)
   listSubscriptions:    ()      => pubFetch('/api/subscriptions'),
   getSubscription:      (id)    => pubFetch(`/api/subscriptions/${id}`),

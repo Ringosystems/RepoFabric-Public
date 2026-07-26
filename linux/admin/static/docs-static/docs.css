@@ -1,110 +1,536 @@
-/* Documentation styling. Same dark palette as the admin so the docs
-   feel native; reuses no admin CSS (the docs page is a separate
-   document context). */
+/* ============================================================================
+   RepoFabric — in-product documentation reader
+   RingoSystems Graphite Forge v1.0 · RingoSystems Heavy Industries
+
+   Mode:   dark-native only. There is no light mode here and none is coming.
+   Type:   Inter (anything a human wrote) + Consolas (anything a machine emitted)
+   Accent: Burnt Copper, used sparingly — links, the active nav item, the eyebrow.
+
+   ---------------------------------------------------------------------------
+   WHY THIS FILE RESTATES THE FOUNDATION TOKENS
+
+   The docs are mounted at /docs/, /admin/docs/ and /setup/docs/, are served
+   UNAUTHENTICATED, and exist in setup mode as well as normal mode. The only
+   static mount a docs page can reach is <mount>-static, which serves this one
+   directory (server.js mountDocs()). static/graphite-forge.css sits behind the
+   authenticated /admin static mount and does not exist as a route at all during
+   first-run setup, so a docs page cannot link it without a server change.
+
+   The :root block below is therefore a VERBATIM MIRROR of the foundation's
+   values — same token names, same numbers, no second opinions. If
+   static/graphite-forge.css moves, move it here too. The permanent fix is one
+   line in server.js mountDocs() exposing the foundation on the -static prefix;
+   at that point this block is deleted and the two stylesheets are linked in
+   order, exactly as index.html does it.
+   ========================================================================= */
 
 :root {
-  --bg: #0f1115;
-  --panel: #1a1d24;
-  --panel-2: #232730;
-  --border: #2a2f3a;
-  --text: #e6e8ec;
-  --text-dim: #9aa3b2;
-  --accent: #4f9eff;
-  --accent-2: #3a7bd5;
-  --ok: #45c785;
-  --warn: #e8b73d;
-  --error: #e74c4c;
-  --mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
-  --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+
+  /* ---- Surfaces ---- */
+  --gf-bg-base:          #101113;
+  --gf-bg-shell:         #14171B;
+  --gf-surface:          #16181C;
+  --gf-surface-raised:   #1E222A;
+  --gf-surface-elevated: #252932;
+  /* Mirrors --surface-3 in repofabric-tokens.css: wells sit BELOW the page. */
+  --surface-3:           #0D0E10;
+
+  /* ---- Text: four steps, never more ---- */
+  --gf-text-primary:   #F7F9FB;
+  --gf-text-secondary: #A7B0BE;
+  --gf-text-muted:     #75808E;
+  --gf-text-disabled:  #505965;
+
+  /* ---- Accents ---- */
+  --gf-accent:  #C97A40;
+  --gf-success: #52B788;
+  --gf-violet:  #7B61FF;
+  --gf-data:    #6BD6E8;
+  --gf-warning: #F6C85F;
+  --gf-danger:  #D65A4A;
+
+  /* ---- Type ---- */
+  --gf-font-ui:   Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --gf-font-data: Consolas, "Cascadia Mono", "SF Mono", ui-monospace, monospace;
+
+  --gf-weight-display:   760;
+  --gf-tracking-display: -.065em;
+  --gf-tracking-title:   -.045em;
+
+  --gf-fs-page:    clamp(28px, 3.2vw, 40px);  /* page title  32-40 / 1.05 */
+  --gf-fs-section: 20px;                      /* section     18-22 / 1.2  */
+  --gf-fs-body:    15px;                      /* body        15-17 / 1.55 */
+  --gf-fs-label:   13px;                      /* UI label    12-14 / 1.2  */
+  --gf-fs-code:    12.5px;                    /* code        12-13 / 1.4  */
+
+  /* ---- Spacing / geometry ---- */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px;  --s-4: 16px;  --s-5: 22px;  --s-6: 32px;
+  --s-7: 40px;
+  --r-sm: 8px;
+  --r-md: 11px;   /* control */
+  --r-lg: 18px;   /* card    */
+
+  /* ---- Lines and light: borders before shadows ---- */
+  --gf-copper-004: rgba(201,122,64,.04);
+  --gf-copper-08:  rgba(201,122,64,.08);
+  --gf-copper-30:  rgba(201,122,64,.30);
+  --gf-copper-36:  rgba(201,122,64,.36);
+  --gf-white-035:  rgba(255,255,255,.035);
+  --gf-white-04:   rgba(255,255,255,.04);
+  --gf-white-065:  rgba(255,255,255,.065);
+  --gf-hairline:   rgba(255,255,255,.055);
+  --gf-ease: .18s cubic-bezier(.4, 0, .2, 1);
+
+  /* ---- Application aliases (the names this file has always used) ---- */
+  --border:   rgba(255,255,255,.07);
+  --text:     var(--gf-text-primary);
+  --text-dim: var(--gf-text-secondary);
+  --muted:    var(--gf-text-muted);
+  --accent:   var(--gf-accent);
+  --accent-2: #DE8B4B;   /* hover: copper, one step brighter */
+  --mono:     var(--gf-font-data);
+  --sans:     var(--gf-font-ui);
+
+  /* The reading measure: ~72 characters at the 15px body size. Stated in px
+     rather than ch on purpose — ch resolves against each element's OWN font
+     size, so a shared `72ch` would give the 20px section headings a visibly
+     wider column than the prose beneath them and every rule would run long.
+     Code and tables opt out and take the full column; folding machine output
+     to a prose measure destroys it. */
+  --measure: 620px;
+  --topbar-h: 70px;
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font: 14px/1.6 var(--sans); }
 
-a, a:link, a:visited { color: var(--accent); text-decoration: underline; text-decoration-color: rgba(79,158,255,0.45); }
-a:hover { color: #6db4ff; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  /* The signature wash: copper rising top-left, violet answering top-right,
+     over a shell-to-base fall. Fixed, so content scrolls through the light. */
+  background:
+    radial-gradient(circle at 12% 0%, rgba(201,122,64,.18), transparent 30%),
+    radial-gradient(circle at 88% 7%, rgba(123,97,255,.11), transparent 24%),
+    linear-gradient(180deg, var(--gf-bg-shell), var(--gf-bg-base));
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--gf-fs-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Links carry intent, so they carry copper — and an underline, because colour
+   is never the only indicator of anything. */
+a, a:link, a:visited {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--gf-copper-36);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+a:hover { color: var(--accent-2); text-decoration-color: currentColor; }
+
+:where(a, button, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-md);
+}
+
+::selection { background: rgba(201,122,64,.32); color: #fff; }
+
+/* Scrollbars are part of a dark-native surface, not an afterthought. */
+* { scrollbar-width: thin; scrollbar-color: #2C323C transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #2C323C; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: #3A424E; background-clip: content-box; }
+
+.docs-skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--gf-bg-base);
+  font-weight: 640;
+  text-decoration: none;
+}
+.docs-skip-link:focus { left: 12px; top: 12px; }
+
+/* ---------------------------------------------------------------------------
+   Topbar — same 70px sticky glass bar as the admin shell, same brand block.
+------------------------------------------------------------------------- */
 .docs-header {
-  display: flex; align-items: baseline; gap: 24px;
-  padding: 14px 28px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-}
-.docs-header h1 { margin: 0; font-size: 18px; }
-.docs-header h1 a { color: var(--accent); text-decoration: none; }
-.docs-top-nav { display: flex; gap: 16px; font-size: 13px; }
-.docs-top-nav a { color: var(--text-dim); text-decoration: none; }
-.docs-top-nav a:hover { color: var(--text); }
-
-.docs-layout {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 0;
-  max-width: 1320px;
-  margin: 0 auto;
-}
-.docs-sidebar {
-  border-right: 1px solid var(--border);
-  background: rgba(0,0,0,0.10);
-  padding: 22px 20px;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid var(--gf-white-065);
+  background: rgba(17,19,23,.72);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
   position: sticky;
   top: 0;
-  align-self: flex-start;
-  min-height: calc(100vh - 60px);
+  z-index: 40;
 }
-.docs-sidebar ul { list-style: none; padding: 0; margin: 0; }
-.docs-side-group {
-  margin-top: 18px;
-  padding-bottom: 4px;
-  color: var(--text-dim);
+/* The brand is a link home, not a call to action, so it stays in the text
+   ramp — the copper in this bar belongs to the mark alone. */
+.docs-header .docs-brand,
+.docs-header .docs-brand:link,
+.docs-header .docs-brand:visited {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+  color: var(--text);
+  text-decoration: none;
+}
+.docs-header .docs-brand:hover .docs-brand-name { color: var(--accent); }
+.docs-brand-mark {
+  width: 34px; height: 34px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--gf-accent), var(--gf-success));
+  color: var(--gf-bg-base);
+  font-weight: 900;
+  font-size: 17px;
+  /* Ambient copper glow: permitted on the brand mark. */
+  box-shadow: 0 0 38px rgba(201,122,64,.18);
+}
+.docs-brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.docs-brand-name {
+  font-weight: var(--gf-weight-display);
+  letter-spacing: -.04em;
+  font-size: 15px;
+  white-space: nowrap;
+  transition: color var(--gf-ease);
+}
+.docs-brand-sub {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: .04em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 10.5px;
-  font-weight: 700;
-  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
-.docs-side-group:first-child { margin-top: 0; }
-.docs-side-item { margin: 4px 0; }
-.docs-side-item a { color: var(--text); text-decoration: none; font-size: 13px; padding: 4px 10px; border-radius: 3px; display: block; }
-.docs-side-item a:hover { background: var(--panel-2); }
-.docs-side-item.is-active a { background: var(--panel); color: var(--accent); border-left: 3px solid var(--accent); padding-left: 7px; }
 
-.docs-body {
-  padding: 28px 36px 60px 36px;
-  max-width: 920px;
+.docs-top-nav { margin-left: auto; display: flex; align-items: center; gap: var(--s-2); }
+.docs-top-nav a {
+  display: inline-flex; align-items: center;
+  padding: 8px var(--s-3);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--r-md);
+  background: rgba(255,255,255,.045);
+  color: var(--text-dim);
+  font-size: var(--gf-fs-label);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--gf-ease), border-color var(--gf-ease), color var(--gf-ease);
 }
-.docs-body h1 { margin-top: 0; font-size: 26px; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-.docs-body h2 { margin-top: 32px; font-size: 19px; }
-.docs-body h3 { margin-top: 22px; font-size: 16px; color: var(--text-dim); }
-.docs-body h4 { margin-top: 16px; font-size: 14px; }
-.docs-body p  { margin: 12px 0; }
-.docs-body ul, .docs-body ol { padding-left: 22px; }
-.docs-body li { margin: 5px 0; }
-.docs-body code { background: rgba(0,0,0,0.30); padding: 1px 6px; border-radius: 3px; font-family: var(--mono); font-size: 12.5px; color: #f0d9b5; }
-.docs-body .docs-pre {
-  background: #0a0c10;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 14px 18px;
-  overflow-x: auto;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: #d6dae3;
-  margin: 14px 0;
-}
-.docs-body .docs-pre code { background: transparent; padding: 0; color: inherit; }
-.docs-body blockquote {
-  border-left: 3px solid var(--accent);
-  margin: 14px 0;
-  padding: 6px 14px;
-  background: rgba(79,158,255,0.08);
+.docs-top-nav a:hover {
+  background: var(--gf-white-065);
+  border-color: var(--gf-copper-36);
   color: var(--text);
 }
-.docs-body hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
-.docs-body strong { color: #fff; }
 
-@media (max-width: 800px) {
+/* ---------------------------------------------------------------------------
+   Layout — left rail + reading column, matching the admin shell's proportions.
+------------------------------------------------------------------------- */
+.docs-layout {
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  align-items: start;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* ---- Left rail: muted labels, copper-tinted border on the active item ---- */
+.docs-sidebar {
+  position: sticky;
+  top: var(--topbar-h);
+  align-self: start;
+  height: calc(100vh - var(--topbar-h));
+  overflow-y: auto;
+  padding: var(--s-5) var(--s-3);
+  border-right: 1px solid var(--gf-white-065);
+  background: rgba(22,24,28,.42);
+}
+.docs-sidebar ul { list-style: none; padding: 0; margin: 0; }
+
+.docs-side-group {
+  margin-top: var(--s-5);
+  padding: 0 var(--s-3) var(--s-1);
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.docs-side-group:first-child { margin-top: 0; }
+
+.docs-side-item { margin: 2px 0; }
+.docs-side-item a {
+  display: block;
+  padding: 8px var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  color: var(--text-dim);
+  font-size: 13.5px;
+  line-height: 1.35;
+  text-decoration: none;
+  transition: background var(--gf-ease), color var(--gf-ease), border-color var(--gf-ease);
+}
+.docs-side-item a:hover { background: var(--gf-white-065); color: var(--text); }
+/* Selection is surface lift + copper border + weight, never colour alone. */
+.docs-side-item.is-active a {
+  background: var(--gf-copper-08);
+  border-color: var(--gf-copper-30);
+  color: var(--text);
+  font-weight: 620;
+}
+
+/* ---------------------------------------------------------------------------
+   Reading column
+   Prose is held to ~72ch. Code blocks and tables opt out and take the full
+   column, because folding machine output to a prose measure destroys it.
+------------------------------------------------------------------------- */
+.docs-body {
+  min-width: 0;
+  max-width: 1000px;
+  padding: var(--s-6) var(--s-7) 96px;
+}
+
+.docs-body > p,
+.docs-body > ul,
+.docs-body > ol,
+.docs-body > blockquote,
+.docs-body > h1,
+.docs-body > h2,
+.docs-body > h3,
+.docs-body > h4,
+.docs-body > hr,
+.docs-body > .docs-eyebrow { max-width: var(--measure); }
+
+.docs-body > :first-child { margin-top: 0; }
+
+/* Eyebrow: which part of the manual you are standing in. */
+.docs-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-3);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: var(--gf-weight-display);
+  letter-spacing: .01em;
+}
+.docs-eyebrow::before {
+  content: "";
+  width: 8px; height: 8px; flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 18px var(--accent);
+}
+
+/* ---- Headings: straight off the type scale ---- */
+.docs-body h1 {
+  margin: 0 0 var(--s-4);
+  font-size: var(--gf-fs-page);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+  line-height: 1.05;
+  color: var(--text);
+}
+.docs-body h2 {
+  margin: var(--s-7) 0 var(--s-4);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--gf-hairline);
+  font-size: var(--gf-fs-section);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+  line-height: 1.2;
+  color: var(--text);
+}
+.docs-body h1 + h2 { margin-top: var(--s-5); padding-top: 0; border-top: 0; }
+.docs-body h3 {
+  margin: var(--s-6) 0 var(--s-3);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.25;
+  color: var(--text);
+}
+.docs-body h4 {
+  margin: var(--s-5) 0 var(--s-2);
+  font-size: 14px;
+  font-weight: 640;
+  line-height: 1.2;
+  color: var(--text-dim);
+}
+
+/* ---- Prose ---- */
+.docs-body p { margin: var(--s-4) 0; color: var(--text-dim); }
+.docs-body strong { color: var(--text); font-weight: 640; }
+.docs-body em { color: var(--text-dim); }
+
+.docs-body ul, .docs-body ol { margin: var(--s-4) 0; padding-left: 24px; color: var(--text-dim); }
+.docs-body li { margin: var(--s-2) 0; }
+.docs-body li::marker { color: var(--gf-text-disabled); }
+/* Step numbers in a deployment guide are read like coordinates: data face. */
+.docs-body ol > li::marker { font-family: var(--mono); color: var(--muted); font-size: 13px; }
+
+.docs-body hr { border: 0; border-top: 1px solid var(--border); margin: var(--s-6) 0; }
+
+/* ---- Inline code: machine output inside a human sentence ----
+   These guides carry 130-character shell commands inline, so inline code wraps
+   rather than pushing the page sideways. It breaks mid-token only when it has
+   to: `overflow-wrap: anywhere` leaves ordinary spaced commands intact.        */
+.docs-body code {
+  font-family: var(--mono);
+  font-size: 12.75px;
+  color: var(--text);
+  background: var(--gf-white-065);
+  border: 1px solid rgba(255,255,255,.045);
+  border-radius: var(--r-sm);
+  padding: .1em .4em;
+  overflow-wrap: anywhere;
+}
+.docs-body h1 code, .docs-body h2 code, .docs-body h3 code, .docs-body h4 code {
+  font-size: .88em;
+  letter-spacing: 0;
+}
+.docs-body a code { color: inherit; border-color: var(--gf-copper-30); }
+
+/* ---- Code blocks: the data face on a muted well, with room to breathe ----
+   The wrapper owns the language tag and the margin; the <pre> owns the scroll,
+   so the tag stays put while a long command line scrolls underneath it.       */
+.docs-code { position: relative; margin: var(--s-5) 0; }
+.docs-code[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute;
+  top: 10px; right: 14px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--gf-text-disabled);
+  pointer-events: none;
+}
+.docs-body .docs-pre {
+  margin: 0;
+  padding: var(--s-5) var(--s-5);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: var(--gf-fs-code);
+  line-height: 1.4;
+  color: var(--text);
+  tab-size: 2;
+}
+.docs-code[data-lang] .docs-pre { padding-top: 28px; }
+.docs-body .docs-pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  white-space: pre;
+}
+
+/* ---- Tables: dense but breathable, 1px borders, compact uppercase labels ---- */
+.docs-table-wrap {
+  margin: var(--s-5) 0;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: rgba(22,24,28,.55);
+}
+.docs-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  /* A reference table here is half machine (variables, hosts, ports, paths) and
+     half human (what the thing is for). The cell prose therefore stays in the UI
+     face and the identifiers keep the data face through their <code> spans —
+     which is also what makes those chips legible as identifiers at a glance. */
+  font-family: var(--sans);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.docs-table th,
+.docs-table td {
+  padding: var(--s-3) var(--s-4);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--gf-hairline);
+}
+.docs-table thead th {
+  background: rgba(30,34,42,.75);
+  color: var(--text-dim);
+  font-weight: 640;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.docs-table td { color: var(--text-dim); }
+.docs-table td:first-child { color: var(--text); }
+.docs-table tbody tr:last-child td { border-bottom: 0; }
+.docs-table tbody tr:hover td { background: var(--gf-white-035); }
+.docs-table th.is-center, .docs-table td.is-center { text-align: center; }
+.docs-table th.is-right,  .docs-table td.is-right  { text-align: right; }
+/* Identifiers in a reference table stay on one line — the wrapper scrolls. */
+.docs-table code { white-space: nowrap; overflow-wrap: normal; }
+
+/* ---- Blockquote: an aside from the author, marked on the edge ---- */
+.docs-body blockquote {
+  margin: var(--s-5) 0;
+  padding: var(--s-4) var(--s-5);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--gf-copper-36);
+  border-radius: var(--r-md);
+  background: var(--gf-copper-004);
+  color: var(--text-dim);
+}
+.docs-body blockquote > :first-child { margin-top: 0; }
+.docs-body blockquote > :last-child { margin-bottom: 0; }
+
+/* ---------------------------------------------------------------------------
+   Responsive — the rail folds to a horizontal strip, then to a plain list.
+------------------------------------------------------------------------- */
+@media (max-width: 1080px) {
   .docs-layout { grid-template-columns: 1fr; }
-  .docs-sidebar { border-right: none; border-bottom: 1px solid var(--border); position: relative; min-height: 0; }
+  .docs-sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--gf-white-065);
+    padding: var(--s-4);
+  }
+  .docs-sidebar ul { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1); }
+  .docs-side-group { margin-top: 0; padding: 0 var(--s-2) 0 0; width: 100%; }
+  .docs-side-group:not(:first-child) { margin-top: var(--s-3); }
+  .docs-side-item { margin: 0; }
+  .docs-body { padding: var(--s-5) var(--s-5) 72px; max-width: none; }
+}
+@media (max-width: 720px) {
+  .docs-header { gap: var(--s-3); padding: 0 var(--s-4); }
+  .docs-brand-sub { display: none; }
+  .docs-body { padding: var(--s-5) var(--s-4) 64px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

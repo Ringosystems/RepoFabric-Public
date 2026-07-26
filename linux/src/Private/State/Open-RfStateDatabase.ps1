@@ -5,15 +5,17 @@ function Open-RfStateDatabase {
         pending schema migrations, and returns the path as a string.
 
     .DESCRIPTION
-        The UNRAID-local fork switched from PSSQLite (Windows-only DLLs, known
-        Linux DLL loading bugs) to MySQLite which is path-based. There is no
-        connection object to return; every Invoke-RfSqliteQuery call opens
-        its own MySQLite connection internally and closes it on return.
+        SQLite access is path-based via the sqlite3 CLI (Invoke-RfSqliteQuery /
+        Returning / Script). There is no connection object to return; each call
+        opens its own sqlite3 connection and closes it on return. The CLI is
+        musl-native, so the same path works on Debian and Alpine; the prior
+        System.Data.SQLite-based module (MySQLite) shipped glibc-only interop
+        and could not load on Alpine.
 
         Cross-call connection state (transactions, session-scoped PRAGMAs)
         cannot be preserved. Where it matters (migrations), the affected SQL
-        is composed into a single MySQLite call with BEGIN/COMMIT and the
-        PRAGMA toggles embedded inline. The duplicate-check-then-INSERT
+        is composed into a single multi-statement script with BEGIN/COMMIT and
+        the PRAGMA toggles embedded inline. The duplicate-check-then-INSERT
         idiom in Add-RfSubscription becomes race-tolerant because the
         subscription table has UNIQUE constraints at the schema layer
         (migration 011) that backstop any racing concurrent inserts.
@@ -52,22 +54,17 @@ function Open-RfStateDatabase {
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
     }
 
-    Import-Module MySQLite -ErrorAction Stop
-
-    # MySQLite is path-based but does NOT auto-create the SQLite file from
-    # an Invoke-MySQLiteQuery call. If the file is missing, that cmdlet
-    # only warns and the underlying queries silently no-op. Use the
-    # dedicated New-MySQLiteDB cmdlet to materialise the file first.
+    # SQLite access is via the sqlite3 CLI (musl-native, so the same path works
+    # on Debian and Alpine; no SQLite PowerShell module). sqlite3 creates the
+    # database file on first write, so the baseline-PRAGMA script below both
+    # materialises a fresh file and applies the settings. journal_mode = WAL
+    # persists in the file header; foreign_keys and busy_timeout are connection-
+    # scoped (the CLI opens a fresh connection per call), matching the previous
+    # per-call behaviour.
     if (-not (Test-Path -LiteralPath $DatabasePath)) {
         Write-Verbose "Creating fresh SQLite database at $DatabasePath"
-        New-MySQLiteDB -Path $DatabasePath -Force -ErrorAction Stop | Out-Null
     }
-
-    # Apply baseline PRAGMAs and WAL journal mode. PRAGMAs are connection-
-    # scoped in SQLite; MySQLite opens a new connection per Invoke call so
-    # these settings re-apply on each subsequent query as part of the same
-    # composite statement when needed.
-    Invoke-RfSqliteQuery -DataSource $DatabasePath -Query @'
+    Invoke-RfSqliteScript -DataSource $DatabasePath -Script @'
 PRAGMA foreign_keys = ON;
 PRAGMA journal_mode = WAL;
 PRAGMA busy_timeout = 5000;

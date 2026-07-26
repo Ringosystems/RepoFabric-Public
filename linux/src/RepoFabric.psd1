@@ -1,6 +1,6 @@
 @{
     RootModule           = 'RepoFabric.psm1'
-    ModuleVersion        = '0.9.0'
+    ModuleVersion        = '0.9.2'
     GUID                 = 'a8d1f4c2-7e3b-4d2a-9c8f-2b1e6a4d3c5f'
     Author               = 'RingoSystems Heavy Industries'
     CompanyName          = 'RingoSystems Heavy Industries'
@@ -10,14 +10,13 @@
     PowerShellVersion    = '7.4'
     CompatiblePSEditions = @('Core')
 
-    # External runtime dependencies. MySQLite replaces PSSQLite because the
-    # latter has unresolved Linux DLL loading bugs (RamblingCookieMonster
-    # PSSQLite issue 34) and broken SELECT on pwsh 7 (issue 28). The shim
-    # at Private/State/Invoke-RfSqliteQuery.ps1 preserves the call site
-    # parameter surface.
+    # External runtime dependencies. SQLite access is via the sqlite3 CLI
+    # (Private/State/Invoke-RfSqliteQuery|Returning|Script.ps1), not a
+    # PowerShell module: System.Data.SQLite-based modules (PSSQLite, MySQLite)
+    # ship glibc-only native interop and fail to load on musl/Alpine, so the
+    # CLI is the one engine that works across Debian and Alpine alike.
     RequiredModules = @(
         @{ ModuleName = 'powershell-yaml'; ModuleVersion = '0.4.7' }
-        @{ ModuleName = 'MySQLite';        ModuleVersion = '0.13.0' }
         @{ ModuleName = 'ThreadJob';       ModuleVersion = '2.0.3' }
     )
 
@@ -45,6 +44,14 @@
         'Remove-RfCustomPackage'
         'Remove-RfRepoPackage'
         'Update-RfCustomPackageCollisions'
+
+        # Ingest clients (RepoFabric Ingest Protocol / RFIP, system-to-system)
+        'New-RfIngestClient'
+        'Get-RfIngestClient'
+        'Set-RfIngestClient'
+        'Reset-RfIngestClientKey'
+        'Revoke-RfIngestClient'
+        'Publish-RfIngestPackage'
 
         # Upstream index
         'Update-RfUpstreamIndex'

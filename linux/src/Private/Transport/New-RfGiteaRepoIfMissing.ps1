@@ -111,15 +111,49 @@ function New-RfGiteaRepoIfMissing {
     # admin scope, retry against the authenticated user's namespace
     # (the typical fallback when operators use a personal PAT and the
     # 'repofabric' org has not been pre-created in Gitea).
+    # Creating a repo does NOT imply being able to push to it. Under an ORG, the
+    # creator does not become a collaborator (org repos take access from teams),
+    # so an auto-created repo is born unpushable by the publisher and the first
+    # publish dies on Gitea's pre-receive hook with "User permission denied for
+    # writing" -- which reads like branch protection. This bit the Kamino RFIP
+    # integration on 2026-07-24: winget-manifests had a hand-added grant and
+    # worked, winget-test did not and failed with no useful signal.
+    #
+    # Best-effort self-grant: with a repo-admin-capable token this makes the new
+    # repo immediately pushable. With a plain write:repository PAT it 403s, so it
+    # must never be fatal -- warn with the exact remedy instead.
+    $grantWrite = {
+        param([string]$Path)
+        try {
+            $null = Invoke-RestMethod -Method Put `
+                -Uri "$baseUrl/api/v1/repos/$Path/collaborators/$($target.gitea_user)" `
+                -Headers $headers -ContentType 'application/json' `
+                -Body (@{ permission = 'write' } | ConvertTo-Json -Compress) -ErrorAction Stop
+            Write-Verbose "Granted '$($target.gitea_user)' write on $Path."
+            return $true
+        } catch {
+            $sc = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
+            Write-Warning ("Created $Path but could NOT grant '$($target.gitea_user)' write on it (HTTP $sc). " +
+                "The first publish to this repo WILL be rejected by Gitea's pre-receive hook with " +
+                "'User permission denied for writing'. Fix: add '$($target.gitea_user)' as a collaborator " +
+                "with Write at $baseUrl/$Path/settings/collaboration, or grant it via an org team. " +
+                "A token with repo-admin scope would let RepoFabric do this automatically.")
+            return $false
+        }
+    }
+
     $orgUrl = "$baseUrl/api/v1/orgs/$orgName/repos"
     try {
         $null = Invoke-RestMethod -Method Post -Uri $orgUrl -Headers $headers `
             -ContentType 'application/json' -Body $body -ErrorAction Stop
+        $granted = & $grantWrite $RepoPath
         return [PSCustomObject]@{
             Created  = $true
             RepoPath = $RepoPath
             CloneUrl = $cloneUrl
-            Message  = "Created Gitea repo $RepoPath via org endpoint."
+            Message  = "Created Gitea repo $RepoPath via org endpoint." +
+                       $(if ($granted) { " Granted '$($target.gitea_user)' write." }
+                         else { " WARNING: could not grant '$($target.gitea_user)' write; publishes will be rejected until that is done." })
         }
     } catch {
         $resp = $_.Exception.Response

@@ -3,159 +3,716 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
   <title>Publish custom app, RingoSystems Heavy Industries</title>
+  <!-- RingoSystems Graphite Forge v1.0. Order matters: foundation, then the
+       application token map, then the page-local composition below.
+       setup/setup.css is deliberately NOT loaded here: it redefines the
+       :root palette for the first-run wizard and would clobber the token
+       map with the pre-Graphite-Forge blue. -->
+  <link rel="stylesheet" href="./graphite-forge.css">
   <link rel="stylesheet" href="./repofabric-tokens.css">
-  <link rel="stylesheet" href="./setup/setup.css">
   <link rel="stylesheet" href="./app-linux.css">
   <style>
-    /* Compact single-page wizard. Three columns: status rail (left),
-       form (middle), preview/help (right) on wide screens; stacks on
-       narrow viewports. */
-    main.publish-custom {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 12px;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-    .pc-drop {
-      border: 2px dashed #555;
-      border-radius: 6px;
-      padding: 18px;
-      text-align: center;
-      cursor: pointer;
-      background: rgba(255,255,255,0.02);
-      transition: border-color .15s, background .15s;
-    }
-    .pc-drop.over { border-color: #5b9bff; background: rgba(91,155,255,0.08); }
-    .pc-drop.has-file { border-style: solid; border-color: #2c7a3a; padding: 10px 18px; }
-    .pc-drop input[type=file] { display: none; }
-    .pc-summary { font-size: 13px; }
-    .pc-summary code { background: rgba(255,255,255,0.05); padding: 0 4px; border-radius: 3px; }
+  /* =========================================================================
+     Publish custom app, RingoSystems Graphite Forge v1.0
+     RingoSystems Heavy Industries
 
-    .pc-section {
-      border: 1px solid #333;
-      border-radius: 6px;
-      background: rgba(255,255,255,0.02);
-      padding: 10px 14px;
-    }
-    .pc-section-head {
-      display: flex; align-items: center; gap: 10px;
-      cursor: pointer;
-      margin: -2px -4px 8px -4px; padding: 2px 4px;
-    }
-    .pc-section-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
-    .pc-section-head .pc-counter { font-size: 11px; color: #888; margin-left: auto; }
-    .pc-status-pill {
-      display: inline-block; min-width: 14px; height: 14px; border-radius: 7px;
-      background: #555;
-      border: 1px solid #222;
-    }
-    .pc-status-pill.ok      { background: #2c7a3a; }
-    .pc-status-pill.warn    { background: #b88a1c; }
-    .pc-status-pill.error   { background: #b8201c; }
+     Page-local composition only. No --gf-* token is redefined and no colour
+     is invented; every value below resolves through the foundation.
 
-    .pc-fields { display: grid; grid-template-columns: 1fr; gap: 6px; }
-    @media (min-width: 800px) {
-      .pc-fields { grid-template-columns: 1fr 1fr; }
-      .pc-fields .full { grid-column: 1 / -1; }
-    }
-    .pc-fields label {
-      display: grid; grid-template-columns: 150px 1fr 22px; align-items: center;
-      gap: 6px; font-size: 13px;
-    }
-    .pc-fields label .lbl   { color: #ccc; }
-    .pc-fields label .lbl.req::after { content: ' *'; color: #d04742; }
-    .pc-fields label .ind   { text-align: center; font-size: 14px; }
-    .pc-fields label .ind.ok    { color: #4caf50; }
-    .pc-fields label .ind.warn  { color: #d6a834; }
-    .pc-fields label .ind.error { color: #f04742; }
+     TYPOGRAPHY CONTRACT ON THIS SURFACE (standard §4)
+       UI face (Inter)      anything a human wrote: page + section titles,
+                            guidance, button labels, field notes, legends.
+       DATA face (Consolas) anything a machine defined or emitted: the manifest
+                            key column (the label IS the YAML key), identifiers,
+                            versions, hashes, product codes, sizes, switches,
+                            URLs, counters, status values, and the server's
+                            validate response.
+       The exceptions are the prose fields, Publisher / PackageName /
+       ShortDescription / Description / Author / Copyright / ReleaseNotes /
+       InstallationNotes, which hold sentences a human wrote and therefore stay
+       in the UI face even though they live in the same grid.
+     ====================================================================== */
 
-    .pc-field-hint {
-      grid-column: 1 / -1;
-      font-size: 12px;
-      color: #888;
-      margin: -2px 0 4px 156px;
+  /* Alpha derivations of the foundation accents, exactly as the foundation
+     does for copper (--gf-copper-30 and friends). Same colours, carried at
+     low alpha so a 1px line can state a status without shouting. */
+  :root {
+    --pc-line-ok:    rgba(82,183,136,.30);   /* var(--gf-success) @ 30% */
+    --pc-line-warn:  rgba(246,200,95,.30);   /* var(--gf-warning) @ 30% */
+    --pc-line-error: rgba(214,90,74,.34);    /* var(--gf-danger)  @ 34% */
+  }
+
+  /* The wizard hides whole sections in edit mode (dropSection.hidden) and
+     toggles [hidden] on the summary, status and validate panels. Nothing
+     below may out-specify that. */
+  [hidden] { display: none !important; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-2); text-decoration: underline; }
+  .muted { color: var(--text-dim); }
+
+  .pc-skip {
+    position: absolute; left: -9999px; top: 0; z-index: 100;
+    padding: 10px 14px; border-radius: var(--r-md);
+    background: var(--accent); color: var(--text-on-accent); font-weight: 640;
+  }
+  .pc-skip:focus { left: 12px; top: 12px; text-decoration: none; }
+
+  /* ---- Header ----------------------------------------------------------
+     JS reads `header h1` and `header p.muted` in edit mode and rewrites both,
+     so the meaning that must survive that rewrite (the schema version) lives
+     outside the paragraph, in the tag row. */
+  .pc-head { max-width: 1460px; margin: 0 auto; padding: var(--s-5) var(--s-6) 0; }
+  .pc-head-bar {
+    display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap;
+    padding-bottom: var(--s-5);
+    border-bottom: 1px solid var(--border);
+  }
+  .pc-brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+  .pc-head-tags { margin-left: auto; display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; }
+  .pc-tag {
+    display: inline-flex; align-items: center; gap: var(--s-2);
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: var(--gf-border-default);
+    background: var(--gf-white-04);
+    color: var(--text-dim);
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+  }
+  /* Schema version is machine output. */
+  .pc-tag b { font-family: var(--font-mono); font-weight: 600; color: var(--text); }
+
+  .pc-head-main { padding: var(--s-5) 0 var(--s-6); display: grid; gap: var(--s-2); justify-items: start; }
+  .pc-head-main h1 {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: var(--gf-fs-page);
+    font-weight: var(--gf-weight-display);
+    letter-spacing: var(--gf-tracking-title);
+    line-height: 1.05;
+    color: var(--text);
+  }
+  .pc-head-main p.muted {
+    margin: 0;
+    font-size: var(--gf-fs-body);
+    line-height: 1.55;
+    max-width: 84ch;
+  }
+
+  /* ---- Shell -----------------------------------------------------------
+     Form column plus a publish rail that stays with the operator while they
+     work down a long form. Contextual detail belongs beside the work, not in
+     a modal (standard §7). */
+  main.publish-custom {
+    max-width: 1460px;
+    margin: 0 auto;
+    padding: 0 var(--s-6) var(--s-7);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: var(--s-5);
+  }
+  .pc-col { display: grid; gap: var(--s-5); min-width: 0; }
+  .pc-rail { min-width: 0; }
+  @media (min-width: 1240px) {
+    main.publish-custom { grid-template-columns: minmax(0, 1fr) 420px; }
+    .pc-rail {
+      position: sticky;
+      top: var(--s-4);
+      max-height: calc(100vh - var(--s-6));
+      overflow-y: auto;
     }
-    .pc-field-hint code { background: rgba(255,255,255,0.05); padding: 0 4px; border-radius: 3px; }
+  }
 
-    .pc-publish-status {
-      margin-top: 10px;
-      padding: 12px 14px;
-      border-radius: 5px;
-      font-size: 13px;
-      line-height: 1.5;
-      border: 1px solid #333;
-      background: rgba(255,255,255,0.03);
-    }
-    .pc-publish-status.pending { border-color: #b88a1c; background: rgba(184, 138, 28, 0.10); }
-    .pc-publish-status.ok      { border-color: #2c7a3a; background: rgba(44, 122, 58, 0.15); }
-    .pc-publish-status.err     { border-color: #b8201c; background: rgba(184, 32, 28, 0.15); }
-    .pc-publish-status ul      { margin: 6px 0; padding-left: 18px; }
-    .pc-publish-status code    { background: rgba(0,0,0,0.25); padding: 1px 4px; border-radius: 3px; }
-    .pc-publish-status .pc-publish-cta {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 6px 12px;
-      background: #2c7a3a;
-      color: #fff;
-      border-radius: 4px;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    .pc-publish-status .pc-publish-cta:hover { background: #348e44; }
+  /* ---- Section card ----------------------------------------------------- */
+  .pc-section {
+    position: relative;
+    border: var(--gf-border-default);
+    border-radius: var(--r-lg);
+    /* Same surface fall as the shared .wg-card primitive, at wizard density. */
+    background: linear-gradient(180deg, rgba(28,32,39,.75), rgba(15,18,22,.78));
+    padding: var(--s-5);
+  }
+  .pc-section-head {
+    display: flex; align-items: center; gap: var(--s-3);
+    margin-bottom: var(--s-3);
+  }
+  .pc-section-head h2 {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 18px;
+    font-weight: var(--gf-weight-display);
+    letter-spacing: var(--gf-tracking-title);
+    line-height: 1.2;
+    color: var(--text);
+  }
+  .pc-section-head h2 small {
+    margin-left: var(--s-2);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--muted);
+  }
+  /* Step index: a machine-ordered position, so, data face. */
+  .pc-step {
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    letter-spacing: .06em;
+    color: var(--text-disabled);
+  }
+  /* Counters carry the section's state in words ("2 required missing"). They
+     are status values, so they sit in the data face, and they take their tint
+     from the pill that precedes them, never the other way round. */
+  .pc-counter {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--muted);
+    text-align: right;
+  }
+  .pc-status-pill.warn  ~ .pc-counter { color: var(--warn); }
+  .pc-status-pill.error ~ .pc-counter { color: var(--error); }
 
-    .pc-installer-card, .pc-locale-card {
-      border: 1px solid #2f2f2f; border-radius: 6px;
-      background: rgba(0,0,0,0.15);
-      padding: 8px 12px; margin-bottom: 8px;
-    }
-    .pc-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-    .pc-card-head strong { font-size: 13px; }
-    .pc-card-head .pc-card-tag { font-size: 11px; color: #aaa; padding: 1px 6px; border-radius: 3px; background: rgba(255,255,255,0.06); }
-    .pc-card-head button { margin-left: auto; }
+  .pc-section-sub {
+    margin: 0 0 var(--s-4);
+    font-size: var(--fs-md);
+    line-height: 1.55;
+    color: var(--text-dim);
+    max-width: 88ch;
+  }
+  /* A command an operator types is machine input, so it keeps the data face. */
+  .pc-section-sub code {
+    font-family: var(--font-mono);
+    font-size: var(--gf-fs-code);
+    color: var(--text);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 1px 6px;
+  }
 
-    details > summary { cursor: pointer; user-select: none; font-size: 13px; color: #9bb; margin: 4px 0; }
+  /* ---- Status pill -----------------------------------------------------
+     Colour is never the only carrier: each state also renders its own glyph,
+     and the counter beside it states the same thing in words. */
+  .pc-status-pill {
+    display: inline-grid; place-items: center;
+    width: 20px; height: 20px; flex: none;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--muted-bg);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1;
+  }
+  .pc-status-pill::after { content: "\00B7"; }
+  .pc-status-pill.ok           { color: var(--ok);    background: var(--ok-bg);    border-color: var(--pc-line-ok); }
+  .pc-status-pill.ok::after    { content: "\2713"; }
+  .pc-status-pill.warn         { color: var(--warn);  background: var(--warn-bg);  border-color: var(--pc-line-warn); }
+  .pc-status-pill.warn::after  { content: "!"; }
+  .pc-status-pill.error        { color: var(--error); background: var(--error-bg); border-color: var(--pc-line-error); }
+  .pc-status-pill.error::after { content: "\2717"; }
 
-    .pc-actions { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
-    .pc-actions .muted { font-size: 12px; }
+  /* ---- Drop zone -------------------------------------------------------- */
+  .pc-drop {
+    position: relative;
+    display: grid; justify-items: center; gap: var(--s-2);
+    border: 1px dashed rgba(255,255,255,.12);
+    border-radius: var(--r-lg);
+    padding: var(--s-6) var(--s-5);
+    text-align: center;
+    cursor: pointer;
+    background: var(--gf-white-034);
+    transition: border-color var(--gf-ease), background var(--gf-ease), color var(--gf-ease);
+  }
+  .pc-drop:hover { background: var(--gf-white-065); border-color: var(--gf-copper-36); }
+  .pc-drop:focus-within { border-color: var(--accent); border-style: solid; }
+  .pc-drop.over  { border-color: var(--accent); border-style: solid; background: var(--gf-copper-08); }
+  .pc-drop.has-file {
+    border-style: solid;
+    border-color: var(--pc-line-ok);
+    background: var(--ok-bg);
+    padding: var(--s-4) var(--s-5);
+  }
+  .pc-drop-icon { color: var(--muted); transition: color var(--gf-ease); }
+  .pc-drop:hover .pc-drop-icon { color: var(--accent); }
+  .pc-drop.has-file .pc-drop-icon { color: var(--ok); }
+  .pc-drop p { margin: 0; }
+  /* #drop-text is rewritten by the wizard (uploading / uploaded / failed). */
+  .pc-drop #drop-text { font-size: var(--fs-lg); color: var(--text); }
+  /* The file input stays reachable by keyboard, it is only visually removed.
+     The wizard clicks it programmatically from the drop-zone handler. */
+  .pc-drop input[type=file] {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: 0; border: 0;
+    opacity: 0; overflow: hidden;
+    clip-path: inset(50%);
+  }
+  /* Upload evidence: hash prefix, size, detected type/arch. All machine output. */
+  .pc-drop .pc-summary {
+    display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+    gap: var(--s-2);
+    font-size: var(--fs-sm);
+    color: var(--text-dim);
+  }
+  .pc-summary code {
+    font-family: var(--font-mono);
+    font-size: var(--gf-fs-code);
+    color: var(--text-dim);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 2px 8px;
+  }
 
-    pre.pc-output { background: rgba(0,0,0,0.25); padding: 8px; border-radius: 4px; font-size: 12px; max-height: 220px; overflow: auto; }
+  /* ---- Field grid ------------------------------------------------------- */
+  .pc-fields { display: grid; grid-template-columns: 1fr; gap: var(--s-3) var(--s-5); }
+  .pc-fields > .full, .pc-fields > details.full { grid-column: 1 / -1; }
+  @media (min-width: 900px) {
+    .pc-fields { grid-template-columns: 1fr 1fr; }
+  }
+  .pc-fields label {
+    display: grid;
+    grid-template-columns: 168px minmax(0, 1fr) 22px;
+    align-items: center;
+    gap: var(--s-3);
+    min-width: 0;
+  }
+  /* The label column IS the manifest key. Data face, so it can be matched
+     character for character against the YAML the publisher writes. */
+  .pc-fields label .lbl {
+    font-family: var(--font-mono);
+    font-size: var(--fs-sm);
+    line-height: 1.3;
+    color: var(--text-dim);
+    word-break: break-word;
+  }
+  /* The human qualifier on a key ("switch", "JSON") is not part of the key. */
+  .pc-fields label .lbl small {
+    margin-left: 5px;
+    font-family: var(--font-ui);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+  }
+  .pc-fields label .lbl.req::after { content: " *"; color: var(--accent); }
 
-    .collision-banner {
-      background: rgba(184, 32, 28, 0.18);
-      border: 1px solid #b8201c;
-      color: #f4d8d7;
-      padding: 8px 10px;
-      border-radius: 4px;
-      margin-bottom: 8px;
-      font-size: 13px;
-    }
-    .collision-banner code { background: rgba(0,0,0,0.25); padding: 1px 4px; border-radius: 3px; }
-    .collision-override { display: block; margin-top: 8px; color: #fff; }
-    .collision-override input { margin-right: 6px; }
+  .pc-fields input,
+  .pc-fields select,
+  .pc-fields textarea {
+    width: 100%;
+    min-width: 0;
+    background: var(--surface-3);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: var(--r-md);
+    padding: 8px var(--s-3);
+    /* Values are machine data: identifiers, versions, GUIDs, switches, URLs. */
+    font-family: var(--font-mono);
+    font-size: var(--fs-md);
+    line-height: 1.4;
+    transition: border-color var(--gf-ease), box-shadow var(--gf-ease), background var(--gf-ease);
+  }
+  /* ...except the fields that hold sentences a human wrote. */
+  #loc_Publisher, #loc_PackageName, #loc_ShortDescription, #loc_Description,
+  #loc_Author, #loc_Copyright, #loc_ReleaseNotes, #loc_InstallationNotes,
+  .pc-locale-card input[name="Publisher"],
+  .pc-locale-card input[name="PackageName"],
+  .pc-locale-card input[name="ShortDescription"],
+  .pc-locale-card textarea[name="Description"] {
+    font-family: var(--font-ui);
+    font-size: var(--fs-lg);
+  }
+  .pc-fields textarea { resize: vertical; min-height: 62px; line-height: 1.45; }
+  .pc-fields input:focus,
+  .pc-fields select:focus,
+  .pc-fields textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--gf-copper-18);
+  }
+  .pc-fields input::placeholder,
+  .pc-fields textarea::placeholder { color: var(--text-disabled); }
+  .pc-fields input[readonly] {
+    color: var(--text-dim);
+    background: var(--gf-white-034);
+    cursor: not-allowed;
+  }
+
+  /* Per-field indicator. The wizard writes the glyph (check / bang / cross)
+     and the state class; the glyph is what carries the meaning, the colour
+     only reinforces it. A passing field stays quiet so the eye goes to the
+     ones that still need work. */
+  .pc-fields label .ind {
+    font-family: var(--font-mono);
+    font-size: var(--fs-md);
+    line-height: 1;
+    text-align: center;
+    color: var(--text-disabled);
+  }
+  .pc-fields label .ind.ok    { color: var(--ok); opacity: .6; }
+  .pc-fields label .ind.warn  { color: var(--warn); }
+  .pc-fields label .ind.error { color: var(--error); font-weight: 700; }
+  /* Progressive enhancement: tint the well of a field that still needs work.
+     Kept in its own rule so a parser without :has() drops only this. */
+  .pc-fields label:has(.ind.error) input,
+  .pc-fields label:has(.ind.error) select,
+  .pc-fields label:has(.ind.error) textarea { border-color: var(--pc-line-error); }
+  .pc-fields label:has(.ind.warn) input { border-color: var(--pc-line-warn); }
+
+  .pc-field-hint {
+    grid-column: 1 / -1;
+    margin: -2px 0 var(--s-2) 180px;
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+    color: var(--muted);
+  }
+  .pc-field-hint code {
+    font-family: var(--font-mono);
+    font-size: var(--gf-fs-code);
+    color: var(--text-dim);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 1px 6px;
+  }
+  @media (max-width: 899px) { .pc-field-hint { margin-left: 0; } }
+
+  /* ---- Disclosure ------------------------------------------------------- */
+  .pc-section details > summary {
+    display: inline-flex; align-items: center; gap: var(--s-2);
+    padding: var(--s-2) 0;
+    cursor: pointer;
+    list-style: none;
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
+    font-weight: 560;
+    color: var(--text-dim);
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .pc-section details > summary:hover { color: var(--accent); }
+  .pc-section details > summary::-webkit-details-marker { display: none; }
+  .pc-section details > summary::before {
+    content: "\25B8";
+    display: inline-block;
+    color: var(--accent);
+    font-size: var(--fs-sm);
+    transition: transform .18s ease;
+  }
+  .pc-section details[open] > summary::before { transform: rotate(90deg); }
+  .pc-advanced-fields {
+    margin-top: var(--s-2);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--border);
+  }
+
+  /* ---- Installer / locale cards ----------------------------------------- */
+  .pc-installer-card, .pc-locale-card {
+    border: var(--gf-border-default);
+    border-radius: var(--r-md);
+    background: var(--gf-white-034);
+    padding: var(--s-4);
+    margin-bottom: var(--s-3);
+  }
+  .pc-card-head { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-4); }
+  .pc-card-head strong {
+    font-family: var(--font-ui);
+    font-size: var(--fs-lg);
+    font-weight: 640;
+    letter-spacing: -.01em;
+  }
+  /* "msi/x64, 12.3 MiB" is inspected output. */
+  .pc-card-head .pc-card-tag {
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--muted);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 2px 9px;
+  }
+  .pc-card-head [data-card-pill].error ~ .pc-card-tag { color: var(--error); border-color: var(--pc-line-error); }
+  .pc-card-head button { margin-left: auto; }
+
+  .pc-add-row { margin-top: var(--s-2); }
+  .pc-add {
+    width: 100%;
+    justify-content: center;
+    border-style: dashed;
+    color: var(--text-dim);
+  }
+  .pc-add:hover { color: var(--text); }
+
+  /* ---- Buttons ---------------------------------------------------------- */
+  button {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+    border: 1px solid rgba(255,255,255,.08);
+    background: var(--gf-surface-glass);
+    border-radius: var(--r-md);
+    padding: 9px 14px;
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
+    font-weight: 560;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--gf-ease), border-color var(--gf-ease), color var(--gf-ease), transform var(--gf-ease);
+  }
+  button:hover { background: var(--gf-surface-glass-hover); border-color: var(--gf-copper-36); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+  button:disabled:hover { background: var(--gf-surface-glass); border-color: rgba(255,255,255,.08); }
+  /* The copper-to-green gradient marks the ONE commitment on this view. */
+  button.primary {
+    border: 0;
+    background: linear-gradient(135deg, var(--accent), var(--ok));
+    color: var(--text-on-accent);
+    font-weight: var(--gf-weight-display);
+  }
+  button.primary:hover { filter: brightness(1.07); border: 0; }
+  button.primary:disabled { filter: none; }
+  button.ghost { background: none; color: var(--text-dim); font-size: var(--fs-sm); padding: 6px 11px; }
+  button.ghost:hover { color: var(--error); border-color: var(--pc-line-error); background: var(--error-bg); }
+
+  /* ---- Publish rail ----------------------------------------------------- */
+  .pc-section--publish {
+    /* Ambient copper glow is permitted on the commitment panel. */
+    box-shadow: var(--gf-glow-copper);
+    border-color: var(--gf-copper-18);
+  }
+  .pc-actions { display: grid; gap: var(--s-2); margin-top: var(--s-4); }
+  .pc-actions button { width: 100%; padding: 11px 14px; }
+  #publishHint {
+    margin: var(--s-3) 0 0;
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+  @media (max-width: 1239px) {
+    .pc-actions { grid-auto-flow: column; justify-content: start; }
+    .pc-actions button { width: auto; }
+  }
+
+  /* Indicator key: says what the glyphs mean, so the colours never have to. */
+  .pc-key {
+    margin: var(--s-5) 0 0;
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--border);
+    display: grid;
+    gap: var(--s-2);
+    font-size: var(--fs-sm);
+  }
+  .pc-key-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--s-3); align-items: baseline; }
+  .pc-key-glyph {
+    font-family: var(--font-mono);
+    font-size: var(--fs-md);
+    text-align: center;
+    color: var(--text-disabled);
+  }
+  .pc-key-glyph.is-ok    { color: var(--ok); opacity: .6; }
+  .pc-key-glyph.is-warn  { color: var(--warn); }
+  .pc-key-glyph.is-error { color: var(--error); }
+  .pc-key-glyph.is-req   { color: var(--accent); }
+  .pc-key dd { margin: 0; color: var(--muted); line-height: 1.45; }
+
+  /* ---- Publish status --------------------------------------------------- */
+  .pc-publish-status {
+    position: relative;
+    margin-top: var(--s-4);
+    padding: var(--s-4) var(--s-4) var(--s-4) 46px;
+    border: var(--gf-border-default);
+    border-radius: var(--r-md);
+    background: var(--gf-white-034);
+    font-size: var(--fs-md);
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .pc-publish-status::before {
+    content: "\00B7";
+    position: absolute; left: var(--s-4); top: var(--s-4);
+    display: grid; place-items: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 11px; line-height: 1;
+    color: var(--muted);
+  }
+  .pc-publish-status.pending         { border-color: var(--pc-line-warn); background: var(--warn-bg); }
+  .pc-publish-status.pending::before { content: "\25CB"; color: var(--warn); border-color: var(--pc-line-warn); }
+  .pc-publish-status.ok              { border-color: var(--pc-line-ok); background: var(--ok-bg); }
+  .pc-publish-status.ok::before      { content: "\2713"; color: var(--ok); border-color: var(--pc-line-ok); }
+  .pc-publish-status.err             { border-color: var(--pc-line-error); background: var(--error-bg); }
+  .pc-publish-status.err::before     { content: "\2717"; color: var(--error); border-color: var(--pc-line-error); }
+  .pc-publish-status strong { color: var(--text); font-weight: 640; }
+  .pc-publish-status p  { margin: var(--s-2) 0 0; }
+  .pc-publish-status ul { margin: var(--s-2) 0 0; padding-left: 18px; }
+  .pc-publish-status li { margin: 3px 0; }
+  /* Row id, repo path, commit sha: machine output. */
+  .pc-publish-status code {
+    font-family: var(--font-mono);
+    font-size: var(--gf-fs-code);
+    color: var(--text);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 1px 6px;
+    word-break: break-all;
+  }
+  .pc-publish-status .pc-publish-cta {
+    display: inline-flex; align-items: center;
+    margin-top: var(--s-3);
+    padding: 9px 14px;
+    border: 1px solid var(--gf-copper-36);
+    border-radius: var(--r-md);
+    background: var(--gf-copper-08);
+    color: var(--accent);
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
+    font-weight: 620;
+    text-decoration: none;
+  }
+  .pc-publish-status .pc-publish-cta:hover { background: var(--gf-copper-18); color: var(--text); text-decoration: none; }
+
+  /* ---- Server validate response ----------------------------------------
+     Raw evidence. Muted well, data face at the code step (12-13 / 1.4), and
+     room to breathe. The caption is generated so the wizard can keep writing
+     textContent straight into the element. */
+  pre.pc-output {
+    margin: var(--s-4) 0 0;
+    padding: var(--s-4);
+    border: var(--gf-border-default);
+    border-radius: var(--r-md);
+    background: var(--surface-3);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: var(--gf-fs-code);
+    line-height: 1.4;
+    tab-size: 2;
+    max-height: 340px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  pre.pc-output::before {
+    content: "Server validate response";
+    display: block;
+    margin-bottom: var(--s-3);
+    padding-bottom: var(--s-2);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-ui);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--text-disabled);
+    white-space: normal;
+  }
+
+  /* ---- Upstream collision -----------------------------------------------
+     A publish blocker. Stated in words, marked with a glyph, tinted danger,
+     and it keeps its own override so the operator has to say so out loud. */
+  .collision-banner {
+    position: relative;
+    margin: 0 0 var(--s-4);
+    padding: var(--s-3) var(--s-4) var(--s-3) 44px;
+    border: 1px solid var(--pc-line-error);
+    border-left: 3px solid var(--error);
+    border-radius: var(--r-md);
+    background: var(--error-bg);
+    color: var(--text-dim);
+    font-size: var(--fs-md);
+    line-height: 1.5;
+  }
+  .collision-banner::before {
+    content: "!";
+    position: absolute; left: var(--s-3); top: var(--s-3);
+    display: grid; place-items: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 1px solid var(--pc-line-error);
+    color: var(--error);
+    font-family: var(--font-mono);
+    font-size: 12px; font-weight: 700; line-height: 1;
+  }
+  .collision-banner strong { color: var(--text); font-weight: 640; }
+  .collision-banner code {
+    font-family: var(--font-mono);
+    font-size: var(--gf-fs-code);
+    color: var(--text);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 1px 6px;
+  }
+  .collision-override {
+    display: flex; align-items: center; gap: var(--s-2);
+    margin-top: var(--s-3);
+    color: var(--text);
+    font-weight: 560;
+    cursor: pointer;
+  }
+  .collision-override input { margin: 0; accent-color: var(--accent); width: 15px; height: 15px; }
+
+  @media (max-width: 720px) {
+    .pc-head { padding: var(--s-4) var(--s-4) 0; }
+    main.publish-custom { padding: 0 var(--s-4) var(--s-6); }
+    .pc-section { padding: var(--s-4); }
+    .pc-fields label { grid-template-columns: minmax(0, 1fr) 22px; }
+    .pc-fields label .lbl { grid-column: 1 / -1; }
+    .pc-field-hint { margin-left: 0; }
+  }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Publish custom app</h1>
-    <p class="muted">Drop an installer, fill the highlighted fields. Schema: WinGet manifest v1.6.0. <a href="./">back to admin</a></p>
+  <a class="pc-skip" href="#pc-main">Skip to the wizard</a>
+
+  <header class="pc-head">
+    <div class="pc-head-bar">
+      <div class="gf-brand">
+        <div class="gf-logo" aria-hidden="true">R</div>
+        <div class="pc-brand-text">
+          <span class="gf-brand-name">RepoFabric</span>
+          <span class="gf-brand-sub">RingoSystems Heavy Industries</span>
+        </div>
+      </div>
+      <div class="pc-head-tags">
+        <span class="pc-tag">WinGet manifest schema <b>v1.6.0</b></span>
+      </div>
+    </div>
+    <div class="pc-head-main">
+      <span class="gf-eyebrow">Custom publish</span>
+      <h1>Publish custom app</h1>
+      <p class="muted">Drop an installer, fill the highlighted fields, then publish it into the repo. <a href="./">back to admin</a></p>
+    </div>
   </header>
 
-  <main class="publish-custom">
+  <main class="publish-custom" id="pc-main">
+
+    <div class="pc-col">
 
     <!-- 0. Upload (always first, drives auto-fill) -->
     <section class="pc-section">
       <div class="pc-section-head">
         <span class="pc-status-pill" id="pill-upload"></span>
+        <span class="pc-step">01</span>
         <h2>Installer file</h2>
         <span class="pc-counter" id="counter-upload">drop file or click</span>
       </div>
+      <p class="pc-section-sub">The binary is staged and hashed here, then inspected. Whatever the wizard can read out of it, MSI summary, Appx identity or PE version info, is filled in for you below.</p>
       <div class="pc-drop" id="drop">
+        <svg class="pc-drop-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M3 15v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4"/>
+        </svg>
         <p id="drop-text">Drop your installer here, or click to choose a file.</p>
         <p class="muted pc-summary" id="drop-summary" hidden></p>
-        <input type="file" id="installerFile">
+        <input type="file" id="installerFile" aria-label="Installer file">
       </div>
     </section>
 
@@ -163,9 +720,11 @@
     <section class="pc-section">
       <div class="pc-section-head">
         <span class="pc-status-pill" id="pill-identity"></span>
+        <span class="pc-step">02</span>
         <h2>Identity</h2>
         <span class="pc-counter" id="counter-identity"></span>
       </div>
+      <p class="pc-section-sub">How the package is addressed in the repo. PackageIdentifier and PackageVersion decide the manifest path, so both are locked once that version has been published.</p>
       <div class="pc-fields">
         <label class="full">
           <span class="lbl req">PackageIdentifier</span>
@@ -192,9 +751,11 @@
     <section class="pc-section">
       <div class="pc-section-head">
         <span class="pc-status-pill" id="pill-locale"></span>
+        <span class="pc-step">03</span>
         <h2>Default locale</h2>
         <span class="pc-counter" id="counter-locale"></span>
       </div>
+      <p class="pc-section-sub">What a client shows when it lists or installs the package. Publisher, name and description are what an operator actually reads in <code>winget search</code>.</p>
       <div class="pc-fields">
         <label>
           <span class="lbl req">Publisher</span>
@@ -217,7 +778,7 @@
           <span class="ind" data-ind-for="loc_ShortDescription"></span>
         </label>
         <details class="full">
-          <summary>Advanced (URLs, copyright, tags, release notes)</summary>
+          <summary>Advanced: URLs, copyright, tags, release notes</summary>
           <div class="pc-fields pc-advanced-fields">
             <label><span class="lbl">PublisherUrl</span>        <input type="url"  id="loc_PublisherUrl"><span class="ind" data-ind-for="loc_PublisherUrl"></span></label>
             <label><span class="lbl">PublisherSupportUrl</span> <input type="url"  id="loc_PublisherSupportUrl"><span class="ind" data-ind-for="loc_PublisherSupportUrl"></span></label>
@@ -242,39 +803,59 @@
     <section class="pc-section">
       <div class="pc-section-head">
         <span class="pc-status-pill" id="pill-installers"></span>
+        <span class="pc-step">04</span>
         <h2>Installers</h2>
         <span class="pc-counter" id="counter-installers"></span>
       </div>
+      <p class="pc-section-sub">One card per binary. Drop a second file above to add another architecture or scope.</p>
       <div id="installers"></div>
-      <button type="button" id="addInstaller">+ Add installer</button>
+      <div class="pc-add-row">
+        <button type="button" class="pc-add" id="addInstaller">+ Add installer</button>
+      </div>
     </section>
 
     <!-- 4. Additional locales (optional) -->
     <section class="pc-section">
       <div class="pc-section-head">
         <span class="pc-status-pill ok" id="pill-locales"></span>
-        <h2>Additional locales <small class="muted">(optional)</small></h2>
+        <span class="pc-step">05</span>
+        <h2>Additional locales <small>optional</small></h2>
         <span class="pc-counter" id="counter-locales"></span>
       </div>
+      <p class="pc-section-sub">Translations of the default locale above. Skip this unless the fleet actually runs a second language.</p>
       <div id="locales"></div>
-      <button type="button" id="addLocale">+ Add locale</button>
+      <div class="pc-add-row">
+        <button type="button" class="pc-add" id="addLocale">+ Add locale</button>
+      </div>
     </section>
 
+    </div><!-- /.pc-col -->
+
     <!-- 5. Publish -->
-    <section class="pc-section">
-      <div class="pc-section-head">
-        <span class="pc-status-pill" id="pill-overall"></span>
-        <h2>Publish</h2>
-        <span class="pc-counter" id="counter-overall"></span>
-      </div>
-      <div class="pc-actions">
-        <button type="button" class="primary" id="publishBtn" disabled>Publish to repo</button>
-        <button type="button" id="validateBtn">Run server-side validate</button>
-        <span class="muted" id="publishHint">Fill the red fields, then Publish.</span>
-      </div>
-      <div id="publishStatus" class="pc-publish-status" hidden></div>
-      <pre id="validateOutput" class="pc-output" hidden></pre>
-    </section>
+    <aside class="pc-rail">
+      <section class="pc-section pc-section--publish">
+        <div class="pc-section-head">
+          <span class="pc-status-pill" id="pill-overall"></span>
+          <span class="pc-step">06</span>
+          <h2>Publish</h2>
+          <span class="pc-counter" id="counter-overall"></span>
+        </div>
+        <p class="pc-section-sub">Publishing uploads the installer, commits the manifests to Gitea, and refreshes the local catalog.</p>
+        <div class="pc-actions">
+          <button type="button" class="primary" id="publishBtn" disabled>Publish to repo</button>
+          <button type="button" id="validateBtn">Run server-side validate</button>
+        </div>
+        <p class="muted" id="publishHint">Fill the red fields, then Publish.</p>
+        <div id="publishStatus" class="pc-publish-status" hidden></div>
+        <pre id="validateOutput" class="pc-output" hidden></pre>
+        <dl class="pc-key">
+          <div class="pc-key-row"><dt class="pc-key-glyph is-ok">&#10003;</dt><dd>Set, and it passes its shape check.</dd></div>
+          <div class="pc-key-row"><dt class="pc-key-glyph is-warn">!</dt><dd>Allowed, but worth a look before you publish.</dd></div>
+          <div class="pc-key-row"><dt class="pc-key-glyph is-error">&#10007;</dt><dd>Required, and still missing or malformed.</dd></div>
+          <div class="pc-key-row"><dt class="pc-key-glyph is-req">*</dt><dd>Required by the WinGet manifest schema.</dd></div>
+        </dl>
+      </section>
+    </aside>
 
   </main>
 
@@ -311,11 +892,11 @@
           <input name="InstallerLocale" value="en-US">
           <span class="ind"></span>
         </label>
-        <label class="full"><span class="lbl">Silent switch</span>
+        <label class="full"><span class="lbl">Silent <small>switch</small></span>
           <input name="sw_Silent" placeholder="/quiet /norestart">
           <span class="ind" data-ind-for-sw="Silent"></span>
         </label>
-        <label class="full"><span class="lbl">SilentWithProgress</span>
+        <label class="full"><span class="lbl">SilentWithProgress <small>switch</small></span>
           <input name="sw_SilentWithProgress" placeholder="/passive /norestart">
           <span class="ind"></span>
         </label>
@@ -358,19 +939,19 @@
               </select>
               <span class="ind"></span>
             </label>
-            <label><span class="lbl">Interactive switch</span>          <input name="sw_Interactive"><span class="ind"></span></label>
-            <label><span class="lbl">InstallLocation switch</span>      <input name="sw_InstallLocation"><span class="ind"></span></label>
-            <label><span class="lbl">Log switch</span>                   <input name="sw_Log"><span class="ind"></span></label>
-            <label><span class="lbl">Upgrade switch</span>               <input name="sw_Upgrade"><span class="ind"></span></label>
-            <label><span class="lbl">Custom switch</span>                <input name="sw_Custom"><span class="ind"></span></label>
+            <label><span class="lbl">Interactive <small>switch</small></span>     <input name="sw_Interactive"><span class="ind"></span></label>
+            <label><span class="lbl">InstallLocation <small>switch</small></span> <input name="sw_InstallLocation"><span class="ind"></span></label>
+            <label><span class="lbl">Log <small>switch</small></span>             <input name="sw_Log"><span class="ind"></span></label>
+            <label><span class="lbl">Upgrade <small>switch</small></span>         <input name="sw_Upgrade"><span class="ind"></span></label>
+            <label><span class="lbl">Custom <small>switch</small></span>          <input name="sw_Custom"><span class="ind"></span></label>
             <label><span class="lbl">InstallerSuccessCodes</span>        <input name="InstallerSuccessCodes" placeholder="0,3010"><span class="ind"></span></label>
-            <label class="full"><span class="lbl">ExpectedReturnCodes (JSON)</span> <textarea name="ExpectedReturnCodes" rows="2"></textarea><span class="ind"></span></label>
+            <label class="full"><span class="lbl">ExpectedReturnCodes <small>json</small></span> <textarea name="ExpectedReturnCodes" rows="2"></textarea><span class="ind"></span></label>
             <label><span class="lbl">UnsupportedArguments</span> <input name="UnsupportedArguments"><span class="ind"></span></label>
             <label><span class="lbl">UnsupportedOSArchitectures</span> <input name="UnsupportedOSArchitectures"><span class="ind"></span></label>
             <label><span class="lbl">Commands</span> <input name="Commands"><span class="ind"></span></label>
             <label><span class="lbl">Protocols</span> <input name="Protocols"><span class="ind"></span></label>
             <label><span class="lbl">FileExtensions</span> <input name="FileExtensions"><span class="ind"></span></label>
-            <label class="full"><span class="lbl">AppsAndFeaturesEntries (JSON)</span> <textarea name="AppsAndFeaturesEntries" rows="2"></textarea><span class="ind"></span></label>
+            <label class="full"><span class="lbl">AppsAndFeaturesEntries <small>json</small></span> <textarea name="AppsAndFeaturesEntries" rows="2"></textarea><span class="ind"></span></label>
             <label><span class="lbl">NestedInstallerType</span>
               <select name="NestedInstallerType">
                 <option value="">(none)</option>
@@ -378,8 +959,8 @@
               </select>
               <span class="ind"></span>
             </label>
-            <label class="full"><span class="lbl">NestedInstallerFiles (JSON)</span> <textarea name="NestedInstallerFiles" rows="2"></textarea><span class="ind"></span></label>
-            <label class="full"><span class="lbl">Markets (JSON)</span> <input name="Markets"><span class="ind"></span></label>
+            <label class="full"><span class="lbl">NestedInstallerFiles <small>json</small></span> <textarea name="NestedInstallerFiles" rows="2"></textarea><span class="ind"></span></label>
+            <label class="full"><span class="lbl">Markets <small>json</small></span> <input name="Markets"><span class="ind"></span></label>
           </div>
         </details>
       </div>

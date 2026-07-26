@@ -139,7 +139,9 @@ function Add-RfPublishEvent {
     if (-not $DataSource) { $DataSource = Open-RfStateDatabase }
 
     $manifestJson = if ($ManifestFiles) {
-        ConvertTo-Json -InputObject @($ManifestFiles) -Compress -AsArray
+        # [string[]] cast, NOT -AsArray (which double-wraps a multi-file list into
+        # [["a","b"]]); -InputObject preserves a single element as ["a"].
+        ConvertTo-Json -InputObject ([string[]]@($ManifestFiles)) -Compress
     } else { '[]' }
     $installerJson = if ($InstallerFiles) {
         ConvertTo-Json -InputObject @($InstallerFiles) -Compress -Depth 5

@@ -24,25 +24,16 @@ function Get-RfCustomPackage {
     # is why the table looked empty after a successful publish.
     function _Null([object]$v) { if ($null -eq $v -or $v -is [System.DBNull]) { $null } else { $v } }
     foreach ($r in @($rows)) {
-        # upstream_match_json is JSON-text in the column; expose as a
-        # parsed array. NULL means "never scanned"; empty array means
-        # "scanned, no match". Distinguish the two in the UI.
+        # upstream_match_json is always a FLAT JSON array: NULL = never scanned,
+        # [] = scanned / no match, [{...}] = matches. Writers were fixed (#155) and
+        # any legacy double-nested rows were flattened (migration 041), so there is
+        # one shape to parse - no read-time repair. The UI distinguishes
+        # never-scanned (NULL -> $null) from scanned-clean (empty array).
         $matchArr = $null
         $matchJsonRaw = _Null $r.upstream_match_json
         if ($null -ne $matchJsonRaw) {
-            try {
-                $parsed = ConvertFrom-Json -InputObject ([string]$matchJsonRaw) -Depth 10
-                $matchArr = @($parsed)
-                # Repair pre-fix rows: a comma-operator bug in an older
-                # Find-RfUpstreamHashMatches stored the match list as
-                # [[{...}]] (array of array) instead of [{...}]. Detect
-                # the singleton outer wrap and flatten it on read so the
-                # API response is the correct shape and the client does
-                # not have to know about the legacy bug.
-                if ($matchArr.Count -eq 1 -and ($matchArr[0] -is [System.Array] -or $matchArr[0] -is [System.Collections.IEnumerable] -and $matchArr[0] -isnot [string] -and $matchArr[0] -isnot [System.Management.Automation.PSCustomObject])) {
-                    $matchArr = @($matchArr[0])
-                }
-            } catch { $matchArr = @() }
+            try { $matchArr = @(ConvertFrom-Json -InputObject ([string]$matchJsonRaw) -Depth 10) }
+            catch { $matchArr = @() }
         }
         $sizeRaw = _Null $r.total_size_bytes
         $obj = [PSCustomObject]@{

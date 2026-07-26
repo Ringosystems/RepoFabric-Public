@@ -28,9 +28,10 @@ function Get-RfActivityFeed {
         events across both tables. Defaults to 50.
 
     .PARAMETER Filter
-        'all'      - both kinds (default)
+        'all'      - all kinds (default)
         'sync'     - run rows only (sync/cleanup/index_refresh)
         'admin'    - admin_event rows only
+        'ingest'   - RFIP transport rows only (system-to-system ingest calls)
         'failures' - any row whose outcome is failed/partial
 
     .OUTPUTS
@@ -41,7 +42,7 @@ function Get-RfActivityFeed {
     [OutputType([object[]])]
     param(
         [int]$Last = 50,
-        [ValidateSet('all','sync','admin','failures')]
+        [ValidateSet('all','sync','admin','ingest','failures')]
         [string]$Filter = 'all'
     )
 
@@ -53,6 +54,8 @@ function Get-RfActivityFeed {
     $rows = [System.Collections.Generic.List[object]]::new()
 
     # ---- Run rows ----
+    # Ingest rows are NOT part of 'failures' unless rejected; run/admin failures
+    # still surface under 'failures'. Sync rows excluded from 'ingest'.
     if ($Filter -in @('all','sync','failures')) {
         $runsSql = @'
 SELECT run_id, kind, trigger, actor, status,
@@ -124,6 +127,52 @@ SELECT event_id, event_type, subject, actor, outcome, detail_json, created_at
             }
         } catch {
             Write-Verbose "Get-RfActivityFeed: admin_event read failed ($($_.Exception.Message)); returning sync-only rows."
+        }
+    }
+
+    # ---- Ingest transport rows (RFIP) ----
+    # Tolerate the table not existing yet (fresh container before migration 037).
+    if ($Filter -in @('all','ingest','failures')) {
+        try {
+            $ingSql = @'
+SELECT ingest_event_id, request_id, client_id, verb, method, path, repo_id,
+       package_id, package_version, outcome, http_status, reject_reason,
+       sig_verdict, bytes_in, publish_event_id, created_at
+  FROM ingest_event
+ ORDER BY ingest_event_id DESC
+ LIMIT @n
+'@
+            $ingRows = Invoke-RfSqliteQuery -DataSource $db -Query $ingSql -SqlParameters @{ n = $Last }
+            foreach ($i in @($ingRows)) {
+                if (-not $i) { continue }
+                # accepted -> succeeded, rejected -> failed (Activity outcome classes).
+                $outcome = if ([string]$i.outcome -eq 'accepted') { 'succeeded' } else { 'failed' }
+                if ($Filter -eq 'failures' -and $outcome -ne 'failed') { continue }
+                $subject = if ($i.package_id -and $i.package_id -isnot [System.DBNull]) {
+                    if ($i.package_version -and $i.package_version -isnot [System.DBNull]) { "$($i.package_id)@$($i.package_version)" } else { [string]$i.package_id }
+                } else { [string]$i.path }
+                $clientId = if ($i.client_id -and $i.client_id -isnot [System.DBNull]) { [string]$i.client_id } else { $null }
+                $rows.Add([PSCustomObject]@{
+                    ts      = [string]$i.created_at
+                    kind    = 'ingest'
+                    event   = "ingest_$([string]$i.verb)"
+                    subject = $subject
+                    actor   = if ($clientId) { "client:$clientId" } else { 'unknown-client' }
+                    outcome = $outcome
+                    detail  = @{
+                        verb          = [string]$i.verb
+                        repo_id       = if ($i.repo_id -and $i.repo_id -isnot [System.DBNull]) { [string]$i.repo_id } else { $null }
+                        http_status   = if ($null -ne $i.http_status) { [int]$i.http_status } else { $null }
+                        reject_reason = if ($i.reject_reason -and $i.reject_reason -isnot [System.DBNull]) { [string]$i.reject_reason } else { $null }
+                        sig_verdict   = if ($i.sig_verdict -and $i.sig_verdict -isnot [System.DBNull]) { [string]$i.sig_verdict } else { $null }
+                        bytes_in      = if ($null -ne $i.bytes_in) { [int64]$i.bytes_in } else { 0 }
+                        request_id    = [string]$i.request_id
+                    }
+                    id      = "ing-$($i.ingest_event_id)"
+                }) | Out-Null
+            }
+        } catch {
+            Write-Verbose "Get-RfActivityFeed: ingest_event read failed ($($_.Exception.Message)); returning without ingest rows."
         }
     }
 

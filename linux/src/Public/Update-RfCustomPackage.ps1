@@ -61,11 +61,12 @@ function Update-RfCustomPackage {
     # ----- Load + invariant check ---------------------------------------
     $db = Open-RfStateDatabase
     $row = Invoke-RfSqliteQuery -DataSource $db -Query @'
-SELECT custom_id, package_id, last_published_version
+SELECT custom_id, repo_id, package_id, last_published_version
   FROM custom_packages
  WHERE custom_id = @cid
 '@ -SqlParameters @{ cid = $CustomId } | Select-Object -First 1
     if (-not $row) { throw "Custom package #$CustomId not found." }
+    $repoId = if ($row.repo_id) { [string]$row.repo_id } else { 'main' }
 
     $packageId = [string]$Manifest.version.PackageIdentifier
     $version   = [string]$Manifest.version.PackageVersion
@@ -86,7 +87,10 @@ SELECT custom_id, package_id, last_published_version
         throw "Manifest schema validation failed: $(($check.Errors -join '; '))"
     }
 
-    $cfg = Get-RfConfiguration
+    # Retarget the git chokepoint at the package's own repo (promote-style
+    # override); 'main' is the original config verbatim.
+    $scoped = Get-RfRepoScopedConfiguration -RepoId $repoId
+    $cfg    = $scoped.Configuration
     $installerBase = [string]$cfg.target.installer_base_url
     if (-not $installerBase) { throw 'target.installer_base_url is required.' }
 
@@ -154,8 +158,9 @@ UPDATE custom_packages
         actor      = $identity
     }
 
-    Write-RfAdminEvent -EventType 'custom_updated' -Subject $packageId -Actor $identity -Data @{
+    Write-RfAdminEvent -EventType 'custom_updated' -Subject $packageId -Actor $identity -RepoId $repoId -Data @{
         custom_id  = $CustomId
+        repo_id    = $repoId
         version    = $version
         repo_path  = $rendered.RepoPath
         commit_sha = $pushResult.CommitSha
@@ -163,7 +168,7 @@ UPDATE custom_packages
     }
 
     # ----- 5. Catalog refresh -------------------------------------------
-    try { Update-RfRepoCatalog | Out-Null }
+    try { Update-RfRepoCatalog -RepoId $repoId | Out-Null }
     catch { Write-RfLog -Level Warning -Message "Catalog refresh after custom edit failed: $($_.Exception.Message)" }
 
     # ----- 6. Upstream-hash collision snapshot (idempotent) -------------

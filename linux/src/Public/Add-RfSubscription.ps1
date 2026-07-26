@@ -226,10 +226,12 @@ WHERE repo_id = @RepoId
                 PackageId      = $PackageId
                 Track          = $Track
                 PinnedVersion  = if ($Version) { $Version } else { [DBNull]::Value }
-                # @() + -AsArray so single-element values still round-trip
-                # as ["x64"] instead of being unwrapped to "x64".
-                ArchPolicy     = (ConvertTo-Json -InputObject @($Arch)   -Compress -AsArray)
-                LocalePolicy   = (ConvertTo-Json -InputObject @($Locale) -Compress -AsArray)
+                # [string[]] cast keeps a flat JSON array for 0/1/N elements.
+                # NOT -AsArray: with an -InputObject that is already an array it
+                # double-wraps (@('x64') -> [["x64"]]); and -InputObject (unlike a
+                # pipeline) does not unwrap a single element, so ["x64"] is preserved.
+                ArchPolicy     = (ConvertTo-Json -InputObject ([string[]]@($Arch))   -Compress)
+                LocalePolicy   = (ConvertTo-Json -InputObject ([string[]]@($Locale)) -Compress)
                 Retention      = $Retention
                 NotesValue     = $Notes
                 BinaryModeValue = if ([string]::IsNullOrWhiteSpace($BinaryMode)) { [DBNull]::Value } else { $BinaryMode }

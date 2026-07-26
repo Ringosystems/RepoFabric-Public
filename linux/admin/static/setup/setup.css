@@ -1,257 +1,1227 @@
+/* ============================================================================
+   RepoFabric first-run setup wizard — RingoSystems Graphite Forge v1.0
+   RingoSystems Heavy Industries
+
+   ---------------------------------------------------------------------------
+   WHY THIS FILE RESTATES THE FOUNDATION
+
+   Every other RepoFabric surface links graphite-forge.css (foundation) then
+   repofabric-tokens.css (application token map) then its own sheet. The wizard
+   cannot. server.js mounts it as
+
+       app.use('/setup', express.static(<static>/setup))
+
+   so the only files a wizard page can fetch are the ones inside static/setup/.
+   A ../graphite-forge.css link resolves to /graphite-forge.css, which is not a
+   route at all during first-run setup and sits behind the authenticated /admin
+   static mount in normal mode — and the wizard is reachable in BOTH (Settings →
+   Advanced → Re-enter setup wizard). Linking the foundation would therefore
+   ship this page with no tokens at all.
+
+   The block below is a VERBATIM MIRROR of graphite-forge.css and the subset of
+   repofabric-tokens.css this surface uses: same token names, same values, no
+   second opinions — exactly the arrangement static/docs-static/docs.css already
+   uses for the same reason. If the foundation's values change, change them here
+   too. The permanent fix is two lines in server.js exposing the foundation and
+   the token map under the /setup prefix; at that point this whole block is
+   deleted and the two stylesheets are linked in order, as index.html does it.
+   ---------------------------------------------------------------------------
+
+   This file owns the wizard's composition. It hardcodes no colour outside the
+   mirror.
+
+   This is an ENTRY surface, so it takes the framed treatment the standard
+   reserves for sign-in and setup: a centred max-width shell at 20px radius
+   sitting on the copper/violet ambient wash the foundation paints on <body>.
+   The admin proper runs edge-to-edge; this one does not.
+
+   Type discipline (the split that matters):
+     --font-ui   Inter    — everything a human wrote: titles, prose, help text,
+                            button labels, field labels, navigation.
+     --font-mono Consolas — everything a machine emitted: step numbers, tokens,
+                            URLs, hosts, repo paths, GUIDs, cron strings, file
+                            paths, locale tags, counts, the review JSON, and
+                            every value the operator types that IS an
+                            identifier (which, on this surface, is all of them).
+   ========================================================================= */
+
+/* ============================================================================
+   MIRRORED FOUNDATION — see the header. Keep byte-for-byte in step with
+   static/graphite-forge.css and static/repofabric-tokens.css.
+   ========================================================================= */
 :root {
-  --bg: #0f1115;
-  --panel: #161922;
-  --text: #d6dae3;
-  --muted: #7d8492;
-  --accent: #4fa3ff;
-  --ok: #5ad17b;
-  --warn: #e8b94b;
-  --fail: #e25555;
-  --border: #2a2f3a;
+  color-scheme: dark;
+
+  /* ---- Surfaces: a single ramp from the void up to the raised plane ---- */
+  --gf-bg-base:          #101113;
+  --gf-bg-shell:         #14171B;
+  --gf-surface:          #16181C;
+  --gf-surface-raised:   #1E222A;
+  --gf-surface-elevated: #252932;
+  /* Mirrors --surface-3 in repofabric-tokens.css: wells sit BELOW the panel. */
+  --surface-3:           #0D0E10;
+
+  /* ---- Text: four steps, never more ---- */
+  --gf-text-primary:   #F7F9FB;
+  --gf-text-secondary: #A7B0BE;
+  --gf-text-muted:     #75808E;
+  --gf-text-disabled:  #505965;
+
+  /* ---- Accents. Copper leads; the rest carry meaning, never decoration ---- */
+  --gf-accent:  #C97A40;
+  --gf-success: #52B788;
+  --gf-violet:  #7B61FF;
+  --gf-data:    #6BD6E8;
+  --gf-warning: #F6C85F;
+  --gf-danger:  #D65A4A;
+
+  /* ---- Type ---- */
+  --gf-font-ui:   Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --gf-font-data: Consolas, "Cascadia Mono", "SF Mono", ui-monospace, monospace;
+
+  --gf-weight-display:   760;
+  --gf-tracking-display: -.065em;
+  --gf-tracking-title:   -.045em;
+
+  --gf-fs-page:    clamp(28px, 3.2vw, 40px);  /* page title  32-40 / 1.05 */
+  --gf-fs-section: 20px;                      /* section     18-22 / 1.2  */
+  --gf-fs-body:    15px;                      /* body        15-17 / 1.55 */
+  --gf-fs-label:   13px;                      /* UI label    12-14 / 1.2  */
+  --gf-fs-code:    12.5px;                    /* code        12-13 / 1.4  */
+
+  /* ---- Spacing / geometry (standard §5: 4/8/12/16/22/32) ---- */
+  --gf-space-1: 4px;  --gf-space-2: 8px;  --gf-space-3: 12px;
+  --gf-space-4: 16px; --gf-space-5: 22px; --gf-space-6: 32px;
+  --gf-radius-control: 11px;
+  --gf-radius-card:    18px;
+  --gf-radius-shell:   20px;
+
+  /* ---- Lines and light: borders before shadows ---- */
+  --gf-border-default: 1px solid rgba(255,255,255,.07);
+  --gf-surface-glass:       rgba(255,255,255,.045);
+  --gf-surface-glass-hover: rgba(255,255,255,.065);
+  --gf-copper-004: rgba(201,122,64,.04);
+  --gf-copper-08:  rgba(201,122,64,.08);
+  --gf-copper-30:  rgba(201,122,64,.30);
+  --gf-copper-36:  rgba(201,122,64,.36);
+  /* Ambient only: hero cards, selected preview panels, the brand mark. */
+  --gf-glow-copper:  0 0 80px rgba(201,122,64,.18);
+  --gf-shadow-frame: 0 34px 100px rgba(0,0,0,.42);
+  --gf-ease: .18s cubic-bezier(.4, 0, .2, 1);
+
+  /* ---- Application token map (repofabric-tokens.css) ---- */
+  --text:           var(--gf-text-primary);
+  --text-dim:       var(--gf-text-secondary);
+  --text-disabled:  var(--gf-text-disabled);
+  --text-on-accent: #101113;   /* text ON copper is graphite, never white */
+  --muted:  var(--gf-text-muted);
+  --accent:   var(--gf-accent);
+  --accent-2: #DE8B4B;         /* hover: copper, one step brighter */
+  --ok:    var(--gf-success);
+  --warn:  var(--gf-warning);
+  --error: var(--gf-danger);
+  --info:  var(--gf-data);
+  --error-bg: rgba(214,90,74,.15);
+
+  --font-ui:   var(--gf-font-ui);
+  --font-mono: var(--gf-font-data);
+  --fs-xs:  12px;
+  --fs-sm:  12.5px;
+  --fs-md:  13px;
+  --fs-lg:  14px;
+  --fs-xl:  16px;
+  --fs-xxl: var(--gf-fs-section);
+
+  --r-sm: 8px;
+  --r-md: var(--gf-radius-control);
+  --r-lg: var(--gf-radius-card);
+  --s-1: var(--gf-space-1);
+  --s-2: var(--gf-space-2);
+  --s-3: var(--gf-space-3);
+  --s-4: var(--gf-space-4);
+  --s-5: var(--gf-space-5);
+  --s-6: var(--gf-space-6);
+  --s-7: 40px;
 }
-* { box-sizing: border-box; }
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* The signature wash: copper rising top-left, violet answering top-right, over
+   a shell-to-base fall. Fixed, so content scrolls through the light. */
 body {
   margin: 0;
-  font: 14px/1.5 system-ui, -apple-system, Segoe UI, sans-serif;
-  background: var(--bg);
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(201,122,64,.18), transparent 30%),
+    radial-gradient(circle at 88% 7%, rgba(123,97,255,.11), transparent 24%),
+    linear-gradient(180deg, var(--gf-bg-shell), var(--gf-bg-base));
+  background-attachment: fixed;
   color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--gf-fs-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
-header, main, nav { max-width: 800px; margin: 0 auto; padding: 16px 20px; }
-header h1 { margin: 0 0 4px; }
+
+/* Focus is copper, always visible, never removed. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-md);
+}
+
+::selection { background: rgba(201,122,64,.32); color: #fff; }
+
+* { scrollbar-width: thin; scrollbar-color: #2C323C transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #2C323C; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: #3A424E; background-clip: content-box; }
+
+/* ---- Foundation primitives this surface uses -------------------------- */
+.gf-display {
+  font-family: var(--font-ui);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-display);
+  line-height: .96;
+  margin: 0;
+}
+.gf-display-2 {
+  font-size: var(--gf-fs-page);
+  letter-spacing: var(--gf-tracking-title);
+  line-height: 1.05;
+}
+
+/* Eyebrow: a copper label with a lit dot, marking the subject of a region. */
+.gf-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: var(--gf-weight-display);
+  letter-spacing: .01em;
+}
+.gf-eyebrow::before {
+  content: "";
+  width: 8px; height: 8px; flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 18px var(--accent);
+}
+
+/* Brand mark. Ambient copper glow is permitted here by the standard. */
+.gf-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.gf-logo {
+  width: 34px; height: 34px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--ok));
+  box-shadow: 0 0 38px rgba(201,122,64,.18);
+  color: var(--text-on-accent);
+  font-size: 17px;
+  font-weight: 900;
+}
+.gf-brand-name { font-size: 15px; font-weight: var(--gf-weight-display); letter-spacing: -.04em; white-space: nowrap; }
+.gf-brand-sub {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Status pill: state as a word plus a lit dot, never colour alone. */
+.gf-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px 3px 8px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 999px;
+  background: rgba(255,255,255,.04);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 560;
+  white-space: nowrap;
+}
+.gf-pill::before {
+  content: "";
+  width: 7px; height: 7px; flex: none;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+}
+.gf-pill.is-copper { color: var(--accent); border-color: var(--gf-copper-30); background: var(--gf-copper-08); }
+
+/* Motion: the operator's preference wins. Position and text carry the
+   information, so removing the transitions loses nothing. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================================
+   END MIRRORED FOUNDATION — everything below is this surface's own.
+   ========================================================================= */
+
+/* Hard guard: several elements are shown/hidden by setting the `hidden`
+   attribute from setup.js (panels, sched-opt rows, mail-opt blocks, the
+   "Auto-filled" pill, the error boxes). Any author `display` would silently
+   beat the UA `[hidden]` rule, so pin it once. */
+[hidden] { display: none !important; }
+
+/* ---------------------------------------------------------------------------
+   Page shell
+------------------------------------------------------------------------- */
+.setup-page {
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: clamp(16px, 3vw, 40px) var(--s-5) var(--s-6);
+}
+
+.setup-frame {
+  max-width: 980px;
+  margin: 0 auto;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: var(--gf-radius-shell);
+  background: linear-gradient(180deg, rgba(30,34,41,.70), rgba(15,17,21,.92));
+  box-shadow: var(--gf-shadow-frame);
+}
+/* The Targets step carries a worked-example rail, so the frame widens for it
+   and only for it. setup.js mirrors the active step onto <body data-step>. */
+body[data-step="1"] .setup-frame { max-width: 1320px; }
+
+.setup-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-height: 70px;
+  padding: 0 var(--s-6);
+  border-bottom: 1px solid rgba(255,255,255,.065);
+  background: rgba(17,19,23,.55);
+  border-radius: var(--gf-radius-shell) var(--gf-radius-shell) 0 0;
+}
+.setup-topbar .brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.setup-stage { margin-left: auto; }
+
+.setup-body { padding: var(--s-6); }
+
+/* ---- Intro ------------------------------------------------------------- */
+.setup-intro { margin-bottom: var(--s-6); }
+.setup-intro h1 { margin: var(--s-3) 0 var(--s-4); color: var(--text); }
+.setup-lede {
+  margin: 0 0 var(--s-3);
+  max-width: 76ch;
+  color: var(--text-dim);
+  font-size: 17px;
+  line-height: 1.55;
+}
+.setup-lede strong { color: var(--text); font-weight: 640; }
+.setup-note {
+  margin: 0;
+  max-width: 80ch;
+  color: var(--muted);
+  font-size: var(--fs-md);
+  line-height: 1.6;
+}
+.setup-intro a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--gf-copper-36);
+}
+.setup-intro a:hover { color: var(--accent-2); border-bottom-color: var(--accent-2); }
+/* The docs link is a path — data face. */
+.setup-note a { font-family: var(--font-mono); font-size: .95em; }
+
+.setup-foot {
+  max-width: 980px;
+  margin: var(--s-5) auto 0;
+  text-align: center;
+  color: var(--text-disabled);
+  font-size: var(--fs-xs);
+  letter-spacing: .06em;
+}
+
 .muted { color: var(--muted); }
 
+/* ---------------------------------------------------------------------------
+   Step indicator
+   Free navigation: every step is clickable from the moment the token is
+   verified. Selection is carried by a copper-tinted border, a weight change
+   and a copper underbar — never by colour alone.
+------------------------------------------------------------------------- */
+#steps { margin: 0 0 var(--s-5); }
 #steps ol {
-  display: flex; gap: 4px; padding: 0; margin: 0; list-style: none; flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 #steps li {
-  flex: 1 1 0;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--panel);
-  text-align: center;
-  font-size: 12px;
-  color: var(--muted);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px var(--s-3) 14px;
+  border: var(--gf-border-default);
+  border-radius: var(--r-md);
+  background: rgba(255,255,255,.022);
+  cursor: pointer;
+  transition: background var(--gf-ease), border-color var(--gf-ease), color var(--gf-ease);
 }
-#steps li.active { color: var(--text); border-color: var(--accent); }
-
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 20px; margin-top: 16px; }
-.panel h2 { margin-top: 0; }
-label { display: block; margin: 10px 0; }
-label input, label select {
-  display: block; width: 100%; margin-top: 4px;
-  padding: 6px 8px; background: var(--bg); color: var(--text);
-  border: 1px solid var(--border); border-radius: 4px;
-}
-fieldset { border: 1px solid var(--border); border-radius: 4px; padding: 8px 14px; margin: 12px 0; }
-fieldset legend { padding: 0 6px; color: var(--muted); }
-
-.actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-button {
-  padding: 8px 14px; border-radius: 4px; border: 1px solid var(--border);
-  background: var(--panel); color: var(--text); cursor: pointer;
-}
-button:hover { border-color: var(--accent); }
-button.primary { background: var(--accent); color: #0a0d12; border-color: var(--accent); font-weight: 600; }
-
-.error { background: #4a1717; border: 1px solid var(--fail); color: #ffd2d2; padding: 8px; border-radius: 4px; margin-top: 10px; }
-
-/* Required marker on labels */
-.req { color: var(--fail); font-weight: 600; margin-left: 2px; }
-
-/* Inline help text under every input */
-label small.help,
-fieldset p.help {
-  display: block;
-  font-size: 11.5px;
-  color: var(--muted);
-  margin-top: 4px;
-  line-height: 1.45;
-}
-label small.help code,
-fieldset p.help code {
-  background: rgba(255,255,255,0.05);
-  padding: 1px 5px;
-  border-radius: 3px;
+/* Step numbers are machine ordinals: data face. */
+#steps .step-n {
+  font-family: var(--font-mono);
   font-size: 11px;
+  letter-spacing: .08em;
+  color: var(--text-disabled);
+}
+#steps .step-t {
+  font-size: var(--fs-md);
+  font-weight: 560;
+  letter-spacing: -.01em;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#steps li:hover { background: var(--gf-surface-glass-hover); border-color: var(--gf-copper-30); }
+#steps li:hover .step-t { color: var(--text); }
+#steps li.active { background: var(--gf-copper-08); border-color: var(--gf-copper-36); }
+#steps li.active .step-n { color: var(--accent); }
+#steps li.active .step-t { color: var(--text); font-weight: 660; }
+#steps li.active::after {
+  content: "";
+  position: absolute;
+  left: var(--s-3);
+  right: var(--s-3);
+  bottom: 6px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 
-/* Validation: red border + inline message when a required field is
-   empty or a data-validate shape check failed */
-label.is-invalid input,
-label.is-invalid select {
-  border-color: var(--fail);
+/* ---------------------------------------------------------------------------
+   Panel — the wizard card. Border-led, 18px radius, no drop shadow.
+------------------------------------------------------------------------- */
+.panel {
+  border: var(--gf-border-default);
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, rgba(28,32,39,.75), rgba(15,18,22,.78));
+  padding: var(--s-6);
+}
+
+.panel-head { display: flex; flex-direction: column; gap: var(--s-2); margin-bottom: var(--s-3); }
+.panel-step {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--text-disabled);
+}
+.panel-step b { font-family: var(--font-mono); font-weight: 600; letter-spacing: .04em; color: var(--text-dim); }
+
+.panel h2 {
+  margin: 0;
+  font-size: clamp(22px, 2.2vw, 28px);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+  line-height: 1.12;
+  color: var(--text);
+}
+.panel h3 { margin: 0; font-weight: var(--gf-weight-display); letter-spacing: var(--gf-tracking-title); }
+.panel-lede {
+  margin: 0 0 var(--s-5);
+  max-width: 80ch;
+  color: var(--text-dim);
+  font-size: var(--fs-xl);
+  line-height: 1.55;
+}
+.panel-lede strong { color: var(--text); font-weight: 640; }
+
+.panel a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--gf-copper-36); }
+.panel a:hover { color: var(--accent-2); border-bottom-color: var(--accent-2); }
+
+/* Inline evidence: commands, paths, hosts, YAML file names. Always data face. */
+.panel code,
+.setup-intro code,
+.done code {
+  font-family: var(--font-mono);
+  font-size: .92em;
+  padding: 1px 6px;
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: var(--r-sm);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------------------
+   Field rows
+   Every input on this surface holds a machine value — a token, a host, a URL,
+   a GUID, a repo path, a locale tag, a cron string, a count — so inputs are
+   set in the data face. <select> options are human-written words, so those
+   stay in the UI face.
+------------------------------------------------------------------------- */
+.panel label {
+  display: block;
+  margin: var(--s-5) 0 0;
+  font-size: var(--fs-lg);
+  font-weight: 560;
+  letter-spacing: -.005em;
+  color: var(--text);
+}
+.panel label small.muted { font-size: var(--fs-sm); font-weight: 400; color: var(--muted); }
+
+.panel input[type="text"],
+.panel input[type="url"],
+.panel input[type="email"],
+.panel input[type="number"],
+.panel input[type="password"],
+.panel input[type="time"],
+.panel select,
+.panel textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px var(--s-4);
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  line-height: 1.45;
+  transition: border-color var(--gf-ease), box-shadow var(--gf-ease), background var(--gf-ease);
+}
+.panel select { font-family: var(--font-ui); }
+.panel textarea { resize: vertical; min-height: 88px; }
+.panel input::placeholder,
+.panel textarea::placeholder { color: var(--text-disabled); }
+.panel input:focus,
+.panel select:focus,
+.panel textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(201,122,64,.16);
+}
+.panel input[type="number"] { max-width: 200px; }
+.panel input[type="checkbox"] {
+  display: inline-block;
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+}
+/* The :focus rule above suppresses the outline in favour of a border + ring,
+   which a native checkbox cannot render. Give it the outline back. */
+.panel input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Help text sits under the control it explains: human prose, UI face, muted. */
+.panel .help,
+.panel small.help,
+.panel fieldset p.help,
+.panel .field-block > .help {
+  display: block;
+  margin-top: 6px;
+  max-width: 92ch;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  line-height: 1.55;
+}
+.panel .help strong { color: var(--text-dim); font-weight: 640; }
+.panel .actions .help { margin-top: 0; }
+
+/* Required marker: copper, matching the app's field convention. */
+.req { color: var(--accent); font-weight: 700; margin-left: 2px; }
+
+.panel fieldset {
+  margin: var(--s-5) 0 0;
+  padding: var(--s-4) var(--s-5) var(--s-5);
+  border: var(--gf-border-default);
+  border-radius: var(--r-lg);
+  background: rgba(255,255,255,.018);
+}
+.panel legend {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-2);
+  font-size: var(--fs-md);
+  font-weight: 660;
+  letter-spacing: .01em;
+  color: var(--text);
+}
+
+.field-block { margin: var(--s-5) 0 0; }
+.field-cap {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-lg);
+  font-weight: 560;
+  color: var(--text);
+}
+.panel .grp-note { margin-top: 0; margin-bottom: var(--s-4); }
+
+/* ---- Validation --------------------------------------------------------
+   setup.js toggles .is-invalid on the wrapping <label> and appends a
+   .validation-msg. State is carried by a border, an icon and a sentence —
+   not by colour alone.                                                     */
+.panel label.is-invalid > input,
+.panel label.is-invalid > select,
+.panel label.is-invalid > textarea {
+  border-color: var(--error);
+  background: rgba(214,90,74,.06);
+}
+.panel label.is-invalid > input:focus,
+.panel label.is-invalid > select:focus,
+.panel label.is-invalid > textarea:focus {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(214,90,74,.18);
 }
 .validation-msg {
   display: block;
-  font-size: 11.5px;
-  color: var(--fail);
-  margin-top: 3px;
+  margin-top: 5px;
+  color: var(--error);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 520;
 }
+.validation-msg::before { content: "▲ "; font-size: 9px; vertical-align: 1px; }
 
-/* Probe row: button + result panel side by side on wide viewports */
-.probe-row { display: flex; gap: 12px; align-items: flex-start; margin-top: 10px; flex-wrap: wrap; }
+/* ---------------------------------------------------------------------------
+   Buttons
+   Default is charcoal glass with a 1px border. The copper->green gradient is
+   reserved for the single forward commitment on each step (Verify / Next /
+   Save and finish).
+------------------------------------------------------------------------- */
+.panel button,
+.done button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 9px 15px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--r-md);
+  background: var(--gf-surface-glass);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--fs-md);
+  font-weight: 560;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--gf-ease), border-color var(--gf-ease),
+              color var(--gf-ease), transform var(--gf-ease);
+}
+.panel button:hover,
+.done button:hover { background: var(--gf-surface-glass-hover); border-color: var(--gf-copper-36); }
+.panel button:active { transform: translateY(1px); }
+.panel button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+.panel button.primary {
+  padding: 10px 20px;
+  border: 0;
+  background: linear-gradient(135deg, var(--accent), var(--ok));
+  color: var(--text-on-accent);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: -.01em;
+  box-shadow: 0 18px 55px rgba(201,122,64,.18);
+}
+.panel button.primary:hover { filter: brightness(1.07); border: 0; }
+
+.actions { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; margin-top: var(--s-4); }
+/* Wizard footer: Back sits left, the one commitment sits right. */
+.step-actions {
+  justify-content: flex-end;
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.step-actions [data-prev] { margin-right: auto; }
+
+/* ---------------------------------------------------------------------------
+   Errors (token rejected / save refused)
+------------------------------------------------------------------------- */
+.error {
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid rgba(214,90,74,.42);
+  border-left: 3px solid var(--error);
+  border-radius: var(--r-md);
+  background: var(--error-bg);
+  color: var(--error);
+  font-size: var(--fs-md);
+  font-weight: 520;
+  line-height: 1.55;
+}
+.error::before { content: "✕ "; font-weight: 700; }
+
+/* ---------------------------------------------------------------------------
+   Probe results — Gitea / rewinged / Entra reachability.
+   The body is raw machine answer (host, repo, HTTP status, SourceIdentifier),
+   so the block is data face; the verdict sentence setup.js wraps in <strong>
+   is a human sentence and carries a glyph so the outcome is never colour-only.
+------------------------------------------------------------------------- */
+.probe-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin-top: var(--s-4);
+}
 .probe-row > button { flex: 0 0 auto; }
 .probe-result {
-  flex: 1 1 280px;
-  font-size: 12.5px;
-  padding: 8px 10px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,0.02);
-  line-height: 1.45;
+  flex: 1 1 300px;
+  padding: 10px var(--s-4);
+  border: var(--gf-border-default);
+  border-left: 3px solid rgba(255,255,255,.14);
+  border-radius: var(--r-md);
+  background: rgba(255,255,255,.025);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
 }
 .probe-result:empty { display: none; }
-.probe-result ul { margin: 4px 0 0 0; padding-left: 18px; }
-.probe-result code { background: rgba(0,0,0,0.25); padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
-.probe-result-pending { border-color: var(--warn); }
-.probe-result-ok      { border-color: var(--ok); background: rgba(90,209,123,0.10); }
-.probe-result-fail    { border-color: var(--fail); background: rgba(226,85,85,0.10); }
-.probe-result strong  { color: var(--text); }
-.probe-result-ok strong   { color: var(--ok); }
-.probe-result-fail strong { color: var(--fail); }
+.probe-result strong { display: block; color: var(--text); font-family: var(--font-ui); font-weight: 640; }
+.probe-result ul { margin: 6px 0 0; padding-left: 18px; }
+.probe-result li { margin: 2px 0; }
+.probe-result code { font-size: 11.5px; }
 
-/* Inline checkbox label */
-label.inline-check { display: flex; align-items: center; gap: 8px; }
-label.inline-check input { display: inline-block; width: auto; }
+.probe-result-pending { border-left-color: var(--warn); }
+.probe-result-pending strong { color: var(--warn); }
+.probe-result-pending strong::before { content: "◌ "; }
 
-pre {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
-  padding: 12px; max-height: 400px; overflow: auto; font-size: 12px;
+.probe-result-ok { border-left-color: var(--ok); background: rgba(82,183,136,.08); }
+.probe-result-ok strong { color: var(--ok); }
+.probe-result-ok strong::before { content: "✓ "; }
+
+.probe-result-fail { border-left-color: var(--error); background: rgba(214,90,74,.08); }
+.probe-result-fail strong { color: var(--error); }
+.probe-result-fail strong::before { content: "✕ "; }
+
+/* ---------------------------------------------------------------------------
+   Evidence blocks (generated script, worked-example command, review payload)
+------------------------------------------------------------------------- */
+.panel pre {
+  margin: 0;
+  padding: var(--s-4) var(--s-5);
+  border: var(--gf-border-default);
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--gf-fs-code);
+  line-height: 1.5;
+  overflow: auto;
+  max-height: 420px;
 }
 
-.done {
-  max-width: 720px;
-  margin: 40px auto;
-  padding: 32px 36px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--ok);
-  border-radius: 8px;
+/* ---------------------------------------------------------------------------
+   Step 0 — where to find the setup token
+------------------------------------------------------------------------- */
+.token-where {
+  display: grid;
+  gap: var(--s-2);
+  margin: var(--s-4) 0 0;
+  padding: 0;
+  list-style: none;
 }
-.done h1 { margin-top: 0; color: var(--ok); }
-.done h2 { margin-top: 24px; font-size: 16px; }
-.done a { color: var(--accent); }
-.done a:hover { color: #6db4ff; }
-.done .done-next { margin: 0; padding-left: 22px; }
-.done .done-next li { margin: 10px 0; line-height: 1.55; }
-.done .done-next strong, .done .done-next em { color: var(--text); }
-.done code { background: rgba(0,0,0,0.25); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
-.done p.muted { margin-top: 24px; font-style: italic; }
-
-/* Entra app-registration bootstrap (step 4) */
-.entra-bootstrap {
-  border: 1px solid var(--border); border-left: 3px solid var(--accent);
-  border-radius: 4px; padding: 10px 14px; margin: 14px 0; background: rgba(79,163,255,0.05);
+.token-where li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: 10px var(--s-4);
+  border: var(--gf-border-default);
+  border-radius: var(--r-md);
+  background: rgba(255,255,255,.022);
 }
-.entra-bootstrap > summary { cursor: pointer; color: var(--text); }
-.entra-bootstrap > summary strong { color: var(--accent); }
-.entra-bootstrap .entra-steps { margin: 6px 0 4px; padding-left: 20px; color: var(--muted); }
-.entra-bootstrap .entra-steps li { margin: 4px 0; }
-.entra-bootstrap a { color: var(--accent); }
-.entra-tabs { display: flex; gap: 6px; margin: 10px 0 6px; }
-.entra-tab { padding: 4px 10px; font-size: 12px; }
-.entra-tab.is-active { border-color: var(--accent); color: var(--accent); }
-.entra-script-row { position: relative; }
-.entra-script { margin: 0; }
-.entra-copy { position: absolute; top: 8px; right: 8px; font-size: 11px; padding: 4px 10px; z-index: 1; }
-.entra-bootstrap textarea {
-  width: 100%; box-sizing: border-box; margin-top: 4px; font-family: ui-monospace, monospace;
-  font-size: 12px; padding: 6px 8px; background: var(--bg); color: var(--text);
-  border: 1px solid var(--border); border-radius: 4px;
+.token-where li::before { content: "▸"; flex: none; color: var(--accent); font-size: 11px; }
+.tw-note { color: var(--muted); font-size: var(--fs-sm); }
+
+.panel label.token-label { max-width: 580px; }
+.panel .token-label input {
+  padding: 12px var(--s-4);
+  font-size: var(--fs-xl);
+  letter-spacing: .02em;
 }
-#entraFillMsg { align-self: center; color: var(--muted); }
 
-/* ===== Free navigation: step tabs are clickable ===== */
-#steps li { cursor: pointer; }
-#steps li:hover { border-color: var(--accent); color: var(--text); }
-#steps li:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* ===== Targets step: guided, example-led layout ===== */
-/* The Targets step widens only for itself to fit the worked-example panel. */
-body[data-step="1"] header,
-body[data-step="1"] nav,
-body[data-step="1"] main { max-width: 1160px; }
-
-.targets-cols { display: grid; grid-template-columns: minmax(0,1fr) 400px; gap: 20px; align-items: start; }
+/* ---------------------------------------------------------------------------
+   Step 1 — Targets: guided, example-led layout
+------------------------------------------------------------------------- */
+.targets-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: var(--s-5);
+  align-items: start;
+}
 .targets-main { min-width: 0; }
-@media (max-width: 900px) { .targets-cols { grid-template-columns: 1fr; } }
 
-/* Visibility pills: who sees each value */
-.vpill { display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .02em; white-space: nowrap; vertical-align: middle; }
-.vpill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.vpill.devices  { color: var(--accent); background: rgba(79,163,255,.15); }
-.vpill.internal { color: var(--muted);  background: rgba(255,255,255,.07); }
-.vpill.secret   { color: var(--warn);   background: rgba(232,185,75,.15); }
-.vpill.auto     { color: var(--ok);     background: rgba(90,209,123,.15); }
+/* Visibility pills: who sees each value. Copper marks the fleet-facing
+   surfaces (the operator's actual intent on this page); everything internal
+   stays recessive so copper does not flood the step. */
+.vpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 620;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.vpill::before { content: ""; width: 6px; height: 6px; flex: none; border-radius: 50%; background: currentColor; }
+.vpill.devices  { color: var(--accent); background: var(--gf-copper-08);     border-color: var(--gf-copper-30); }
+.vpill.internal { color: var(--muted);  background: rgba(255,255,255,.05);   border-color: rgba(255,255,255,.09); }
+.vpill.secret   { color: var(--warn);   background: rgba(246,200,95,.10);    border-color: rgba(246,200,95,.28); }
+.vpill.auto     { color: var(--ok);     background: rgba(82,183,136,.10);    border-color: rgba(82,183,136,.28); }
 
-/* Lead question */
-.lead-card { background: linear-gradient(180deg, rgba(79,163,255,.09), rgba(79,163,255,.02)); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 16px 18px; margin-bottom: 16px; }
-.lead-q { margin: 0 0 2px; font-size: 16px; font-weight: 600; }
-.lead-sub { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; }
-.lead-field { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 0 12px; }
-.lead-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,163,255,.16); }
-.lead-scheme { color: var(--muted); font-family: ui-monospace, monospace; }
-.lead-field input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--text); font-family: ui-monospace, monospace; font-size: 16px; padding: 10px 0; }
-.lead-hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+/* The one question most teams answer. This is the step's hero card, so the
+   ambient copper glow is permitted here — and nowhere else on the step. */
+.lead-card {
+  margin-bottom: var(--s-5);
+  padding: var(--s-5);
+  border: var(--gf-border-default);
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--gf-copper-08), rgba(255,255,255,.012));
+  box-shadow: var(--gf-glow-copper);
+}
+.lead-q {
+  margin: 0 0 3px;
+  font-size: 18px;
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+  color: var(--text);
+}
+.lead-sub { margin: 0 0 var(--s-4); color: var(--text-dim); font-size: var(--fs-md); line-height: 1.5; }
+.lead-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-4);
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  transition: border-color var(--gf-ease), box-shadow var(--gf-ease);
+}
+.lead-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(201,122,64,.16); }
+.lead-scheme { flex: none; color: var(--text-disabled); font-family: var(--font-mono); font-size: var(--fs-xl); }
+.panel .lead-field input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: -.01em;
+}
+.panel .lead-field input:focus { outline: none; box-shadow: none; border-color: transparent; }
+.lead-hint { margin: var(--s-3) 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.6; }
 
-/* "What your fleet uses" group */
-.grp-note { margin-top: 0 !important; margin-bottom: 12px; }
-.field-block { margin: 12px 0; }
-.field-cap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.readout { display: flex; align-items: center; gap: 8px; margin-top: 4px; background: var(--bg); border: 1px dashed var(--border); border-radius: 4px; padding: 6px 8px; }
-.readout-v { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: ui-monospace, monospace; font-size: 12.5px; }
-.copybtn { flex: 0 0 auto; padding: 2px 10px; font-size: 11px; }
+/* Derived read-outs: pure machine output, so cyan on a dashed well to say
+   "computed for you, not typed by you". */
+.readout {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: 6px;
+  padding: 8px var(--s-4);
+  border: 1px dashed rgba(255,255,255,.13);
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+}
+.readout-v {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  color: var(--info);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+}
+.panel .copybtn { flex: 0 0 auto; padding: 4px 12px; font-size: 11px; }
 
-/* Internal wiring disclosure */
-.internal-wiring { border: 1px solid var(--border); border-radius: 4px; margin: 12px 0; }
-.internal-wiring > summary { cursor: pointer; padding: 10px 14px; color: var(--text); display: flex; align-items: baseline; gap: 8px; }
-.internal-wiring > summary .iw-sub { color: var(--muted); font-weight: 400; font-size: 12px; }
-.iw-body { padding: 4px 14px 12px; border-top: 1px solid var(--border); }
+/* Internal wiring: collapsed by default, because nobody should need it. */
+.internal-wiring {
+  margin: var(--s-5) 0 0;
+  border: var(--gf-border-default);
+  border-radius: var(--r-lg);
+  background: rgba(255,255,255,.018);
+}
+.internal-wiring > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-lg);
+  color: var(--text);
+  font-size: var(--fs-lg);
+  font-weight: 560;
+  cursor: pointer;
+  list-style: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.internal-wiring > summary::-webkit-details-marker { display: none; }
+.internal-wiring > summary::before {
+  content: "▸";
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  transition: transform .18s ease;
+}
+.internal-wiring[open] > summary::before { transform: rotate(90deg); }
+.internal-wiring > summary:hover { color: var(--accent); }
+.internal-wiring .iw-sub { color: var(--muted); font-size: var(--fs-sm); font-weight: 400; }
+.iw-body { padding: var(--s-2) var(--s-5) var(--s-5); border-top: 1px solid rgba(255,255,255,.055); }
 
-/* Worked example (clearly a sample) */
-.example { align-self: start; position: sticky; top: 16px; background: var(--panel); background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.02) 0 11px, transparent 11px 22px); border: 1px dashed var(--border); border-radius: 8px; overflow: hidden; }
-.example-head { padding: 14px 16px; border-bottom: 1px dashed var(--border); }
-.sample-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); background-image: repeating-linear-gradient(45deg, rgba(232,185,75,.16) 0 6px, transparent 6px 12px); border: 1px dashed var(--warn); border-radius: 4px; padding: 3px 9px; margin-bottom: 8px; }
+/* Worked example. The hatch and the dashed edge exist to say, unmistakably,
+   "these are not your settings" — that meaning is load-bearing, so it stays. */
+.example {
+  position: sticky;
+  top: var(--s-5);
+  align-self: start;
+  border: 1px dashed rgba(255,255,255,.13);
+  border-radius: var(--r-lg);
+  background-color: rgba(22,24,28,.55);
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.018) 0 11px, transparent 11px 22px);
+  overflow: hidden;
+}
+.example-head { padding: var(--s-4) var(--s-5); border-bottom: 1px dashed rgba(255,255,255,.13); }
+.sample-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--s-2);
+  padding: 3px 10px;
+  border: 1px dashed rgba(246,200,95,.5);
+  border-radius: 999px;
+  background-image: repeating-linear-gradient(45deg, rgba(246,200,95,.12) 0 6px, transparent 6px 12px);
+  color: var(--warn);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
 .sample-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
-.example-head h3 { margin: 0; font-size: 16px; }
-.example-head h3 .fict { font-size: 12px; font-weight: 400; color: var(--muted); }
-.example-head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-.example-body { padding: 14px 16px; }
-.ex-dl { margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.example-head h3 { font-size: var(--fs-xl); color: var(--text); }
+.example-head h3 .fict { font-size: var(--fs-sm); font-weight: 400; letter-spacing: 0; color: var(--muted); }
+.example-head p { margin: 6px 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.55; }
+.example-body { padding: var(--s-4) var(--s-5) var(--s-5); }
+
+.ex-dl { display: flex; flex-direction: column; gap: var(--s-3); margin: 0; }
 .ex-row { display: flex; flex-direction: column; gap: 4px; }
-.ex-row dt { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
-.ex-row dd { margin: 0; font-family: ui-monospace, monospace; font-size: 12.5px; color: var(--text); word-break: break-all; }
-.ex-auto { font-family: system-ui, sans-serif; color: var(--muted); font-size: 11px; margin-left: 4px; }
-.ex-divider { height: 1px; background: var(--border); margin: 14px -16px; }
-.ex-cap { margin: 0 0 6px; color: var(--muted); font-size: 12px; }
-.ex-cmd { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: none; }
+.ex-row dt { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--muted); font-size: var(--fs-sm); }
+.ex-row dd { margin: 0; color: var(--text); font-family: var(--font-mono); font-size: var(--fs-sm); word-break: break-all; }
+.ex-auto { margin-left: var(--s-1); color: var(--text-disabled); font-family: var(--font-ui); font-size: 11px; }
+.ex-divider { height: 1px; margin: var(--s-4) calc(var(--s-5) * -1); background: rgba(255,255,255,.07); }
+.ex-cap { margin: 0 0 6px; color: var(--muted); font-size: var(--fs-sm); }
+.panel .ex-cmd {
+  padding: var(--s-3) var(--s-4);
+  max-height: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .ex-cmd .tok-cmd { color: var(--ok); }
-.ex-cmd .tok-arg { color: var(--accent); }
-.ex-legend { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
-.ex-li { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--muted); line-height: 1.45; }
-.ex-li strong { color: var(--text); }
-.ex-persona { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; padding: 10px; background: rgba(255,255,255,.03); border-radius: 5px; font-size: 12px; color: var(--muted); line-height: 1.5; }
-.ex-persona .ex-av { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #0a0d12; display: grid; place-items: center; font-weight: 700; font-size: 11px; }
-.ex-persona strong { color: var(--text); }
-.ex-persona code { background: rgba(0,0,0,.25); padding: 1px 5px; border-radius: 3px; }
+.ex-cmd .tok-arg { color: var(--info); }
 
-/* ===== Defaults: architecture checkboxes ===== */
-.arch-grid { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 6px; }
-.arch-grid .inline-check { margin: 0; }
-.arch-note { color: var(--muted); font-size: 11px; }
+.ex-legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.ex-li { display: flex; align-items: flex-start; gap: var(--s-2); color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
+.ex-li > .vpill { flex: 0 0 auto; }
+.ex-li strong { color: var(--text-dim); font-weight: 640; }
 
-/* ===== Schedule: frequency builder ===== */
-.sched-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
-.sched-sub > span { color: var(--text); }
-.sched-sub select,
-.sched-sub input[type="time"],
-.sched-sub input[type="text"] { display: inline-block; width: auto; margin-top: 0; }
+.ex-persona {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding: var(--s-3);
+  border: var(--gf-border-default);
+  border-radius: var(--r-md);
+  background: rgba(255,255,255,.03);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+}
+.ex-persona .ex-av {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--text-on-accent);
+  font-size: 11px;
+  font-weight: 800;
+}
+.ex-persona strong { color: var(--text-dim); }
+
+/* ---------------------------------------------------------------------------
+   Step 2 — Defaults: architecture picker.
+   Architecture names are machine identifiers, so the chips are data face.
+------------------------------------------------------------------------- */
+.arch-grid { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
+.panel label.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 7px 12px;
+  border: var(--gf-border-default);
+  border-radius: var(--r-md);
+  background: rgba(255,255,255,.028);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--gf-ease), border-color var(--gf-ease);
+}
+.panel label.inline-check:hover { background: var(--gf-surface-glass-hover); border-color: var(--gf-copper-30); }
+.panel label.inline-check:has(input:checked) { background: var(--gf-copper-08); border-color: var(--gf-copper-36); }
+.arch-note { color: var(--muted); font-family: var(--font-ui); font-size: 11px; font-weight: 400; }
+
+/* ---------------------------------------------------------------------------
+   Step 3 — Schedule: plain-language frequency builder
+------------------------------------------------------------------------- */
+.sched-sub { display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap; margin: var(--s-3) 0 0; }
+.panel label.sched-sub { font-weight: 400; }
+.sched-sub > span { color: var(--text-dim); font-size: var(--fs-md); }
+.panel .sched-sub select,
+.panel .sched-sub input[type="time"],
+.panel .sched-sub input[type="text"] {
+  display: inline-block;
+  width: auto;
+  margin-top: 0;
+  padding: 7px var(--s-3);
+  font-size: var(--fs-md);
+}
+.panel .sched-sub input[type="text"] { min-width: 200px; font-family: var(--font-mono); }
 .sched-sub.sched-opt[hidden] { display: none; }
 
-/* help text inside a field-block that is not a <label> or <fieldset> */
-.field-block > .help { display: block; font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
-.field-block > .help code { background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+/* ---------------------------------------------------------------------------
+   Step 4 — Entra app-registration bootstrap
+------------------------------------------------------------------------- */
+.entra-bootstrap {
+  margin: var(--s-5) 0 0;
+  padding: var(--s-4) var(--s-5) var(--s-5);
+  border: var(--gf-border-default);
+  border-left: 2px solid var(--gf-copper-36);
+  border-radius: var(--r-lg);
+  background: var(--gf-copper-004);
+}
+.entra-bootstrap > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--text-dim);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.entra-bootstrap > summary::-webkit-details-marker { display: none; }
+.entra-bootstrap > summary::before {
+  content: "▸";
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  transition: transform .18s ease;
+}
+.entra-bootstrap[open] > summary::before { transform: rotate(90deg); }
+.entra-bootstrap > summary strong { color: var(--text); font-weight: 660; }
+.entra-bootstrap p { margin: var(--s-3) 0 0; color: var(--text-dim); font-size: var(--fs-md); line-height: 1.55; }
+.entra-bootstrap .entra-steps {
+  margin: var(--s-3) 0 0;
+  padding-left: var(--s-5);
+  color: var(--text-dim);
+  font-size: var(--fs-md);
+}
+.entra-bootstrap .entra-steps li { margin: var(--s-2) 0; line-height: 1.55; }
+.entra-bootstrap .entra-steps li::marker { color: var(--accent); font-family: var(--font-mono); }
+.entra-bootstrap .actions { justify-content: flex-start; }
 
-/* ===== Optional: mail delivery method ===== */
+.entra-tabs { display: flex; gap: var(--s-2); margin: var(--s-5) 0 0; }
+.panel .entra-tab {
+  padding: 6px 13px;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  font-size: var(--fs-sm);
+}
+.panel .entra-tab.is-active {
+  border-color: var(--gf-copper-36);
+  background: var(--gf-copper-08);
+  color: var(--accent);
+  font-weight: 660;
+}
+.entra-script-row { position: relative; }
+.panel .entra-script {
+  border-radius: 0 var(--r-md) var(--r-md) var(--r-md);
+  max-height: 360px;
+  white-space: pre;
+}
+.panel .entra-copy { position: absolute; top: 10px; right: 10px; z-index: 1; padding: 4px 11px; font-size: 11px; }
+#entraFillMsg { color: var(--muted); }
+
+/* ---------------------------------------------------------------------------
+   Step 5 — Optional: mail delivery method
+------------------------------------------------------------------------- */
+.mail-opt { margin-top: var(--s-3); }
 .mail-opt[hidden] { display: none; }
+
+/* ---------------------------------------------------------------------------
+   Step 6 — Review: the saved payload, framed as evidence
+------------------------------------------------------------------------- */
+.review-block {
+  border: var(--gf-border-default);
+  border-radius: var(--r-lg);
+  background: rgba(255,255,255,.018);
+  overflow: hidden;
+}
+.review-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 10px var(--s-5);
+  border-bottom: 1px solid rgba(255,255,255,.055);
+  background: rgba(30,34,42,.6);
+}
+.review-cap {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.review-fmt {
+  margin-left: auto;
+  color: var(--text-disabled);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+#reviewPayload {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  max-height: 480px;
+}
+.panel .review-note { margin-top: var(--s-3); }
+
+/* ---------------------------------------------------------------------------
+   After-save page. setup.js replaces the whole <body> with this card, so it
+   has to stand on its own on the foundation's ambient wash.
+------------------------------------------------------------------------- */
+.done {
+  width: calc(100% - 32px);
+  max-width: 780px;
+  margin: clamp(24px, 7vh, 88px) auto;
+  padding: var(--s-6) var(--s-7) var(--s-7);
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: var(--gf-radius-shell);
+  background: linear-gradient(180deg, rgba(30,34,41,.70), rgba(15,17,21,.92));
+  box-shadow: var(--gf-shadow-frame), var(--gf-glow-copper);
+  color: var(--text-dim);
+  font-size: var(--fs-xl);
+  line-height: 1.6;
+}
+.done h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: 0 0 var(--s-4);
+  color: var(--text);
+  font-size: var(--gf-fs-page);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+  line-height: 1.05;
+}
+.done h1::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 18px var(--ok);
+}
+.done h2 {
+  margin: var(--s-6) 0 var(--s-3);
+  color: var(--text);
+  font-size: var(--fs-xxl);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
+}
+.done p { margin: 0 0 var(--s-4); }
+.done a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--gf-copper-36); }
+.done a:hover { color: var(--accent-2); border-bottom-color: var(--accent-2); }
+.done .done-next { margin: 0; padding-left: var(--s-5); }
+.done .done-next li { margin: var(--s-3) 0; line-height: 1.6; }
+.done .done-next li::marker { color: var(--accent); font-family: var(--font-mono); font-weight: 600; }
+.done .done-next strong, .done .done-next em { color: var(--text); }
+.done p.muted { margin-top: var(--s-6); margin-bottom: 0; color: var(--muted); font-size: var(--fs-lg); font-style: italic; }
+
+/* ---------------------------------------------------------------------------
+   Responsive
+------------------------------------------------------------------------- */
+@media (max-width: 1040px) {
+  .targets-cols { grid-template-columns: 1fr; }
+  .example { position: static; }
+}
+
+@media (max-width: 860px) {
+  #steps ol { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .setup-page { padding: var(--s-3) var(--s-3) var(--s-6); }
+  .setup-topbar { min-height: 0; padding: var(--s-4); flex-wrap: wrap; gap: var(--s-3); }
+  .setup-body { padding: var(--s-5) var(--s-4); }
+  .setup-stage { margin-left: 0; }
+  .panel { padding: var(--s-5) var(--s-4); }
+  .panel fieldset { padding: var(--s-3) var(--s-4) var(--s-4); }
+  .iw-body { padding: var(--s-2) var(--s-4) var(--s-4); }
+  .example-head, .example-body { padding-left: var(--s-4); padding-right: var(--s-4); }
+  .ex-divider { margin-left: calc(var(--s-4) * -1); margin-right: calc(var(--s-4) * -1); }
+  .done { padding: var(--s-5) var(--s-4); }
+  .step-actions { flex-wrap: wrap; }
+}
+
+/* The foundation already neutralises motion globally; this covers the two
+   transforms declared above. */
+@media (prefers-reduced-motion: reduce) {
+  .panel button:active { transform: none; }
+  .internal-wiring[open] > summary::before,
+  .entra-bootstrap[open] > summary::before { transition: none; }
+}

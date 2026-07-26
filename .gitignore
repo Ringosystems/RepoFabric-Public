@@ -61,3 +61,10 @@ kilo.jsonc
 sub-bundle/
 *.bak-*
 *.stale-*
+
+# Brand source masters are staging artefacts, not deliverables. The authoritative
+# copies live in the RingoSystems-Graphite-Forge standard repo under assets/source/;
+# the web-ready vectors live in website/docs/assets/. Keeping 8.4 MB of keyed-on-white
+# raster in a folder named "TEMP FILES" out of the tree also keeps it out of the
+# curated public snapshot.
+website/TEMP FILES/

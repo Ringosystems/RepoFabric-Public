@@ -1,6 +1,6 @@
 @{
     RootModule           = 'RepoFabric.Client.psm1'
-    ModuleVersion        = '0.9.0'
+    ModuleVersion        = '0.9.2'
     GUID                 = 'e7c4b91a-2f36-4d58-9a1c-6b0e3d8f5a24'
     Author               = 'RingoSystems Heavy Industries'
     CompanyName          = 'RingoSystems Heavy Industries'
@@ -32,7 +32,7 @@
             LicenseUri   = 'https://github.com/Ringosystems/RepoFabric-Public/blob/main/LICENSE'
             ProjectUri   = 'https://github.com/Ringosystems/RepoFabric-Public'
             ReleaseNotes = @'
-RepoFabric.Client 0.9.0
+RepoFabric.Client 0.9.2
 
 Configure Windows endpoints to install from a self-hosted RepoFabric private WinGet
 source. Cmdlets: Register-RfSource, Unregister-RfSource, Get-RfSource,

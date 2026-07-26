@@ -1,0 +1,938 @@
+/* ============================================================================
+   RingoSystems Graphite Forge v1.0 — public documentation site
+   RingoSystems Heavy Industries · RepoFabric
+
+   Theme:  RingoSystems Graphite Forge
+   Mode:   dark-native only (there is no light mode here; do not add one)
+   Accent: Burnt Copper
+   Type:   Inter (UI/display) + Consolas (data/code), system-resolved
+   Host:   MkDocs Material 9.x, GitHub Pages
+
+   WHAT THIS FILE IS
+   -----------------
+   MkDocs Material ships its own colour system as --md-* custom properties. This
+   stylesheet does two jobs, in order:
+
+     1. VENDORS the Graphite Forge foundation tokens (--gf-*). The docs site is a
+        separate deployment from the admin console and cannot link
+        linux/admin/static/graphite-forge.css, so the token block below is a
+        verbatim-value copy of it. The CANONICAL source is that file. If a token
+        value ever changes, change it THERE first and mirror it here — never the
+        other way round, and never with a different value.
+
+     2. MAPS Material's --md-* variables onto those tokens, then restyles the
+        chrome Material does not express as a variable (header, rails, code
+        wells, admonitions, footer). Nothing here is a new colour: every rule
+        resolves to a foundation token.
+
+   NO EXTERNAL ASSETS. No webfont, no icon CDN, no script CDN, no remote image.
+   Both type stacks resolve against faces the reader already has (Inter/Segoe UI,
+   Consolas/Cascadia Mono). theme.font is false in mkdocs.yml so Material does not
+   reach for Google Fonts either.
+
+   THE ONE RULE THAT MATTERS: anything a machine produced — a command, a package
+   identifier, a version, a path, a URL, a repository slug — is set in the data
+   face. Anything a human wrote is set in the UI face.
+   ========================================================================= */
+
+
+/* ===========================================================================
+   1. FOUNDATION — vendored from linux/admin/static/graphite-forge.css
+   Values are identical to the canonical foundation. Do not diverge.
+   ======================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- Surfaces: a single ramp from the void up to the raised plane ---- */
+  --gf-bg-base:          #101113;
+  --gf-bg-shell:         #14171B;
+  --gf-surface:          #16181C;
+  --gf-surface-raised:   #1E222A;
+  --gf-surface-elevated: #252932;
+  --gf-border:           #343B46;
+
+  /* ---- Text: four steps, never more ---- */
+  --gf-text-primary:   #F7F9FB;
+  --gf-text-secondary: #A7B0BE;
+  --gf-text-muted:     #75808E;
+  --gf-text-disabled:  #505965;
+
+  /* ---- Accents. Copper leads; the rest carry meaning, never decoration ---- */
+  --gf-accent:  #C97A40;  /* burnt copper — identity, primary action, focus   */
+  --gf-success: #52B788;  /* healthy, published, verified                     */
+  --gf-violet:  #7B61FF;  /* secondary signal, comparison series              */
+  --gf-data:    #6BD6E8;  /* data points, live values, machine output         */
+  --gf-warning: #F6C85F;  /* needs attention, not yet failing                 */
+  --gf-danger:  #D65A4A;  /* failed, revoked, destructive                     */
+
+  /* ---- Type ---- */
+  --gf-font-ui:      Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --gf-font-display: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --gf-font-data:    Consolas, "Cascadia Mono", "SF Mono", ui-monospace, monospace;
+  --gf-font-code:    Consolas, "Cascadia Mono", "SF Mono", ui-monospace, monospace;
+
+  /* Display type is tight and heavy; 760 is the house weight, not 700. */
+  --gf-weight-display: 760;
+  --gf-tracking-display: -.065em;
+  --gf-tracking-title:   -.045em;
+  --gf-tracking-metric:  -.04em;
+
+  /* ---- Type scale ---- */
+  --gf-fs-display:  clamp(34px, 4.4vw, 56px);
+  --gf-fs-page:     clamp(28px, 3.2vw, 40px);
+  --gf-fs-section:  20px;
+  --gf-fs-body:     15px;
+  --gf-fs-label:    13px;
+  --gf-fs-metric:   28px;
+  --gf-fs-code:     12.5px;
+
+  /* ---- Spacing scale ---- */
+  --gf-space-1: 4px;
+  --gf-space-2: 8px;
+  --gf-space-3: 12px;
+  --gf-space-4: 16px;
+  --gf-space-5: 22px;
+  --gf-space-6: 32px;
+
+  /* ---- Geometry ---- */
+  --gf-radius-control: 11px;
+  --gf-radius-card:    18px;
+  --gf-radius-shell:   20px;
+
+  /* ---- Lines and light: borders before shadows ---- */
+  --gf-border-default: 1px solid rgba(255,255,255,.07);
+  --gf-border-strong:  1px solid rgba(255,255,255,.12);
+  --gf-border-subtle:  1px solid rgba(255,255,255,.055);
+  --gf-border-active:  1px solid rgba(201,122,64,.35);
+  --gf-surface-glass:       rgba(255,255,255,.045);
+  --gf-surface-glass-hover: rgba(255,255,255,.065);
+  --gf-glow-copper:    0 0 80px rgba(201,122,64,.18);
+  --gf-shadow-frame:   0 34px 100px rgba(0,0,0,.42);
+  --gf-shadow-panel:   0 32px 88px rgba(0,0,0,.44);
+
+  /* Copper at low alpha does the work of a second border colour. */
+  --gf-copper-004: rgba(201,122,64,.04);
+  --gf-copper-08:  rgba(201,122,64,.08);
+  --gf-copper-18:  rgba(201,122,64,.18);
+  --gf-copper-30:  rgba(201,122,64,.30);
+  --gf-copper-36:  rgba(201,122,64,.36);
+
+  --gf-white-034: rgba(255,255,255,.034);
+  --gf-white-04:  rgba(255,255,255,.04);
+  --gf-white-065: rgba(255,255,255,.065);
+
+  --gf-ease: .18s cubic-bezier(.4, 0, .2, 1);
+}
+
+
+/* ===========================================================================
+   2. APPLICATION TOKEN MAP
+   The same names and values RepoFabric's admin uses (repofabric-tokens.css), so
+   the console and the docs site stay one product. Product code below references
+   ONLY these and the --gf-* foundation — never a raw hex.
+   ======================================================================== */
+
+:root {
+  --accent:    var(--gf-accent);
+  --accent-2:  #DE8B4B;                  /* hover: copper, one step brighter */
+  --accent-fg: var(--gf-bg-base);        /* text ON copper is near-black     */
+
+  --text:      var(--gf-text-primary);
+  --text-dim:  var(--gf-text-secondary);
+  --muted:     var(--gf-text-muted);
+  --disabled:  var(--gf-text-disabled);
+
+  --ok:    var(--gf-success);
+  --warn:  var(--gf-warning);
+  --error: var(--gf-danger);
+  --info:  var(--gf-data);
+
+  --border:        rgba(255,255,255,.07);
+  --border-strong: rgba(255,255,255,.12);
+
+  --font-ui:   var(--gf-font-ui);
+  --font-mono: var(--gf-font-data);
+
+  --r-sm: 8px;
+  --r-md: var(--gf-radius-control);   /* 11px control */
+  --r-lg: var(--gf-radius-card);      /* 18px card    */
+
+  --s-1: var(--gf-space-1);
+  --s-2: var(--gf-space-2);
+  --s-3: var(--gf-space-3);
+  --s-4: var(--gf-space-4);
+  --s-5: var(--gf-space-5);
+  --s-6: var(--gf-space-6);
+
+  /* Long-form documentation reads a step larger than the dense console does.
+     16px sits inside the standard's 15-17px body range; leading stays at 1.55. */
+  --rf-fs-doc-body: 16px;
+
+  /* Wells sit BELOW the surrounding surface — the code-block treatment. */
+  --rf-well: rgba(0,0,0,.34);
+}
+
+
+/* ===========================================================================
+   3. MATERIAL BRIDGE — every --md-* variable resolved to a foundation token.
+   Both selectors are listed so this beats palette.css on source order at equal
+   specificity, whichever one Material happens to apply.
+   ======================================================================== */
+
+:root,
+[data-md-color-scheme="slate"] {
+
+  /* -- Default fg/bg ramp ------------------------------------------------ */
+  --md-default-fg-color:           var(--gf-text-primary);
+  --md-default-fg-color--light:    var(--gf-text-secondary);
+  --md-default-fg-color--lighter:  var(--gf-text-muted);
+  --md-default-fg-color--lightest: rgba(255,255,255,.07);   /* hairline rules */
+
+  --md-default-bg-color:           var(--gf-bg-base);
+  --md-default-bg-color--light:    rgba(16,17,19,.62);
+  --md-default-bg-color--lighter:  rgba(16,17,19,.30);
+  --md-default-bg-color--lightest: rgba(16,17,19,.10);
+
+  /* -- Primary --------------------------------------------------------------
+   * Material paints the HEADER with --md-primary-fg-color, so primary is the
+   * shell graphite, NOT copper. Copper is spent on links, selection and focus
+   * instead — intent only, never a flood.
+   */
+  --md-primary-fg-color:        var(--gf-bg-shell);
+  --md-primary-fg-color--light: var(--gf-surface-raised);
+  --md-primary-fg-color--dark:  var(--gf-bg-base);
+  --md-primary-bg-color:        var(--gf-text-primary);
+  --md-primary-bg-color--light: var(--gf-text-secondary);
+
+  /* -- Accent: interaction ---------------------------------------------- */
+  --md-accent-fg-color:             var(--accent-2);
+  --md-accent-fg-color--transparent: var(--gf-copper-08);
+  --md-accent-bg-color:             var(--accent-fg);
+  --md-accent-bg-color--light:      var(--gf-text-secondary);
+
+  /* -- Typeset ----------------------------------------------------------- */
+  --md-typeset-color:             var(--gf-text-secondary);
+  --md-typeset-a-color:           var(--gf-accent);
+  --md-typeset-mark-color:        var(--gf-copper-30);
+  --md-typeset-del-color:         rgba(214,90,74,.18);
+  --md-typeset-ins-color:         rgba(82,183,136,.18);
+  --md-typeset-kbd-color:         var(--gf-surface-raised);
+  --md-typeset-kbd-accent-color:  var(--gf-surface-elevated);
+  --md-typeset-kbd-border-color:  var(--gf-bg-base);
+  --md-typeset-table-color:        rgba(255,255,255,.07);
+  --md-typeset-table-color--light: rgba(255,255,255,.035);
+
+  /* -- Code ---------------------------------------------------------------
+   * Syntax colour follows the accent set, not a rainbow: copper for keywords
+   * (the instruction), green for strings (literal payload), cyan for numbers
+   * and constants (machine values), violet for the rare special form.
+   */
+  --md-code-fg-color:          var(--gf-text-primary);
+  --md-code-bg-color:          var(--rf-well);
+  --md-code-bg-color--light:   rgba(0,0,0,.22);
+  --md-code-bg-color--lighter: rgba(0,0,0,.12);
+
+  --md-code-hl-color:              var(--gf-copper-18);
+  --md-code-hl-color--light:       var(--gf-copper-08);
+  --md-code-hl-keyword-color:      var(--gf-accent);
+  --md-code-hl-operator-color:     var(--gf-text-muted);
+  --md-code-hl-punctuation-color:  var(--gf-text-muted);
+  --md-code-hl-string-color:       var(--gf-success);
+  --md-code-hl-number-color:       var(--gf-data);
+  --md-code-hl-constant-color:     var(--gf-data);
+  --md-code-hl-special-color:      var(--gf-violet);
+  --md-code-hl-function-color:     var(--gf-text-primary);
+  --md-code-hl-name-color:         var(--gf-text-primary);
+  --md-code-hl-variable-color:     var(--gf-text-secondary);
+  /* Comments in these samples carry real instructions ("# set REPOFABRIC_DOMAIN
+     ..."), so they are held at muted rather than disabled: 4.9:1 on the code
+     well, which clears AA. Disabled grey would have been 2.8:1. */
+  --md-code-hl-comment-color:      var(--gf-text-muted);
+  --md-code-hl-generic-color:      var(--gf-text-secondary);
+
+  /* -- Admonitions ------------------------------------------------------- */
+  --md-admonition-fg-color: var(--gf-text-secondary);
+  --md-admonition-bg-color: rgba(255,255,255,.022);
+
+  /* -- Footer ------------------------------------------------------------ */
+  --md-footer-fg-color:         var(--gf-text-primary);
+  --md-footer-fg-color--light:  var(--gf-text-secondary);
+  --md-footer-fg-color--lighter: var(--gf-text-muted);
+  --md-footer-bg-color:         rgba(20,23,27,.72);
+  --md-footer-bg-color--dark:   rgba(13,14,16,.86);
+
+  /* -- Depth: borders before shadows. z1 becomes a hairline. -------------- */
+  --md-shadow-z1: 0 1px 0 rgba(255,255,255,.05);
+  --md-shadow-z2: 0 18px 48px rgba(0,0,0,.40);
+  --md-shadow-z3: var(--gf-shadow-panel);
+}
+
+
+/* ===========================================================================
+   4. BASE — the page wash, the two faces, scrollbars, selection
+   ======================================================================== */
+
+/* Material declares the font stacks on `body`, so these have to answer there. */
+body {
+  --md-text-font-family: var(--gf-font-ui);
+  --md-code-font-family: var(--gf-font-data);
+
+  /* The signature of the language: copper rising from the top-left, violet
+     answering at the top-right, over a shell-to-base fall. Fixed, so content
+     scrolls THROUGH the light rather than dragging it. Never pure black. */
+  background-color: var(--gf-bg-base);
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(201,122,64,.16), transparent 32%),
+    radial-gradient(circle at 88% 4%, rgba(123,97,255,.10), transparent 26%),
+    linear-gradient(180deg, var(--gf-bg-shell), var(--gf-bg-base) 70%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  color: var(--gf-text-secondary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Material paints .md-main/.md-container opaque in places; let the wash show. */
+.md-main,
+.md-container,
+.md-content { background: transparent; }
+
+/* Anything a machine emitted. Extend this list, never override it locally. */
+code, kbd, samp, pre,
+.md-source__repository,
+.md-source__fact {
+  font-family: var(--gf-font-data);
+}
+
+/* The three literals below (#fff, #2C323C, #3A424E) are the only raw colours in
+   this file outside the token blocks. They are copied verbatim from the
+   canonical foundation, which declares its selection and scrollbar colours the
+   same way rather than as tokens. Do not invent new literals alongside them. */
+::selection { background: rgba(201,122,64,.32); color: #fff; }
+
+* { scrollbar-width: thin; scrollbar-color: #2C323C transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #2C323C; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: #3A424E; background-clip: content-box; }
+
+/* Focus is copper, always visible, never removed. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-md);
+}
+
+/* Skip link, styled like the console's. */
+.md-skip {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: var(--r-md);
+  font-weight: 640;
+}
+
+
+/* ===========================================================================
+   5. HEADER — the topbar, matched to the admin console shell
+   Translucent graphite over the wash, 1px hairline instead of a drop shadow.
+   ======================================================================== */
+
+.md-header {
+  background-color: rgba(17,19,23,.78);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255,255,255,.065);
+  box-shadow: none;
+  color: var(--gf-text-primary);
+}
+.md-header--shadow { box-shadow: none; border-bottom-color: rgba(255,255,255,.09); }
+
+.md-header__inner { min-height: 60px; gap: var(--s-2); }
+
+/* Brand mark: the copper tile carries the one permitted ambient glow. */
+.md-header__button.md-logo { padding: var(--s-2); margin: 0 var(--s-1) 0 0; }
+.md-header__button.md-logo :is(img, svg) {
+  width: 26px; height: 26px;
+  border-radius: 8px;
+  box-shadow: 0 0 26px rgba(201,122,64,.18);
+}
+
+/* Product name is a human-written brand word: UI face, display weight. */
+.md-header__title { font-weight: var(--gf-weight-display); }
+.md-header__topic:first-child > .md-ellipsis {
+  font-family: var(--gf-font-display);
+  font-weight: var(--gf-weight-display);
+  letter-spacing: -.04em;
+  font-size: 16px;
+  color: var(--gf-text-primary);
+}
+/* The scrolled-in page title behind it stays quieter. */
+.md-header__topic + .md-header__topic > .md-ellipsis {
+  color: var(--gf-text-secondary);
+  font-weight: 560;
+  letter-spacing: -.02em;
+}
+
+.md-header__button { color: var(--gf-text-secondary); opacity: 1; transition: color var(--gf-ease); }
+.md-header__button:hover { color: var(--gf-text-primary); opacity: 1; }
+
+/* Repository slug and its counts are identifiers and counts — data face. */
+.md-source { font-size: 12px; }
+.md-source__repository {
+  font-family: var(--gf-font-data);
+  font-size: 12px;
+  letter-spacing: -.01em;
+  color: var(--gf-text-secondary);
+}
+.md-source__facts { color: var(--gf-text-muted); font-size: 11px; }
+.md-source__fact { font-family: var(--gf-font-data); }
+.md-header__source:hover .md-source__repository { color: var(--gf-text-primary); }
+
+
+/* ===========================================================================
+   6. SEARCH — a glass control, 11px radius, copper focus ring
+   ======================================================================== */
+
+.md-search__form {
+  background: var(--gf-surface-glass);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--r-md);
+  box-shadow: none;
+  transition: background var(--gf-ease), border-color var(--gf-ease);
+}
+.md-search__form:hover { background: var(--gf-surface-glass-hover); border-color: var(--gf-copper-36); }
+[data-md-toggle="search"]:checked ~ .md-header .md-search__form {
+  background: var(--gf-surface-raised);
+  border-color: var(--gf-copper-36);
+  box-shadow: 0 0 0 3px rgba(201,122,64,.14);
+}
+.md-search__input { color: var(--gf-text-primary); font-family: var(--gf-font-ui); }
+.md-search__input::placeholder { color: var(--gf-text-muted); }
+.md-search__icon { color: var(--gf-text-muted); }
+
+.md-search__output {
+  border-radius: var(--r-lg);
+  border: var(--gf-border-default);
+  background: var(--gf-bg-shell);
+  box-shadow: var(--gf-shadow-panel);
+}
+.md-search-result__meta {
+  background: rgba(255,255,255,.03);
+  color: var(--gf-text-muted);
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.md-search-result__link { transition: background var(--gf-ease); }
+.md-search-result__link:hover,
+.md-search-result__link:focus { background: var(--gf-copper-08); }
+.md-search-result__article--document .md-search-result__title { font-weight: var(--gf-weight-display); letter-spacing: var(--gf-tracking-title); }
+.md-search-result__title { color: var(--gf-text-primary); }
+.md-search-result__teaser { color: var(--gf-text-muted); }
+.md-search-result mark { color: var(--gf-accent); background: transparent; font-weight: 640; }
+.md-search-result__more > summary > div { color: var(--gf-accent); font-size: 13px; }
+
+
+/* ===========================================================================
+   7. NAVIGATION RAILS — left sections, right table of contents
+   Muted labels; the active item takes a copper-tinted border and surface lift,
+   never colour alone.
+   ======================================================================== */
+
+.md-nav { font-size: 13.5px; }
+.md-nav__title {
+  color: var(--gf-text-muted);
+  font-family: var(--gf-font-ui);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.md-sidebar { padding-top: var(--s-4); }
+.md-sidebar__scrollwrap { scrollbar-color: #2C323C transparent; }
+
+/* Material's own padding-left rules for nested TOC levels are more specific than
+   this shorthand, so indentation survives; only the pill geometry is new. */
+.md-nav__link {
+  color: var(--gf-text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  padding: 6px 10px;
+  margin-top: 2px;
+  transition: background var(--gf-ease), color var(--gf-ease), border-color var(--gf-ease);
+}
+.md-nav__link:hover {
+  color: var(--gf-text-primary);
+  background: var(--gf-surface-glass-hover);
+}
+.md-nav__link:focus { color: var(--gf-text-primary); }
+
+/* Selected: surface + copper border + copper text. Three signals, not one. */
+.md-nav__link--active,
+.md-nav__link--active:hover,
+.md-nav__link[aria-current="page"] {
+  color: var(--gf-accent);
+  background: var(--gf-copper-08);
+  border-color: var(--gf-copper-30);
+  font-weight: 620;
+}
+
+/* navigation.sections turns top-level entries into quiet group labels. */
+.md-nav__item--section > .md-nav__link:not(.md-nav__link--index),
+.md-nav--primary .md-nav__item--section > label.md-nav__link {
+  color: var(--gf-text-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  background: none;
+  border-color: transparent;
+}
+
+/* Secondary rail: the table of contents. Same vocabulary, one step quieter. */
+.md-nav--secondary .md-nav__link { color: var(--gf-text-muted); padding-top: 5px; padding-bottom: 5px; }
+.md-nav--secondary .md-nav__link:hover { color: var(--gf-text-secondary); }
+.md-nav--secondary .md-nav__link--active { color: var(--gf-accent); }
+/* One rule down the whole contents list, not one per nesting level. */
+.md-nav--secondary > .md-nav__list { border-left: 1px solid rgba(255,255,255,.055); }
+/* Material makes this label sticky and masks the content scrolling behind it
+   with an opaque halo. Keep the halo — it is doing real work — but recolour it
+   to the page base and let it blur, so it reads as glass rather than a patch. */
+.md-nav--secondary .md-nav__title {
+  background: rgba(16,17,19,.78);
+  box-shadow: 0 0 .4rem .4rem rgba(16,17,19,.78);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* At desktop the primary rail's title is just the site name above the links, so
+   it stays a quiet eyebrow — the same label the table of contents uses. */
+.md-nav--primary .md-nav__title {
+  background: none;
+  box-shadow: none;
+  padding-inline: 10px;
+}
+
+/* The drawer, on the other hand, has a real header bar. Chrome for it is scoped
+   to the drawer breakpoint so it cannot leak onto the desktop rail. */
+.md-nav--primary .md-nav__item { border-top: 0; }
+@media screen and (max-width: 76.1875em) {
+  .md-nav--primary .md-nav__title {
+    background: var(--gf-bg-shell);
+    border-bottom: 1px solid rgba(255,255,255,.065);
+    box-shadow: none;
+    color: var(--gf-text-primary);
+    font-size: 13px;
+    letter-spacing: -.02em;
+    text-transform: none;
+    padding-inline: var(--s-4);
+  }
+  .md-nav--primary .md-nav__title .md-nav__button.md-logo :is(img, svg) { border-radius: 8px; }
+}
+.md-overlay { background: rgba(8,9,11,.62); }
+
+/* Back to top (navigation.top): a glass control, not a floating card. */
+.md-top {
+  background: var(--gf-surface-raised);
+  border: var(--gf-border-default);
+  border-radius: var(--r-md);
+  box-shadow: none;
+  color: var(--gf-text-secondary);
+  font-size: 13px;
+  transition: background var(--gf-ease), border-color var(--gf-ease), color var(--gf-ease);
+}
+.md-top:hover {
+  background: var(--gf-surface-elevated);
+  border-color: var(--gf-copper-36);
+  color: var(--gf-text-primary);
+}
+
+
+/* ===========================================================================
+   8. TYPESET — headings, prose, links
+   Display type is 760 with tight tracking. Body is the UI face at the doc step.
+   ======================================================================== */
+
+.md-typeset {
+  font-family: var(--gf-font-ui);
+  font-size: var(--rf-fs-doc-body);
+  line-height: 1.55;
+  color: var(--gf-text-secondary);
+}
+
+.md-typeset :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--gf-font-display);
+  font-weight: var(--gf-weight-display);
+  color: var(--gf-text-primary);
+}
+
+/* Page title: 32-40 / 1.05 */
+.md-typeset h1 {
+  font-size: var(--gf-fs-page);
+  line-height: 1.05;
+  letter-spacing: var(--gf-tracking-title);
+  color: var(--gf-text-primary);
+  margin: 0 0 var(--s-5);
+  max-width: 24ch;
+}
+
+/* Section heading: 18-22 / 1.2, separated by a hairline rather than a gap. */
+.md-typeset h2 {
+  font-size: 22px;
+  line-height: 1.2;
+  letter-spacing: var(--gf-tracking-title);
+  margin: var(--s-6) 0 var(--s-4);
+  padding-top: var(--s-6);
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.md-typeset h2:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+
+.md-typeset h3 {
+  font-size: 17px;
+  line-height: 1.25;
+  letter-spacing: -.03em;
+  margin: var(--s-5) 0 var(--s-3);
+}
+.md-typeset h4,
+.md-typeset h5,
+.md-typeset h6 {
+  font-size: 14px;
+  line-height: 1.3;
+  letter-spacing: -.02em;
+  margin: var(--s-5) 0 var(--s-2);
+  text-transform: none;
+  color: var(--gf-text-primary);
+}
+
+/* Prose keeps a readable measure; evidence blocks stay full width beside it. */
+.md-typeset p,
+.md-typeset li { max-width: 80ch; }
+.md-typeset p { margin: 0 0 var(--s-4); }
+.md-typeset ul,
+.md-typeset ol { margin-bottom: var(--s-4); }
+.md-typeset li { margin-bottom: var(--s-2); }
+.md-typeset li::marker { color: var(--gf-text-disabled); }
+.md-typeset strong { color: var(--gf-text-primary); font-weight: 660; }
+.md-typeset em { color: var(--gf-text-secondary); }
+
+.md-typeset hr {
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  margin: var(--s-6) 0;
+}
+
+/* Material sets the quote rule at `[dir=ltr] .md-typeset blockquote` (0,2,1),
+   so the [dir] prefix here is what lets the copper edge land. */
+.md-typeset blockquote {
+  color: var(--gf-text-muted);
+  background: rgba(255,255,255,.022);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  padding: var(--s-3) var(--s-4);
+}
+[dir] .md-typeset blockquote {
+  border-inline-start: 3px solid var(--gf-copper-36);
+  border-inline-end: 0;
+}
+
+/* Links: copper, underlined on hover with a border rather than text-decoration
+   so the underline sits clear of descenders. */
+.md-typeset a {
+  color: var(--gf-accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--gf-copper-30);
+  transition: color var(--gf-ease), border-color var(--gf-ease);
+}
+.md-typeset a:hover,
+.md-typeset a:focus {
+  color: var(--accent-2);
+  border-bottom-color: var(--accent-2);
+}
+/* Anchors that are not prose links carry no rule. */
+.md-typeset :is(.headerlink, .md-button, .md-nav__link, .md-footer__link) { border-bottom: 0; }
+
+.md-typeset .headerlink {
+  color: var(--gf-text-disabled);
+  transition: color var(--gf-ease);
+}
+.md-typeset :is(h1, h2, h3, h4, h5, h6):hover .headerlink,
+.md-typeset .headerlink:focus { color: var(--gf-accent); }
+
+.md-typeset mark {
+  background: var(--gf-copper-18);
+  color: var(--gf-text-primary);
+  border-radius: 3px;
+}
+
+.md-content__inner { padding-bottom: var(--s-6); }
+/* Material's spacer above the first heading. */
+.md-content__inner::before { height: var(--s-4); }
+
+
+/* ===========================================================================
+   9. CODE — inline chips and evidence wells
+   Everything here is machine output, so all of it is the data face.
+   ======================================================================== */
+
+.md-typeset code {
+  font-family: var(--gf-font-data);
+  font-size: .875em;
+  color: var(--gf-text-primary);
+  background: var(--gf-surface-glass);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: var(--r-sm);
+  padding: 1px 5px;
+}
+/* Inline code inside a link belongs to the link. */
+.md-typeset a code { color: inherit; border-color: var(--gf-copper-30); background: var(--gf-copper-08); }
+/* Inside a heading it inherits the heading's weight and colour. */
+.md-typeset :is(h1, h2, h3, h4, h5, h6) code {
+  background: none; border: 0; padding: 0;
+  color: inherit; font-size: .9em; font-weight: 620;
+}
+
+/* Evidence well: sits BELOW the page surface, hairline border, room to breathe.
+   Only the `code` element carries the fill — Material leaves `pre` transparent,
+   and painting both would stack the same translucent black twice. */
+.md-typeset pre > code {
+  background: var(--rf-well);
+  border: var(--gf-border-default);
+  border-radius: var(--r-lg);
+  padding: var(--s-5);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--gf-text-primary);
+}
+.md-typeset .highlight { border-radius: var(--r-lg); }
+.md-typeset .highlight span.filename {
+  background: rgba(255,255,255,.045);
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  color: var(--gf-text-secondary);
+  font-family: var(--gf-font-data);
+  font-size: 12px;
+  font-weight: 500;
+}
+.md-typeset .highlight [data-linenos]::before {
+  background: transparent;
+  color: var(--gf-text-muted);
+  box-shadow: inset -1px 0 rgba(255,255,255,.055);
+}
+.md-typeset .highlighttable .linenos { background: transparent; }
+.md-typeset .md-code__content { border-radius: var(--r-lg); }
+
+/* Copy button: quiet until wanted, copper on approach. */
+.md-clipboard { color: var(--gf-text-disabled); transition: color var(--gf-ease); }
+.md-clipboard:hover,
+.md-clipboard:focus { color: var(--gf-accent); }
+:hover > .md-clipboard { color: var(--gf-text-muted); }
+
+.md-typeset kbd {
+  background: var(--gf-surface-raised);
+  border-radius: var(--r-sm);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.09);
+  color: var(--gf-text-primary);
+  font-family: var(--gf-font-data);
+  font-size: 12px;
+}
+
+
+/* ===========================================================================
+   10. TABLES — dense but breathable, 1px borders, compact uppercase labels
+   Column headers are labels a human wrote, so they stay in the UI face; cells
+   hold prose in a documentation table, and any machine value inside them is
+   already wrapped in `code` and therefore already mono.
+   ======================================================================== */
+
+.md-typeset table:not([class]) {
+  background: rgba(22,24,28,.55);
+  border: var(--gf-border-default);
+  border-radius: var(--r-lg);
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+  overflow: hidden;
+}
+.md-typeset table:not([class]) th {
+  background: rgba(30,34,42,.75);
+  color: var(--gf-text-secondary);
+  font-family: var(--gf-font-ui);
+  font-size: 12px;
+  font-weight: 640;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.md-typeset table:not([class]) td {
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid rgba(255,255,255,.055);
+  color: var(--gf-text-secondary);
+  vertical-align: top;
+}
+.md-typeset table:not([class]) tbody tr { transition: background var(--gf-ease); }
+.md-typeset table:not([class]) tbody tr:hover { background: rgba(255,255,255,.035); box-shadow: none; }
+
+
+/* ===========================================================================
+   11. ADMONITIONS AND DISCLOSURES — border-led cards, never colour alone
+   Each type sets --rf-note, which drives the edge, the icon and the title tint.
+   The word in the title bar is what actually carries the meaning.
+   ======================================================================== */
+
+.md-typeset :is(.admonition, details) {
+  --rf-note: var(--gf-data);
+  background: rgba(255,255,255,.022);
+  border: var(--gf-border-default);
+  border-inline-start: 3px solid var(--rf-note);
+  border-radius: var(--r-lg);
+  box-shadow: none;
+  font-size: 15px;
+  color: var(--gf-text-secondary);
+}
+/* Material re-colours the whole box per type at `.md-typeset .admonition.note`
+   (0,3,0), which outweighs the rule above and would ring the card in its own
+   saturated blue/orange/red. [class] matches the type class every admonition
+   already carries and buys back exactly the weight needed to reclaim the edge:
+   a hairline all round, with the type colour spent only on the start edge. */
+.md-typeset :is(.admonition, details)[class] {
+  border-color: rgba(255,255,255,.07);
+  border-inline-start-color: var(--rf-note);
+  box-shadow: none;
+}
+/* Focus is copper here too, never the admonition's own hue. */
+.md-typeset :is(.admonition, details)[class]:focus-within {
+  box-shadow: 0 0 0 3px var(--gf-copper-08);
+}
+/* Material's per-type rules are `.md-typeset .note > .admonition-title` (0,3,0),
+   so the title selectors below have to match that weight to win on source order.
+   The `background` is declared twice on purpose: the flat glass is the fallback
+   for engines without color-mix(). */
+.md-typeset :is(.admonition, details) > :is(.admonition-title, summary) {
+  background: var(--gf-white-04);
+  background: color-mix(in srgb, var(--rf-note) 10%, transparent);
+  border: 0;
+  color: var(--gf-text-primary);
+  font-family: var(--gf-font-ui);
+  font-weight: 660;
+  letter-spacing: -.01em;
+}
+.md-typeset :is(.admonition, details) > :is(.admonition-title, summary)::before { background-color: var(--rf-note); }
+.md-typeset :is(.admonition, details) > :is(.admonition-title, summary)::after  { color: var(--rf-note); }
+
+.md-typeset :is(.note, .info, .todo)              { --rf-note: var(--gf-data); }
+.md-typeset :is(.tip, .hint, .success, .check, .done) { --rf-note: var(--gf-success); }
+.md-typeset :is(.warning, .caution, .attention)   { --rf-note: var(--gf-warning); }
+.md-typeset :is(.danger, .failure, .fail, .missing, .error, .bug) { --rf-note: var(--gf-danger); }
+.md-typeset :is(.example)                          { --rf-note: var(--gf-violet); }
+.md-typeset :is(.quote, .cite, .abstract, .summary, .tldr) { --rf-note: var(--gf-text-muted); }
+
+
+/* ===========================================================================
+   12. BUTTONS — charcoal by default. The copper-to-green gradient is reserved
+   for the ONE primary commitment on a view, so .md-button--primary is the only
+   thing that gets it.
+   ======================================================================== */
+
+.md-typeset .md-button {
+  background: var(--gf-surface-glass);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--r-md);
+  color: var(--gf-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px var(--s-4);
+  transition: background var(--gf-ease), border-color var(--gf-ease), transform var(--gf-ease);
+}
+.md-typeset .md-button:hover,
+.md-typeset .md-button:focus {
+  background: var(--gf-surface-glass-hover);
+  border-color: var(--gf-copper-36);
+  color: var(--gf-text-primary);
+}
+.md-typeset .md-button:active { transform: translateY(1px); }
+.md-typeset .md-button--primary {
+  background: linear-gradient(135deg, var(--gf-accent), var(--gf-success));
+  border: 0;
+  color: var(--accent-fg);           /* near-black on copper, never white */
+  font-weight: var(--gf-weight-display);
+}
+.md-typeset .md-button--primary:hover,
+.md-typeset .md-button--primary:focus {
+  background: linear-gradient(135deg, var(--gf-accent), var(--gf-success));
+  color: var(--accent-fg);
+  filter: brightness(1.07);
+}
+
+
+/* ===========================================================================
+   13. FOOTER — previous/next as command rows, then the RingoSystems line
+   ======================================================================== */
+
+.md-footer {
+  background: transparent;
+  border-top: 1px solid rgba(255,255,255,.065);
+}
+.md-footer__inner { margin: 0 auto; padding: var(--s-4) 0; }
+.md-footer__link {
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+  opacity: 1;
+  transition: background var(--gf-ease), transform var(--gf-ease);
+}
+.md-footer__link:hover { background: var(--gf-surface-glass-hover); transform: none; }
+.md-footer__direction {
+  color: var(--gf-text-muted);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  opacity: 1;
+}
+.md-footer__title { font-weight: 620; letter-spacing: -.02em; }
+.md-footer__title .md-ellipsis { color: var(--gf-text-primary); }
+
+.md-footer-meta {
+  background: rgba(13,14,16,.5);
+  border-top: 1px solid rgba(255,255,255,.055);
+}
+.md-copyright {
+  color: var(--gf-text-muted);
+  font-size: 12.5px;
+}
+.md-copyright__highlight { color: var(--gf-text-secondary); }
+.md-copyright a { color: var(--gf-text-secondary); }
+.md-copyright a:hover { color: var(--gf-accent); }
+/* The owner line. Copper here is brand, and it appears exactly once. */
+.md-copyright .rf-owner { color: var(--gf-accent); font-weight: 640; letter-spacing: -.01em; }
+.md-copyright .rf-sep { color: var(--gf-text-disabled); padding: 0 var(--s-1); }
+/* Licence and version strings are machine facts. */
+.md-copyright .rf-fact { font-family: var(--gf-font-data); font-size: 12px; }
+
+.md-social__link { color: var(--gf-text-muted); transition: color var(--gf-ease); }
+.md-social__link:hover { color: var(--gf-accent); }
+
+
+/* ===========================================================================
+   14. MOTION AND RESPONSIVE
+   The wash and the transitions are decoration; the information is carried by
+   text and position, so removing motion loses nothing.
+   ======================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media screen and (max-width: 76.1875em) {
+  /* Drawer width: the rail, not a full-bleed takeover. */
+  .md-nav--primary .md-nav__link { padding: 10px var(--s-4); }
+}
+
+@media screen and (max-width: 44.9375em) {
+  .md-typeset h2 { padding-top: var(--s-5); margin-top: var(--s-5); }
+  .md-typeset pre > code { padding: var(--s-4); }
+  .md-typeset h1 { max-width: none; }
+}

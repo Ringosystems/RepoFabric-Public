@@ -1,0 +1,81 @@
+name: peer-responder
+# Layer 2 of the cross-repo comms pipeline (docs/cross-repo-comms-automation.md).
+# Claude triages an integration ask and drafts/posts the substantive reply,
+# auto-posting low-risk answers and escalating genuine decisions to a human.
+# Inert until ANTHROPIC_API_KEY and PEER_REPO_TOKEN secrets are set. Starts in
+# draft-only mode; set repo variable RESPONDER_AUTOPOST=true to auto-post the
+# low-risk classes once trusted.
+
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  respond:
+    runs-on: ubuntu-latest
+    if: contains(join(github.event.issue.labels.*.name, ','), 'integration')
+    steps:
+      - name: Guard (secrets present, not a bot)
+        id: g
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PEER_REPO_TOKEN: ${{ secrets.PEER_REPO_TOKEN }}
+          ACTOR_TYPE: ${{ github.event.comment.user.type }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ] || [ -z "$PEER_REPO_TOKEN" ]; then echo "missing secrets; skipping (responder not yet activated)"; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$ACTOR_TYPE" = "Bot" ]; then echo "go=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          case "$COMMENT_BODY" in *"<!-- auto-mirrored"*) echo "go=false" >> "$GITHUB_OUTPUT"; exit 0 ;; esac
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout (responder reads docs + the decision register references)
+        if: steps.g.outputs.go == 'true'
+        uses: actions/checkout@v4
+
+      # Pin the action version per the current Claude Code GitHub Action docs.
+      - name: Claude integration responder
+        if: steps.g.outputs.go == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.PEER_REPO_TOKEN }}
+          claude_env: |
+            RESPONDER_AUTOPOST=${{ vars.RESPONDER_AUTOPOST }}
+          prompt: |
+            You are the cross-fabric integration responder for the RepoFabric <-> ConfigFabric family.
+            Triggering issue: ${{ github.repository }}#${{ github.event.issue.number }}.
+
+            GOVERNANCE: RepoFabric is the APPROVING PRIMARY for this relationship. A decision
+            marked 'decided' (signed off) on the RepoFabric side is FINAL and binding; ConfigFabric
+            defers and implements against it, with no separate ConfigFabric ratification step. Never
+            wait on ConfigFabric to confirm a RepoFabric-signed-off decision.
+
+            1. Read the issue, the latest comment, and this repo (docs/, especially
+               docs/cross-repo-comms-automation.md and the M6 decision register).
+            2. Classify the ask:
+               - A factual or contract question answerable from this codebase + the decision
+                 register, or a status / acknowledgement -> draft a grounded reply that cites
+                 file:line or the relevant decision.
+               - A decision ALREADY signed off on the RepoFabric side ('decided' label, or covered
+                 by a ratified M6 answer) -> treat it as final: mirror the sign-off to the paired
+                 ConfigFabric issue and note what it unblocks. Do not reopen it.
+               - A genuine NET-NEW design decision not yet covered by a RepoFabric sign-off ->
+                 do NOT decide it yourself. Draft the options + a recommendation, apply
+                 'awaiting-human', and request the primary's sign-off. Only the human primary or
+                 the interactive RepoFabric agent sets 'decided'.
+            3. Posting policy:
+               - If RESPONDER_AUTOPOST == 'true' AND the class is low-risk (factual / status /
+                 mirroring an existing sign-off), post the reply as an issue comment, signed
+                 "-- automated integration responder".
+               - Otherwise post the reply prefixed "DRAFT - " for a human to approve.
+            4. Update labels per docs/cross-repo-comms-automation.md
+               (awaiting-peer / peer-acked / awaiting-decision / awaiting-human / decided).
+
+            Hard rules: never push code, never tick a decision-register checkbox, never resolve
+            an 'awaiting-human' item yourself. Humans ratify decisions.

@@ -4,197 +4,504 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Connect Microsoft Entra &middot; RepoFabric</title>
+  <meta name="color-scheme" content="dark">
+  <!-- RingoSystems Graphite Forge v1.0. Order matters: foundation, then the
+       application token map, then this surface's own rules. No CDN assets:
+       this admin runs on isolated networks. -->
+  <link rel="stylesheet" href="graphite-forge.css">
+  <link rel="stylesheet" href="repofabric-tokens.css">
   <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0f1115; color:#d6dae3; margin:0; line-height:1.5; }
-    .wrap { max-width: 860px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
-    a { color:#4fa3ff; }
-    .topbar { display:flex; align-items:center; gap:.75rem; margin-bottom:.5rem; }
-    .badge { display:inline-block; background:#a6601c; color:#fff; font-size:.66rem; font-weight:700; letter-spacing:.06em; padding:.2rem .5rem; border-radius:4px; }
-    h1 { font-size:1.5rem; margin:.25rem 0 .5rem; }
-    h2 { font-size:1.05rem; margin:0 0 .25rem; }
-    p.lede { color:#aab1c0; margin:.25rem 0 1.5rem; }
-    .step { background:#161922; border:1px solid #232838; border-radius:10px; padding:1.1rem 1.25rem; margin:1rem 0; }
-    .step.is-locked { opacity:.55; }
-    .step-head { display:flex; align-items:baseline; gap:.6rem; }
-    .step-num { flex:0 0 1.6rem; height:1.6rem; line-height:1.6rem; text-align:center; border-radius:50%; background:#2a3142; color:#cfd6e4; font-weight:700; font-size:.85rem; }
-    .step-num.done { background:#1f6f43; color:#fff; }
-    .muted { color:#7d8492; }
-    .hint { color:#9aa2b1; font-size:.85rem; margin:.4rem 0 0; }
-    button, .btn { font: inherit; cursor:pointer; border:0; border-radius:6px; padding:.55rem .9rem; background:#3b82f6; color:#fff; font-weight:600; text-decoration:none; display:inline-block; }
-    button.ghost, .btn.ghost { background:transparent; color:#cfd6e4; border:1px solid #39404f; }
-    button:disabled { opacity:.5; cursor:default; }
-    .row { display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin-top:.8rem; }
-    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    code.inline { background:#0b0d12; padding:.1rem .4rem; border-radius:4px; font-size:.85em; }
-    .tabs { display:flex; gap:.4rem; margin:.8rem 0 0; }
-    .tab { background:#10141d; border:1px solid #2a3142; color:#9aa2b1; border-radius:6px 6px 0 0; padding:.35rem .8rem; font-size:.85rem; }
-    .tab.is-active { background:#0b0d12; color:#fff; border-bottom-color:#0b0d12; }
-    pre.script { background:#0b0d12; border:1px solid #2a3142; border-radius:0 6px 6px 6px; padding:1rem; overflow:auto; max-height:340px; margin:0; font-size:.82rem; white-space:pre; }
-    ol.run-steps { margin:.6rem 0 0; padding-left:1.3rem; }
-    ol.run-steps li { margin:.45rem 0; }
-    .callout { background:#1a1407; border:1px solid #5c4410; border-radius:8px; padding:.7rem .9rem; margin:.8rem 0 0; color:#e8d9b0; font-size:.9rem; }
-    .callout.warn { background:#1f1010; border-color:#5c1a1a; color:#f0c9c9; }
-    label.field { display:block; margin:.8rem 0 0; }
-    label.field span.lbl { display:block; font-size:.8rem; color:#9aa2b1; margin-bottom:.25rem; }
-    input[type=text], input[type=password], textarea { width:100%; padding:.55rem .6rem; border:1px solid #2a3142; border-radius:6px; background:#0b0d12; color:#e6e6e6; font:inherit; }
-    textarea { min-height:120px; resize:vertical; font-family: ui-monospace, monospace; font-size:.82rem; }
-    .probe { margin-top:.8rem; padding:.7rem .9rem; border-radius:8px; font-size:.88rem; display:none; }
-    .probe.show { display:block; }
-    .probe.ok { background:#0e2417; border:1px solid #1f6f43; color:#bfe9cf; }
-    .probe.fail { background:#241010; border:1px solid #5c1a1a; color:#f0c9c9; }
-    .probe.pending { background:#10141d; border:1px solid #2a3142; color:#aab1c0; }
-    .probe ul { margin:.4rem 0 0; padding-left:1.2rem; }
-    .done-card { background:#0e2417; border:1px solid #1f6f43; border-radius:10px; padding:1.5rem; text-align:center; }
-    .footer-links { margin-top:1.5rem; font-size:.85rem; }
-    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
-    @media (max-width:560px){ .grid-2 { grid-template-columns:1fr; } }
+    /* ========================================================================
+       Connect Microsoft Entra — entry / onboarding surface.
+       RingoSystems Heavy Industries
+
+       Standard §6: app surfaces run edge-to-edge, ENTRY surfaces (sign-in,
+       setup, connect) keep the frame. This page is a one-way onboarding flow,
+       so it sits inside a gf-frame with a persistent brand topbar; #wrap holds
+       only the flow, because connect-entra.js replaces its innards wholesale
+       when the wizard finishes.
+
+       Typography: every tenant ID, client ID, redirect URL, script line and
+       server error below is machine output and is set in the DATA face. Titles,
+       hints, button labels and instructions are human copy and stay in the UI
+       face. That split is the whole point.
+       ==================================================================== */
+
+    /* hidden must beat any display we set below (JS toggles .hidden on
+       #already, #scriptBox and #openAccessWarn). */
+    [hidden] { display: none !important; }
+
+    /* ---- Frame ---------------------------------------------------------- */
+    .entry-page { max-width: 1040px; margin: 0 auto; padding: var(--s-5) var(--s-4) var(--s-7); }
+
+    .entry-topbar {
+      display: flex; align-items: center; gap: var(--s-4);
+      height: 70px; padding: 0 var(--s-5);
+      border-bottom: 1px solid rgba(255,255,255,.065);
+      background: rgba(17,19,23,.72);
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
+    }
+    .entry-brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+    .entry-topbar-actions { margin-left: auto; display: flex; align-items: center; gap: var(--s-2); }
+
+    .entry-body { padding: var(--s-6) var(--s-6) var(--s-7); }
+    .wrap { max-width: 800px; margin: 0 auto; }
+
+    /* ---- Page head ------------------------------------------------------- */
+    .entry-head { margin-bottom: var(--s-6); }
+    .entry-head .gf-eyebrow { margin-bottom: var(--s-3); }
+    /* Page title: 32-40 / 1.05 at display weight, per the type scale. */
+    h1 {
+      margin: 0 0 var(--s-3);
+      font-size: var(--gf-fs-page);
+      font-weight: var(--gf-weight-display);
+      letter-spacing: var(--gf-tracking-title);
+      line-height: 1.05;
+    }
+    p.lede { margin: 0; max-width: 68ch; }
+
+    /* ---- Step card ------------------------------------------------------- */
+    .step {
+      position: relative;
+      background: linear-gradient(180deg, rgba(28,32,39,.75), rgba(15,18,22,.78));
+      border: var(--gf-border-default);
+      border-radius: var(--r-lg);
+      padding: var(--s-5) var(--s-6) var(--s-6);
+      margin: var(--s-4) 0;
+    }
+    /* Locked = not yet reachable in the flow. Dimmed only; the operator can
+       still read ahead, and nothing is disabled that was not disabled before. */
+    .step.is-locked { opacity: .5; }
+
+    .step-head { display: flex; align-items: flex-start; gap: var(--s-4); }
+    .step-num {
+      flex: 0 0 30px; height: 30px;
+      display: grid; place-items: center;
+      border: var(--gf-border-strong);
+      border-radius: var(--r-md);
+      background: var(--gf-white-04);
+      color: var(--text-dim);
+      /* the ordinal is a machine label: data face */
+      font-family: var(--font-mono);
+      font-size: var(--fs-md);
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+    /* Done carries a glyph AND a colour, never colour alone. */
+    .step-num.done {
+      background: var(--ok-bg);
+      border-color: rgba(82,183,136,.34);
+      color: var(--ok);
+    }
+    .step h2 {
+      margin: 3px 0 var(--s-2);
+      font-size: 18px;
+      font-weight: var(--gf-weight-display);
+      letter-spacing: var(--gf-tracking-title);
+      line-height: 1.2;
+      color: var(--text);
+    }
+    .step-head > div { min-width: 0; }
+
+    /* ---- Prose ----------------------------------------------------------- */
+    p.hint { margin: 0; color: var(--text-dim); font-size: var(--gf-fs-body); line-height: 1.55; max-width: 68ch; }
+    .muted { color: var(--muted); }
+    a { color: var(--accent); text-decoration-color: var(--gf-copper-36); text-underline-offset: 3px; }
+    a:hover { color: var(--accent-2); text-decoration-color: currentColor; }
+
+    ol.run-steps { margin: var(--s-5) 0 0; padding-left: 1.4rem; font-size: var(--gf-fs-body); line-height: 1.55; color: var(--text-dim); }
+    ol.run-steps li { margin: var(--s-3) 0; }
+    ol.run-steps li::marker { color: var(--accent); font-family: var(--font-mono); font-weight: 600; }
+    ol.run-steps strong { color: var(--text); font-weight: 620; }
+
+    /* ---- Machine values in prose ---------------------------------------- */
+    code, pre, kbd, samp { font-family: var(--font-mono); }
+    code.inline {
+      background: var(--surface-3);
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: var(--r-sm);
+      padding: 1px 6px;
+      font-size: var(--fs-sm);
+      color: var(--text);
+      word-break: break-word;
+    }
+
+    /* ---- Controls -------------------------------------------------------- */
+    button, .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+      font: inherit; font-size: var(--fs-md);
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,.08);
+      background: var(--gf-surface-glass);
+      color: var(--text);
+      border-radius: var(--r-md);
+      padding: 9px 14px;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background var(--gf-ease), border-color var(--gf-ease), transform var(--gf-ease), color var(--gf-ease);
+    }
+    button:hover, .btn:hover { background: var(--gf-surface-glass-hover); border-color: var(--gf-copper-36); }
+    button:active, .btn:active { transform: translateY(1px); }
+    button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    button:disabled:hover { background: var(--gf-surface-glass); border-color: rgba(255,255,255,.08); }
+
+    /* Quietest tier: the helpers beside a step's lead action. */
+    button.ghost, .btn.ghost { background: transparent; color: var(--text-dim); border-color: rgba(255,255,255,.09); }
+    button.ghost:hover, .btn.ghost:hover { background: var(--gf-surface-glass); color: var(--text); border-color: var(--gf-copper-36); }
+
+    /* The action that opens the flow: still charcoal, but a copper edge says
+       "start here". Copper stays scarce — nothing else on the page borrows it
+       except selection, focus, and the one primary commitment. */
+    #genBtn { border-color: var(--gf-copper-30); }
+
+    /* The ONE primary commitment on this view. Everything else is charcoal. */
+    #connectBtn, .done-card .btn {
+      border: 0;
+      background: linear-gradient(135deg, var(--gf-accent), var(--gf-success));
+      color: var(--text-on-accent);
+      font-weight: var(--gf-weight-display);
+      box-shadow: 0 18px 55px rgba(201,122,64,.18);
+      padding: 10px 18px;
+    }
+    #connectBtn:hover, .done-card .btn:hover { filter: brightness(1.07); background: linear-gradient(135deg, var(--gf-accent), var(--gf-success)); }
+    #connectBtn:disabled { filter: none; }
+
+    .row { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; margin-top: var(--s-4); }
+
+    /* Inline result text. #fillMsg is copy we wrote, so it stays in the UI
+       face; #genMsg and #connectMsg only ever carry a failure — machine text —
+       so they sit in the data face and are toned, with the words still doing
+       the work for anyone who cannot see the tone. */
+    .row .muted { font-size: var(--fs-md); line-height: 1.4; }
+    #genMsg, #connectMsg { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--error); }
+    #genMsg:empty, #connectMsg:empty { display: none; }
+
+    /* ---- Script block ---------------------------------------------------- */
+    #scriptBox { margin-top: var(--s-5); }
+    .tabs { display: inline-flex; gap: var(--s-1); margin: var(--s-4) 0 var(--s-2); padding: 3px; border: var(--gf-border-default); border-radius: var(--r-md); background: var(--gf-white-034); }
+    .tab {
+      background: transparent; border: 1px solid transparent;
+      color: var(--text-dim);
+      border-radius: 8px;
+      padding: 5px 12px;
+      font-size: var(--fs-md);
+    }
+    .tab:hover { background: var(--gf-surface-glass); color: var(--text); border-color: transparent; }
+    /* Selection: surface lift + copper border + copper label. */
+    .tab.is-active { background: var(--gf-copper-08); border-color: var(--gf-copper-30); color: var(--accent); font-weight: 620; }
+
+    pre.script {
+      background: var(--surface-3);
+      border: var(--gf-border-default);
+      border-radius: var(--r-md);
+      padding: var(--s-5);
+      margin: 0;
+      overflow: auto;
+      max-height: 340px;
+      font-size: var(--gf-fs-code);
+      line-height: 1.5;
+      color: var(--text-dim);
+      white-space: pre;
+    }
+
+    /* ---- Callouts --------------------------------------------------------
+       Marker glyph + tone + wording. The amber note is a caution; .warn is the
+       one that can actually cost you (tenant-wide admin access). */
+    .callout {
+      display: flex; gap: var(--s-3); align-items: flex-start;
+      background: var(--warn-bg);
+      border: 1px solid rgba(246,200,95,.30);
+      border-radius: var(--r-md);
+      padding: var(--s-4) var(--s-5);
+      margin: var(--s-4) 0 0;
+      color: var(--warn);
+      font-size: var(--fs-lg);
+      line-height: 1.5;
+    }
+    .callout::before {
+      content: "!";
+      flex: none;
+      width: 20px; height: 20px; margin-top: 1px;
+      display: grid; place-items: center;
+      border-radius: 50%;
+      background: rgba(246,200,95,.18);
+      font-family: var(--font-mono);
+      font-size: var(--fs-xs);
+      font-weight: 700;
+    }
+    .callout.warn { background: var(--error-bg); border-color: rgba(214,90,74,.38); color: var(--error); }
+    .callout.warn::before { content: "\25B2"; background: rgba(214,90,74,.20); font-size: 10px; }
+    .callout code.inline { background: rgba(0,0,0,.32); border-color: rgba(255,255,255,.10); color: inherit; }
+    #already { margin: 0 0 var(--s-5); }
+
+    /* ---- Fields ----------------------------------------------------------
+       Labels are human copy; the values are machine identifiers, so every
+       input here is set in the data face. */
+    label.field { display: block; margin: var(--s-4) 0 0; }
+    label.field span.lbl {
+      display: block;
+      margin-bottom: var(--s-2);
+      color: var(--text);
+      font-size: var(--fs-md);
+      font-weight: 520;
+    }
+    input[type=text], input[type=password], textarea {
+      width: 100%;
+      padding: 9px var(--s-3);
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: var(--r-md);
+      background: var(--surface-3);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: var(--fs-sm);
+      line-height: 1.5;
+      transition: border-color var(--gf-ease), box-shadow var(--gf-ease);
+    }
+    input::placeholder, textarea::placeholder { color: var(--text-disabled); }
+    input[type=text]:focus, input[type=password]:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(201,122,64,.16);
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-top: var(--s-4); }
+    .grid-2 label.field { margin-top: 0; }
+
+    /* ---- Probe result ----------------------------------------------------
+       connect-entra.js rewrites className to "probe show <state>", so these
+       three states must stay reachable from those class names alone. */
+    .probe {
+      display: none;
+      margin-top: var(--s-4);
+      padding: var(--s-4) var(--s-5);
+      border-radius: var(--r-md);
+      border: var(--gf-border-default);
+      border-left: 3px solid var(--muted);
+      background: var(--muted-bg);
+      color: var(--text-dim);
+      font-size: var(--fs-lg);
+      line-height: 1.55;
+    }
+    .probe.show { display: block; }
+    .probe::before { font-family: var(--font-mono); font-weight: 700; margin-right: var(--s-2); }
+    .probe strong { color: var(--text); font-weight: 640; }
+    .probe.ok      { background: var(--ok-bg);    border-color: rgba(82,183,136,.28); border-left-color: var(--ok); }
+    .probe.ok::before      { content: "\2713"; color: var(--ok); }
+    .probe.ok strong       { color: var(--ok); }
+    .probe.fail    { background: var(--error-bg); border-color: rgba(214,90,74,.32); border-left-color: var(--error); }
+    .probe.fail::before    { content: "\2715"; color: var(--error); }
+    .probe.fail strong     { color: var(--error); }
+    .probe.pending { background: var(--muted-bg); border-left-color: var(--text-dim); }
+    .probe.pending::before { content: "\25CC"; color: var(--text-dim); }
+    .probe ul { margin: var(--s-2) 0 0; padding-left: 1.2rem; }
+    .probe li { margin: 3px 0; }
+    .probe li::marker { color: var(--text-disabled); }
+    .probe code { font-size: var(--fs-sm); color: var(--text); word-break: break-all; }
+    .probe p { margin: var(--s-3) 0 0; font-size: var(--fs-md); }
+    .probe .muted, .probe li.muted { color: var(--muted); }
+
+    /* ---- Terminal card ---------------------------------------------------
+       Shared by "Entra connected" and "Not available", so it stays neutral:
+       the heading says which one it is. Ambient copper glow is allowed here —
+       this is the hero panel of the view. */
+    .done-card {
+      max-width: 620px;
+      margin: var(--s-6) auto;
+      padding: var(--s-7) var(--s-6);
+      text-align: center;
+      background: linear-gradient(180deg, rgba(28,32,39,.78), rgba(15,18,22,.82));
+      border: var(--gf-border-strong);
+      border-radius: var(--r-lg);
+      box-shadow: var(--gf-glow-copper);
+    }
+    .done-card h1 {
+      margin: 0 0 var(--s-4);
+      font-size: var(--gf-fs-page);
+      font-weight: var(--gf-weight-display);
+      letter-spacing: var(--gf-tracking-title);
+      line-height: 1.05;
+    }
+    .done-card p { margin: 0 0 var(--s-4); color: var(--text-dim); font-size: var(--gf-fs-body); }
+    .done-card p:last-child { margin-bottom: 0; }
+    /* the restart countdown is a live machine value */
+    .done-card #cd { font-family: var(--font-mono); color: var(--text); }
+
+    .footer-links { margin-top: var(--s-6); font-size: var(--fs-md); line-height: 1.55; }
+
+    @media (max-width: 720px) {
+      .entry-page { padding: var(--s-3) var(--s-3) var(--s-6); }
+      .entry-body { padding: var(--s-5) var(--s-4) var(--s-6); }
+      .step { padding: var(--s-4) var(--s-4) var(--s-5); }
+      .entry-topbar { padding: 0 var(--s-4); }
+      .gf-brand-sub { display: none; }
+    }
+    @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-  <div class="wrap" id="wrap">
-    <div class="topbar">
-      <span class="badge">SANDBOX</span>
-      <a href="./" class="muted" style="font-size:.85rem;">&larr; Back to admin</a>
-    </div>
-    <h1>Connect Microsoft Entra sign-in</h1>
-    <p class="lede" id="lede">
-      This deployment started with a local admin account. Connect Microsoft Entra to switch
-      sign-in to your organization's accounts. Your local admin account stays available as a
-      break-glass fallback, so you cannot lock yourself out.
-    </p>
+  <div class="gf-page entry-page">
+    <div class="gf-frame">
 
-    <div id="already" class="callout" hidden>
-      Microsoft Entra is already connected for this deployment. Running this wizard again will
-      replace the stored credentials (use it to rotate the client secret or update the app
-      registration). The local admin account remains as a break-glass fallback.
-    </div>
-
-    <!-- STEP 1 ---------------------------------------------------------------->
-    <section class="step" id="step1">
-      <div class="step-head"><span class="step-num" id="num1">1</span><div>
-        <h2>Generate your Azure setup script</h2>
-        <p class="hint">RepoFabric builds a ready-to-run script that creates the app registration in
-          your tenant. The sign-in redirect URL is filled in for you, derived from this server's
-          address, so it is always exact.</p>
-      </div></div>
-      <div class="row">
-        <button id="genBtn" type="button">Generate script</button>
-        <span class="muted" id="genMsg"></span>
-      </div>
-
-      <div id="scriptBox" hidden>
-        <p class="hint" style="margin-top:1rem;">Redirect URL this app registration will trust:
-          <code class="inline" id="redirectUri"></code></p>
-        <div class="tabs">
-          <button class="tab is-active" data-shell="powershell" type="button">PowerShell</button>
-          <button class="tab" data-shell="bash" type="button">Bash (Cloud Shell)</button>
+      <header class="entry-topbar">
+        <div class="gf-brand">
+          <div class="gf-logo" aria-hidden="true">R</div>
+          <div class="entry-brand-text">
+            <span class="gf-brand-name">RepoFabric</span>
+            <span class="gf-brand-sub">RingoSystems Heavy Industries</span>
+          </div>
         </div>
-        <pre class="script" id="scriptText"></pre>
-        <div class="row">
-          <button id="copyBtn" class="ghost" type="button">Copy script</button>
+        <div class="entry-topbar-actions">
+          <a href="./" class="gf-btn">&larr; Back to admin</a>
+        </div>
+      </header>
+
+      <div class="entry-body">
+        <div class="wrap" id="wrap">
+          <header class="entry-head">
+            <span class="gf-eyebrow">Sandbox deployment</span>
+            <h1>Connect Microsoft Entra sign-in</h1>
+            <p class="lede gf-lede" id="lede">
+              This deployment started with a local admin account. Connect Microsoft Entra to switch
+              sign-in to your organization's accounts. Your local admin account stays available as a
+              break-glass fallback, so you cannot lock yourself out.
+            </p>
+          </header>
+
+          <div id="already" class="callout" hidden>
+            <span>Microsoft Entra is already connected for this deployment. Running this wizard again will
+            replace the stored credentials (use it to rotate the client secret or update the app
+            registration). The local admin account remains as a break-glass fallback.</span>
+          </div>
+
+          <!-- STEP 1 ---------------------------------------------------------------->
+          <section class="step" id="step1">
+            <div class="step-head"><span class="step-num" id="num1">1</span><div>
+              <h2>Generate your Azure setup script</h2>
+              <p class="hint">RepoFabric builds a ready-to-run script that creates the app registration in
+                your tenant. The sign-in redirect URL is filled in for you, derived from this server's
+                address, so it is always exact.</p>
+            </div></div>
+            <div class="row">
+              <button id="genBtn" type="button">Generate script</button>
+              <span class="muted" id="genMsg" role="status" aria-live="polite"></span>
+            </div>
+
+            <div id="scriptBox" hidden>
+              <p class="hint">Redirect URL this app registration will trust:
+                <code class="inline" id="redirectUri"></code></p>
+              <div class="tabs" role="group" aria-label="Script flavour">
+                <button class="tab is-active" data-shell="powershell" type="button">PowerShell</button>
+                <button class="tab" data-shell="bash" type="button">Bash (Cloud Shell)</button>
+              </div>
+              <pre class="script" id="scriptText"></pre>
+              <div class="row">
+                <button id="copyBtn" class="ghost" type="button">Copy script</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- STEP 2 ---------------------------------------------------------------->
+          <section class="step is-locked" id="step2">
+            <div class="step-head"><span class="step-num" id="num2">2</span><div>
+              <h2>Run the script in Azure Cloud Shell</h2>
+              <p class="hint">No installs needed. Cloud Shell is a terminal inside the Azure portal that is
+                already signed in as you.</p>
+            </div></div>
+
+            <ol class="run-steps">
+              <li><strong>Open Azure Cloud Shell.</strong> Click the button below (opens a new tab), sign in
+                with your Microsoft work account, and if asked to choose a shell pick <strong>Bash</strong>.</li>
+              <li><strong>Make sure you have the right role.</strong> You must be a <strong>Global Administrator</strong>
+                or <strong>Privileged Role Administrator</strong>. Granting admin consent for the Microsoft Graph
+                permissions requires it, no tool can skip this.</li>
+              <li><strong>Paste the script and press Enter.</strong> Right-click to paste (or
+                <code class="inline">Shift</code>+<code class="inline">Insert</code>). It runs in about 30 to 60 seconds.</li>
+              <li><strong>Copy all of the output.</strong> When it finishes it prints three lines that start with
+                <code class="inline">TENANT_ID=</code>, <code class="inline">CLIENT_ID=</code>, and
+                <code class="inline">CLIENT_SECRET=</code>. Select and copy the whole block.</li>
+            </ol>
+
+            <div class="row">
+              <a class="btn" id="cloudShellBtn" href="https://shell.azure.com" target="_blank" rel="noopener">Open Azure Cloud Shell &nearr;</a>
+              <span class="muted">Prefer your own machine? Run <code class="inline">az login</code> first, then paste the PowerShell tab instead.</span>
+            </div>
+
+            <div class="callout">
+              <span>The client secret is shown only once, in that output. Keep it private, do not screenshot it.
+              It is a 2-year credential you can rotate later by re-running this wizard.</span>
+            </div>
+          </section>
+
+          <!-- STEP 3 ---------------------------------------------------------------->
+          <section class="step is-locked" id="step3">
+            <div class="step-head"><span class="step-num" id="num3">3</span><div>
+              <h2>Paste the output and test</h2>
+              <p class="hint">Paste everything the script printed. RepoFabric fills in the three values for you.</p>
+            </div></div>
+
+            <label class="field"><span class="lbl">Script output</span>
+              <textarea id="output" placeholder="Paste the TENANT_ID= / CLIENT_ID= / CLIENT_SECRET= lines here"></textarea>
+            </label>
+            <div class="row">
+              <button id="fillBtn" class="ghost" type="button">Autofill the fields below</button>
+              <span class="muted" id="fillMsg" role="status" aria-live="polite"></span>
+            </div>
+
+            <div class="grid-2">
+              <label class="field"><span class="lbl">Tenant ID</span>
+                <input type="text" id="tenant_id" autocomplete="off" spellcheck="false"></label>
+              <label class="field"><span class="lbl">Client (application) ID</span>
+                <input type="text" id="client_id" autocomplete="off" spellcheck="false"></label>
+            </div>
+            <label class="field"><span class="lbl">Client secret</span>
+              <input type="password" id="client_secret" autocomplete="off" spellcheck="false"></label>
+
+            <div class="row">
+              <button id="probeBtn" class="ghost" type="button">Test connection</button>
+              <span class="muted">Confirms the three values are valid before you commit them.</span>
+            </div>
+            <div class="probe" id="probe" role="status" aria-live="polite"></div>
+          </section>
+
+          <!-- STEP 4 ---------------------------------------------------------------->
+          <section class="step is-locked" id="step4">
+            <div class="step-head"><span class="step-num" id="num4">4</span><div>
+              <h2>Choose who can sign in, then connect</h2>
+              <p class="hint">Limit admin access to specific people or groups. Optional, but recommended.</p>
+            </div></div>
+
+            <label class="field"><span class="lbl">Allowed users (comma-separated UPNs, e.g. you@contoso.com)</span>
+              <input type="text" id="allowed_users" autocomplete="off" spellcheck="false" placeholder="you@contoso.com, colleague@contoso.com"></label>
+            <label class="field"><span class="lbl">Allowed group IDs (comma-separated Entra group object IDs, optional)</span>
+              <input type="text" id="allowed_groups" autocomplete="off" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000"></label>
+
+            <div class="callout warn" id="openAccessWarn" hidden>
+              <span>You left both lists empty. With no allow-list, <strong>anyone in your tenant</strong> who signs in
+              will be admitted. Add at least your own UPN above unless you really want tenant-wide access.</span>
+            </div>
+
+            <div class="callout">
+              <span>On connect, the credentials are saved and the admin service restarts (a few seconds). You will be
+              signed out and sent to Microsoft sign-in. The local admin account stays available at
+              <code class="inline">/admin/auth/local-login</code> as a break-glass fallback.</span>
+            </div>
+
+            <div class="row">
+              <button id="connectBtn" type="button">Connect Microsoft Entra &amp; restart</button>
+              <span class="muted" id="connectMsg" role="status" aria-live="polite"></span>
+            </div>
+          </section>
+
+          <p class="footer-links muted">
+            Setting this up wrong? You can always sign in with the local admin account at
+            <a href="/admin/auth/local-login">/admin/auth/local-login</a>, or re-run the full first-run wizard
+            from Settings &rarr; Advanced &rarr; System.
+          </p>
         </div>
       </div>
-    </section>
 
-    <!-- STEP 2 ---------------------------------------------------------------->
-    <section class="step is-locked" id="step2">
-      <div class="step-head"><span class="step-num" id="num2">2</span><div>
-        <h2>Run the script in Azure Cloud Shell</h2>
-        <p class="hint">No installs needed. Cloud Shell is a terminal inside the Azure portal that is
-          already signed in as you.</p>
-      </div></div>
-
-      <ol class="run-steps">
-        <li><strong>Open Azure Cloud Shell.</strong> Click the button below (opens a new tab), sign in
-          with your Microsoft work account, and if asked to choose a shell pick <strong>Bash</strong>.</li>
-        <li><strong>Make sure you have the right role.</strong> You must be a <strong>Global Administrator</strong>
-          or <strong>Privileged Role Administrator</strong>. Granting admin consent for the Microsoft Graph
-          permissions requires it, no tool can skip this.</li>
-        <li><strong>Paste the script and press Enter.</strong> Right-click to paste (or
-          <code class="inline">Shift</code>+<code class="inline">Insert</code>). It runs in about 30 to 60 seconds.</li>
-        <li><strong>Copy all of the output.</strong> When it finishes it prints three lines that start with
-          <code class="inline">TENANT_ID=</code>, <code class="inline">CLIENT_ID=</code>, and
-          <code class="inline">CLIENT_SECRET=</code>. Select and copy the whole block.</li>
-      </ol>
-
-      <div class="row">
-        <a class="btn" id="cloudShellBtn" href="https://shell.azure.com" target="_blank" rel="noopener">Open Azure Cloud Shell &nearr;</a>
-        <span class="muted">Prefer your own machine? Run <code class="inline">az login</code> first, then paste the PowerShell tab instead.</span>
-      </div>
-
-      <div class="callout">
-        The client secret is shown only once, in that output. Keep it private, do not screenshot it.
-        It is a 2-year credential you can rotate later by re-running this wizard.
-      </div>
-    </section>
-
-    <!-- STEP 3 ---------------------------------------------------------------->
-    <section class="step is-locked" id="step3">
-      <div class="step-head"><span class="step-num" id="num3">3</span><div>
-        <h2>Paste the output and test</h2>
-        <p class="hint">Paste everything the script printed. RepoFabric fills in the three values for you.</p>
-      </div></div>
-
-      <label class="field"><span class="lbl">Script output</span>
-        <textarea id="output" placeholder="Paste the TENANT_ID= / CLIENT_ID= / CLIENT_SECRET= lines here"></textarea>
-      </label>
-      <div class="row">
-        <button id="fillBtn" class="ghost" type="button">Autofill the fields below</button>
-        <span class="muted" id="fillMsg"></span>
-      </div>
-
-      <div class="grid-2">
-        <label class="field"><span class="lbl">Tenant ID</span>
-          <input type="text" id="tenant_id" autocomplete="off" spellcheck="false"></label>
-        <label class="field"><span class="lbl">Client (application) ID</span>
-          <input type="text" id="client_id" autocomplete="off" spellcheck="false"></label>
-      </div>
-      <label class="field"><span class="lbl">Client secret</span>
-        <input type="password" id="client_secret" autocomplete="off" spellcheck="false"></label>
-
-      <div class="row">
-        <button id="probeBtn" class="ghost" type="button">Test connection</button>
-        <span class="muted">Confirms the three values are valid before you commit them.</span>
-      </div>
-      <div class="probe" id="probe"></div>
-    </section>
-
-    <!-- STEP 4 ---------------------------------------------------------------->
-    <section class="step is-locked" id="step4">
-      <div class="step-head"><span class="step-num" id="num4">4</span><div>
-        <h2>Choose who can sign in, then connect</h2>
-        <p class="hint">Limit admin access to specific people or groups. Optional, but recommended.</p>
-      </div></div>
-
-      <label class="field"><span class="lbl">Allowed users (comma-separated UPNs, e.g. you@contoso.com)</span>
-        <input type="text" id="allowed_users" autocomplete="off" spellcheck="false" placeholder="you@contoso.com, colleague@contoso.com"></label>
-      <label class="field"><span class="lbl">Allowed group IDs (comma-separated Entra group object IDs, optional)</span>
-        <input type="text" id="allowed_groups" autocomplete="off" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000"></label>
-
-      <div class="callout warn" id="openAccessWarn" hidden>
-        You left both lists empty. With no allow-list, <strong>anyone in your tenant</strong> who signs in
-        will be admitted. Add at least your own UPN above unless you really want tenant-wide access.
-      </div>
-
-      <div class="callout">
-        On connect, the credentials are saved and the admin service restarts (a few seconds). You will be
-        signed out and sent to Microsoft sign-in. The local admin account stays available at
-        <code class="inline">/admin/auth/local-login</code> as a break-glass fallback.
-      </div>
-
-      <div class="row">
-        <button id="connectBtn" type="button">Connect Microsoft Entra &amp; restart</button>
-        <span class="muted" id="connectMsg"></span>
-      </div>
-    </section>
-
-    <p class="footer-links muted">
-      Setting this up wrong? You can always sign in with the local admin account at
-      <a href="/admin/auth/local-login">/admin/auth/local-login</a>, or re-run the full first-run wizard
-      from Settings &rarr; Advanced &rarr; System.
-    </p>
+    </div>
   </div>
 
   <script src="./connect-entra.js" defer></script>

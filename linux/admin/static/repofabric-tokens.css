@@ -1,94 +1,118 @@
 /*
- * RepoFabric admin design language.
+ * RepoFabric — RingoSystems Graphite Forge v1.0 application token layer.
+ * RingoSystems Heavy Industries
  *
- * Single source of truth for color, spacing, typography, radius, and the
- * component primitives every tab is built on. Loaded BEFORE app.css and
- * before any per-page <style> block so individual pages can override only
- * where they must.
+ * Loads AFTER graphite-forge.css (the foundation) and BEFORE app.css.
  *
- * Naming:
- *   --surface-N   page bg / panel / raised panel / input bg (0-3)
- *   --border-*    outline weights
- *   --text-*      typographic contrast steps
- *   --ok|warn|error|info  status palette (each has -bg companion at ~12% alpha)
- *   --accent-*    single brand color + hover state
- *   --r-{sm|md|lg}  three radii
- *   --s-N         spacing scale (4/6/8/10/14/20/28 px)
- *   --fs-{xs..xl} font-size scale (11.5..20 px)
- *   --font-{ui|mono}  family pair
+ * Every token name here is unchanged from the pre-Graphite-Forge admin so the
+ * ~300 var() references across app.css, setup.css and the per-page styles keep
+ * resolving. What changed is what they RESOLVE TO: each one is now expressed in
+ * terms of the Graphite Forge foundation (--gf-*). Re-skinning happens here, in
+ * one place, rather than in three hundred rules.
  *
- * Backward-compat aliases (--bg, --panel, --fg, etc.) live at the bottom of
- * the :root block so the legacy app.css selectors keep working unchanged
- * during the staged migration.
+ * A note on the two families:
+ *   --gf-*  foundation. The standard. Do not redefine these in product code.
+ *   --*     application semantics. Map onto the foundation; never hardcode.
+ *
+ * Type: the standard specifies Inter + Consolas. Both stacks degrade to system
+ * faces (Segoe UI / system-ui, and Cascadia/ui-monospace) so the admin ships no
+ * webfont. That is deliberate: this UI runs on isolated networks where an
+ * external font request would either hang or leak that the instance exists.
  */
 
 :root {
-  /* -- Surfaces -------------------------------------------------------- */
-  --surface-0: #0f1115;   /* page background */
-  --surface-1: #1a1d24;   /* card / panel */
-  --surface-2: #232730;   /* raised panel / table header */
-  --surface-3: #0f1115;   /* input field background (sits below the panel) */
+  /* -- Surfaces ---------------------------------------------------------
+   * The page background itself is owned by the foundation (the copper/violet
+   * wash on graphite). --surface-0 stays as the flat fallback for anything
+   * that needs an opaque page-coloured fill.
+   */
+  --surface-0: var(--gf-bg-base);        /* #101113 page / deepest           */
+  --surface-1: var(--gf-surface);        /* #16181C card, panel              */
+  --surface-2: var(--gf-surface-raised); /* #1E222A raised, table header     */
+  --surface-3: #0D0E10;                  /* input wells sit BELOW the panel  */
 
-  /* -- Borders --------------------------------------------------------- */
-  --border:        #2a2f3a;
-  --border-strong: #3a4050;
-  --border-focus:  #4f9eff;
+  /* -- Borders ----------------------------------------------------------
+   * Graphite Forge draws separation with low-alpha white rather than a solid
+   * grey line: it keeps the surface reading as glass over the wash. The solid
+   * --gf-border is reserved for the strong step.
+   */
+  --border:        rgba(255,255,255,.07);
+  --border-strong: var(--gf-border);
+  --border-focus:  var(--gf-accent);
 
-  /* -- Text ------------------------------------------------------------ */
-  --text:         #e6e8ec;
-  --text-dim:     #9aa3b2;
-  --text-disabled: #6b7280;
-  --text-on-accent: #ffffff;
+  /* -- Text -------------------------------------------------------------- */
+  --text:           var(--gf-text-primary);
+  --text-dim:       var(--gf-text-secondary);
+  --text-disabled:  var(--gf-text-disabled);
+  /* Copper and the copper->green gradient are LIGHT. Text on them is the
+   * graphite base, never white; white on copper fails contrast. */
+  --text-on-accent: #101113;
 
-  /* -- Status palette -------------------------------------------------- */
-  --ok:    #45c785;
-  --warn:  #e8b73d;
-  --error: #e74c4c;
-  --info:  #4f9eff;
-  --muted: #888;
+  /* -- Status palette ---------------------------------------------------- */
+  --ok:    var(--gf-success);
+  --warn:  var(--gf-warning);
+  --error: var(--gf-danger);
+  --info:  var(--gf-data);
+  --muted: var(--gf-text-muted);
 
-  /* Companion 12%-alpha backgrounds. Used by pills, banners, toasts. */
-  --ok-bg:    rgba(69, 199, 133, 0.18);
-  --warn-bg:  rgba(232, 183, 61, 0.18);
-  --error-bg: rgba(231, 76, 76, 0.18);
-  --info-bg:  rgba(79, 158, 255, 0.18);
-  --muted-bg: rgba(255, 255, 255, 0.06);
+  --ok-bg:    rgba(82,183,136,.14);
+  --warn-bg:  rgba(246,200,95,.14);
+  --error-bg: rgba(214,90,74,.15);
+  --info-bg:  rgba(107,214,232,.13);
+  --muted-bg: rgba(255,255,255,.055);
 
-  /* -- Data-viz -------------------------------------------------------- */
-  /* Recessive slate for "normal/expected" chart series (e.g. server egress
-   * on the bandwidth chart). Calm on the dark panel; never reads as an alarm. */
-  --bw-egress: #5b6678;
+  /* -- Data-viz ----------------------------------------------------------
+   * Egress is the "expected/normal" series and must stay recessive: it shares
+   * the chart with peer-cache savings, which is the number the operator is
+   * actually looking for. Violet is the comparison series per the standard.
+   */
+  --bw-egress: #4C5666;
+  --bw-peer:   var(--gf-success);
+  --bw-alt:    var(--gf-violet);
 
-  /* -- Accent ---------------------------------------------------------- */
-  --accent:   #4f9eff;
-  --accent-2: #3a7bd5;   /* hover */
-  --accent-fg: #ffffff;
+  /* -- Accent ------------------------------------------------------------ */
+  --accent:    var(--gf-accent);
+  --accent-2:  #DE8B4B;   /* hover: copper, one step brighter */
+  --accent-fg: #101113;
 
-  /* -- Radius ---------------------------------------------------------- */
-  --r-sm: 3px;
-  --r-md: 5px;
-  --r-lg: 8px;
+  /* -- Radius ------------------------------------------------------------
+   * The single biggest visual tell of Graphite Forge. The old 3/5/8 scale read
+   * as a utility console; 8/11/18 reads as a product. --r-md is the control
+   * radius from the standard, --r-lg the card radius.
+   */
+  --r-sm: 8px;
+  --r-md: var(--gf-radius-control);  /* 11px */
+  --r-lg: var(--gf-radius-card);     /* 18px */
 
-  /* -- Spacing scale --------------------------------------------------- */
-  --s-1: 4px;
-  --s-2: 6px;
-  --s-3: 8px;
-  --s-4: 10px;
-  --s-5: 14px;
-  --s-6: 20px;
-  --s-7: 28px;
+  /* -- Spacing scale -----------------------------------------------------
+   * Re-cut onto the standard's rhythm (§5: 4/8/12/16/22/32). The old scale was
+   * 4/6/8/10/14/20/28 — a tighter, denser beat that read as a utility console.
+   * The published rhythm is what gives Graphite Forge its composure; --s-7 is
+   * the one local extension, for page-level gutters above the 32px step.
+   */
+  --s-1: var(--gf-space-1);  /*  4px  micro gaps inside compact controls  */
+  --s-2: var(--gf-space-2);  /*  8px  icon to label                       */
+  --s-3: var(--gf-space-3);  /* 12px  button padding, compact card gap    */
+  --s-4: var(--gf-space-4);  /* 16px  default component internal padding  */
+  --s-5: var(--gf-space-5);  /* 22px  dashboard section gap               */
+  --s-6: var(--gf-space-6);  /* 32px  page content padding, hero padding  */
+  --s-7: 40px;               /*       page gutter (local extension)       */
 
-  /* -- Typography ------------------------------------------------------ */
-  --font-ui:   -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
-  --fs-xs: 11.5px;
-  --fs-sm: 12px;
-  --fs-md: 13px;
-  --fs-lg: 14px;
-  --fs-xl: 16px;
-  --fs-xxl: 20px;
+  /* -- Typography ---------------------------------------------------------
+   * Inter for anything a human wrote, Consolas for anything a machine emitted.
+   * The size scale maps onto the standard's §4 steps: UI label 12-14, section
+   * heading 18-22, metric 24-32.
+   */
+  --font-ui:   var(--gf-font-ui);
+  --font-mono: var(--gf-font-data);
+  --fs-xs:  12px;   /* dense metadata, table headers  */
+  --fs-sm:  12.5px; /* secondary UI label             */
+  --fs-md:  13px;   /* default UI label               */
+  --fs-lg:  14px;   /* emphasised UI label            */
+  --fs-xl:  16px;   /* small section heading          */
+  --fs-xxl: var(--gf-fs-section); /* 20px section heading */
 
-  /* -- Back-compat aliases (legacy app.css references) ----------------- */
+  /* -- Back-compat aliases (legacy app.css references) ------------------- */
   --bg:        var(--surface-0);
   --panel:     var(--surface-1);
   --panel-2:   var(--surface-2);
@@ -101,19 +125,17 @@
 }
 
 /* ======================================================================
- * Component primitives
- *
- * Used across every tab. New code should reach for these before writing
- * one-off CSS. See plan: C:\Users\Ringo\.claude\plans\so-i-m-looking-to-precious-starlight.md
- * for the full grammar.
+ * Component primitives, re-cut in Graphite Forge.
+ * Same class names, same markup contract, new language.
  * ====================================================================== */
 
-/* ---- Card ---------------------------------------------------------- */
+/* ---- Card ------------------------------------------------------------ */
 .wg-card {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: var(--s-5) var(--s-5);
+  position: relative;
+  background: linear-gradient(180deg, rgba(28,32,39,.75), rgba(15,18,22,.78));
+  border: var(--gf-border-default);
+  border-radius: var(--r-lg);
+  padding: var(--s-6);
 }
 .wg-card + .wg-card { margin-top: var(--s-5); }
 
@@ -121,135 +143,116 @@
   display: flex;
   align-items: baseline;
   gap: var(--s-4);
-  margin-bottom: var(--s-4);
+  margin-bottom: var(--s-5);
 }
 .wg-card__title {
   margin: 0;
-  font-size: var(--fs-xl);
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
   color: var(--text);
 }
-.wg-card__subtitle {
-  font-size: var(--fs-sm);
-  color: var(--text-dim);
-}
-.wg-card__head-right {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-}
+.wg-card__subtitle { font-size: var(--fs-sm); color: var(--text-dim); }
+.wg-card__head-right { margin-left: auto; display: flex; align-items: center; gap: var(--s-3); }
 
-/* ---- Status pill --------------------------------------------------- */
+/* ---- Status pill ------------------------------------------------------
+ * Dot + word. Colour is reinforcement, never the only carrier of meaning.
+ */
 .wg-pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-2);
-  padding: 2px var(--s-3);
+  gap: 7px;
+  padding: 3px 10px 3px 8px;
   border-radius: 999px;
+  border: 1px solid transparent;
   font-size: var(--fs-xs);
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: .02em;
+  white-space: nowrap;
 }
 .wg-pill::before {
   content: "";
-  width: 6px;
-  height: 6px;
+  width: 7px; height: 7px; flex: none;
   border-radius: 50%;
   background: currentColor;
+  box-shadow: 0 0 10px currentColor;
 }
-.wg-pill.is-ok    { color: var(--ok);    background: var(--ok-bg); }
-.wg-pill.is-warn  { color: var(--warn);  background: var(--warn-bg); }
-.wg-pill.is-error { color: var(--error); background: var(--error-bg); }
-.wg-pill.is-info  { color: var(--info);  background: var(--info-bg); }
-.wg-pill.is-muted { color: var(--muted); background: var(--muted-bg); }
+.wg-pill.is-ok    { color: var(--ok);    background: var(--ok-bg);    border-color: rgba(82,183,136,.28); }
+.wg-pill.is-warn  { color: var(--warn);  background: var(--warn-bg);  border-color: rgba(246,200,95,.28); }
+.wg-pill.is-error { color: var(--error); background: var(--error-bg); border-color: rgba(214,90,74,.30); }
+.wg-pill.is-info  { color: var(--info);  background: var(--info-bg);  border-color: rgba(107,214,232,.26); }
+.wg-pill.is-muted { color: var(--muted); background: var(--muted-bg); border-color: rgba(255,255,255,.09); }
+.wg-pill.is-muted::before { box-shadow: none; }
 
-/* ---- Table --------------------------------------------------------- */
+/* ---- Table ------------------------------------------------------------
+ * Tables are machine output end to end, so the whole grid is set in the data
+ * face. Headers are the one exception: they are labels a human wrote.
+ */
 .wg-table {
   width: 100%;
-  border-collapse: collapse;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-collapse: separate;
+  border-spacing: 0;
+  background: rgba(22,24,28,.55);
+  border: var(--gf-border-default);
+  border-radius: var(--r-lg);
   overflow: hidden;
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
 }
 .wg-table th,
 .wg-table td {
-  padding: var(--s-3) var(--s-5);
+  padding: var(--s-4) var(--s-5);
   text-align: left;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(255,255,255,.055);
 }
+.wg-table tr:last-child td { border-bottom: 0; }
 .wg-table th {
-  background: var(--surface-2);
+  background: rgba(30,34,42,.75);
   color: var(--text-dim);
-  font-weight: 600;
+  font-family: var(--font-ui);
+  font-weight: 640;
   font-size: var(--fs-xs);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: .08em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 .wg-table td.is-muted { color: var(--text-dim); }
-.wg-table tr.is-selected td { background: var(--info-bg); }
-.wg-table tr:hover:not(.is-selected) td {
-  background: rgba(255, 255, 255, 0.03);
-  cursor: pointer;
-}
+.wg-table tr.is-selected td { background: var(--gf-copper-08); box-shadow: inset 3px 0 0 var(--accent); }
+.wg-table tr:hover:not(.is-selected) td { background: rgba(255,255,255,.035); cursor: pointer; }
 
-/* ---- Toolbar ------------------------------------------------------- */
-.wg-toolbar {
-  display: flex;
-  gap: var(--s-3);
-  align-items: center;
-  margin-bottom: var(--s-5);
-}
+/* ---- Toolbar ---------------------------------------------------------- */
+.wg-toolbar { display: flex; gap: var(--s-3); align-items: center; margin-bottom: var(--s-5); flex-wrap: wrap; }
 .wg-toolbar__spacer { flex: 1; }
 
-/* ---- Field --------------------------------------------------------- */
-/*
- * Label (left, fixed width) / control (flex) / indicator (right).
- * The indicator slot is for the inline pass/warn/fail mark that the
- * publish-custom wizard introduced; reused across forms.
- */
+/* ---- Field ------------------------------------------------------------ */
 .wg-field {
   display: grid;
-  grid-template-columns: 150px 1fr 22px;
+  grid-template-columns: 170px 1fr 22px;
   align-items: center;
-  gap: var(--s-2);
+  gap: var(--s-3) var(--s-4);
   font-size: var(--fs-md);
 }
-.wg-field__label {
-  color: var(--text);
-}
-.wg-field__label.is-required::after {
-  content: " *";
-  color: var(--error);
-}
-.wg-field__ind {
-  text-align: center;
-  font-size: var(--fs-lg);
-}
+.wg-field__label { color: var(--text); font-weight: 520; }
+.wg-field__label.is-required::after { content: " *"; color: var(--accent); }
+.wg-field__ind { text-align: center; font-size: var(--fs-lg); }
 .wg-field__ind.is-ok    { color: var(--ok); }
 .wg-field__ind.is-warn  { color: var(--warn); }
 .wg-field__ind.is-error { color: var(--error); }
-.wg-field__help {
-  grid-column: 2 / 4;
-  font-size: var(--fs-sm);
-  color: var(--text-dim);
-  margin: 2px 0 0 0;
-}
+.wg-field__help { grid-column: 2 / 4; font-size: var(--fs-sm); color: var(--text-dim); margin: 2px 0 0; }
 
-/* ---- Disclosure (advanced sections, raw views, etc.) -------------- */
+/* ---- Disclosure -------------------------------------------------------- */
 .wg-disclosure {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,.028);
+  border: var(--gf-border-default);
   border-radius: var(--r-md);
 }
 .wg-disclosure > summary {
   cursor: pointer;
   padding: var(--s-4) var(--s-5);
   font-size: var(--fs-md);
-  font-weight: 600;
+  font-weight: 620;
   color: var(--text);
   user-select: none;
   -webkit-user-select: none;
@@ -257,114 +260,153 @@
   display: flex;
   align-items: center;
   gap: var(--s-3);
+  border-radius: var(--r-md);
 }
+.wg-disclosure > summary:hover { color: var(--accent); }
 .wg-disclosure > summary::-webkit-details-marker { display: none; }
 .wg-disclosure > summary::before {
   content: "▸";
   display: inline-block;
-  color: var(--text-dim);
-  transition: transform 0.15s;
+  color: var(--accent);
+  transition: transform .18s ease;
   font-size: var(--fs-sm);
 }
-.wg-disclosure[open] > summary::before {
-  transform: rotate(90deg);
-}
-.wg-disclosure > summary > .wg-disclosure__sub {
-  font-size: var(--fs-sm);
-  color: var(--text-dim);
-  font-weight: 400;
-  margin-left: var(--s-3);
-}
-.wg-disclosure__body {
-  padding: 0 var(--s-5) var(--s-5) var(--s-5);
-  border-top: 1px solid var(--border);
-  padding-top: var(--s-4);
-}
+.wg-disclosure[open] > summary::before { transform: rotate(90deg); }
+.wg-disclosure > summary > .wg-disclosure__sub { font-size: var(--fs-sm); color: var(--text-dim); font-weight: 400; margin-left: var(--s-3); }
+.wg-disclosure__body { padding: var(--s-5); border-top: 1px solid rgba(255,255,255,.055); }
 
-/* ---- Dialog (native <dialog>) ------------------------------------- */
-.wg-dialog {
-  background: var(--surface-1);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: var(--s-5) var(--s-6);
+/* ---- Dialog -----------------------------------------------------------
+ * Standard §8 draws a line that matters:
+ *   MODAL  — destructive confirmation, high-risk policy change, or a form that
+ *            requires focused completion. Centred, it deliberately interrupts.
+ *   RAIL   — contextual detail that helps the operator decide whether to act.
+ *            Expands beside the work; never a navigation jump.
+ *
+ * So the default <dialog class="modal"> stays a centred modal (RepoFabric's are
+ * overwhelmingly confirmations and focused forms), and read-only detail surfaces
+ * opt into the rail with class="modal rail". Both are native <dialog> driven by
+ * showModal(), so no JS changes either way.
+ */
+.wg-dialog,
+dialog.modal {
+  margin: auto;
+  border: var(--gf-border-strong);
+  border-radius: var(--r-lg);
+  padding: var(--s-7);
   max-width: 640px;
-  width: calc(100% - 2 * var(--s-6));
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+  width: calc(100% - 48px);
+  background: linear-gradient(180deg, rgba(29,33,40,.98), rgba(14,16,20,.99));
+  color: var(--text);
+  box-shadow: var(--gf-shadow-panel);
+  overflow-y: auto;
+  max-height: min(86vh, 900px);
 }
-.wg-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.55);
+dialog.modal.wide { max-width: 880px; }
+
+/* Destructive intent is stated on the panel edge, not with colour alone. */
+dialog.modal.is-destructive { border-top: 2px solid var(--error); }
+
+/* Contextual detail: the Graphite-style preview rail. */
+.wg-dialog.rail,
+dialog.modal.rail {
+  margin: 0;
+  inset: 0 0 0 auto;
+  height: 100%;
+  max-height: 100%;
+  width: min(560px, 100%);
+  max-width: 100%;
+  border: 0;
+  border-left: 1px solid rgba(255,255,255,.09);
+  border-radius: 0;
+  /* Ambient copper glow is permitted here: a selected preview panel. */
+  box-shadow: var(--gf-shadow-panel), var(--gf-glow-copper);
 }
-.wg-dialog h2 {
-  margin: 0 0 var(--s-3) 0;
-  font-size: var(--fs-xl);
+dialog.modal.rail.wide { width: min(880px, 100%); }
+.wg-dialog::backdrop,
+dialog.modal::backdrop {
+  background: rgba(8,9,11,.62);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+.wg-dialog[open],
+dialog.modal[open] { animation: gf-modal-in .18s cubic-bezier(.4,0,.2,1); }
+.wg-dialog.rail[open],
+dialog.modal.rail[open] { animation: gf-rail-in .22s cubic-bezier(.4,0,.2,1); }
+@keyframes gf-modal-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes gf-rail-in  { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .wg-dialog[open], dialog.modal[open],
+  .wg-dialog.rail[open], dialog.modal.rail[open] { animation: none; }
+}
+.wg-dialog h2,
+dialog.modal h2 {
+  margin: 0 0 var(--s-5);
+  font-size: 22px;
+  font-weight: var(--gf-weight-display);
+  letter-spacing: var(--gf-tracking-title);
 }
 .wg-dialog menu {
-  display: flex;
-  gap: var(--s-3);
-  margin: var(--s-5) 0 0 0;
-  padding: 0;
-  list-style: none;
-  justify-content: flex-end;
+  display: flex; gap: var(--s-3);
+  margin: var(--s-6) 0 0; padding: 0;
+  list-style: none; justify-content: flex-end;
 }
 .wg-dialog .wg-dialog__error {
   background: var(--error-bg);
   color: var(--error);
-  border: 1px solid var(--error);
+  border: 1px solid rgba(214,90,74,.45);
   border-radius: var(--r-sm);
   padding: var(--s-3) var(--s-4);
   font-size: var(--fs-sm);
   margin-top: var(--s-4);
 }
+@media (max-width: 720px) {
+  .wg-dialog, dialog.modal, dialog.modal.wide { width: calc(100% - 20px); max-width: none; padding: var(--s-6); }
+  .wg-dialog.rail, dialog.modal.rail, dialog.modal.rail.wide { width: 100%; border-left: 0; }
+}
 
-/* ---- Toast --------------------------------------------------------- */
+/* ---- Toast ------------------------------------------------------------- */
 .wg-toast {
   position: fixed;
-  top: var(--s-5);
-  right: var(--s-5);
-  padding: var(--s-3) var(--s-5);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  top: var(--s-6);
+  right: var(--s-6);
+  padding: var(--s-4) var(--s-5);
+  background: rgba(30,34,42,.96);
+  border: var(--gf-border-default);
   border-radius: var(--r-md);
   font-size: var(--fs-md);
   z-index: 1000;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--gf-shadow-panel);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 .wg-toast.is-ok    { border-left: 3px solid var(--ok); }
 .wg-toast.is-warn  { border-left: 3px solid var(--warn); }
 .wg-toast.is-error { border-left: 3px solid var(--error); }
 
-/* ---- Banner -------------------------------------------------------- */
-/* Used for sticky page-level notices. Color matches its severity pill. */
+/* ---- Banner ------------------------------------------------------------ */
 .wg-banner {
   display: flex;
-  gap: var(--s-3);
+  gap: var(--s-4);
   align-items: flex-start;
-  padding: var(--s-3) var(--s-5);
+  padding: var(--s-4) var(--s-5);
   border-radius: var(--r-md);
   font-size: var(--fs-md);
   margin-bottom: var(--s-5);
-  line-height: 1.45;
+  line-height: 1.5;
 }
-.wg-banner.is-ok    { background: var(--ok-bg);    color: var(--ok);    border: 1px solid var(--ok); }
-.wg-banner.is-warn  { background: var(--warn-bg);  color: var(--warn);  border: 1px solid var(--warn); }
-.wg-banner.is-error { background: var(--error-bg); color: var(--error); border: 1px solid var(--error); }
-.wg-banner.is-info  { background: var(--info-bg);  color: var(--info);  border: 1px solid var(--info); }
+.wg-banner.is-ok    { background: var(--ok-bg);    color: var(--ok);    border: 1px solid rgba(82,183,136,.34); }
+.wg-banner.is-warn  { background: var(--warn-bg);  color: var(--warn);  border: 1px solid rgba(246,200,95,.34); }
+.wg-banner.is-error { background: var(--error-bg); color: var(--error); border: 1px solid rgba(214,90,74,.38); }
+.wg-banner.is-info  { background: var(--info-bg);  color: var(--info);  border: 1px solid rgba(107,214,232,.30); }
 .wg-banner code {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0,0,0,.3);
   padding: 0 var(--s-2);
   border-radius: var(--r-sm);
   font-family: var(--font-mono);
   font-size: var(--fs-sm);
 }
 
-/* ---- Inputs (consistent baseline) --------------------------------- */
-/*
- * Scoped to .wg-field controls so we do not surprise the existing setup
- * wizard / publish-custom inputs which still own their styles. Once
- * those pages migrate to wg-field, the .wg-field qualifier can be
- * dropped and these become global.
- */
+/* ---- Inputs ------------------------------------------------------------ */
 .wg-field input[type="text"],
 .wg-field input[type="email"],
 .wg-field input[type="url"],
@@ -374,24 +416,26 @@
 .wg-field textarea {
   background: var(--surface-3);
   color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: var(--s-2) var(--s-3);
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: var(--r-md);
+  padding: 8px var(--s-4);
   font-family: var(--font-ui);
   font-size: var(--fs-md);
   width: 100%;
+  transition: border-color var(--gf-ease), box-shadow var(--gf-ease);
 }
 .wg-field input:focus,
 .wg-field select:focus,
 .wg-field textarea:focus {
   outline: none;
-  border-color: var(--border-focus);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(201,122,64,.16);
 }
 .wg-field input[readonly],
 .wg-field input:disabled,
 .wg-field select:disabled,
 .wg-field textarea:disabled {
   color: var(--text-disabled);
-  background: var(--surface-1);
+  background: rgba(255,255,255,.02);
   cursor: not-allowed;
 }

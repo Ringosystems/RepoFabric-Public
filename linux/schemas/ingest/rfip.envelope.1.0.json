@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repofabric.dev/schemas/ingest/rfip.envelope.1.0.json",
+  "title": "RepoFabric Ingest Protocol - publish/update envelope v1.0",
+  "description": "Request body for POST /api/v1/ingest/packages and PUT /api/v1/ingest/packages/{id}/versions/{ver}. The RepoFabric-custom envelope wraps an unmodified WinGet 1.6.0 manifest set. Binaries are pushed (installerUploads) for binaryMode=local, or referenced in the manifest for binaryMode=upstream.",
+  "type": "object",
+  "required": ["protocolVersion", "repoId", "binaryMode", "idempotencyKey", "manifest"],
+  "additionalProperties": false,
+  "properties": {
+    "protocolVersion": { "type": "string", "enum": ["1.0"] },
+    "repoId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "description": "Target existing managed repo slug; must be on the caller's allow-list." },
+    "binaryMode": { "type": "string", "enum": ["local", "upstream"], "description": "local = push + self-host + rewrite InstallerUrl; upstream = reference InstallerUrl + verify InstallerSha256." },
+    "idempotencyKey": { "type": "string", "minLength": 1, "description": "Client dedup key; same key + same body replays, different body is a 409 conflict." },
+    "clientId": { "type": "string", "description": "Informational only; authoritative identity is the verified RFC 9421 signer keyid." },
+    "notes": { "type": "string" },
+    "installerUploads": {
+      "type": "array",
+      "description": "Present for binaryMode=local. Pointers returned by POST /api/v1/ingest/binaries. Absent/empty for upstream.",
+      "items": {
+        "type": "object",
+        "required": ["uploadId", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "uploadId": { "type": "string", "description": "Opaque id from the binary stage endpoint." },
+          "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$", "description": "Client-declared hash; must match the staged file (hash-binding) or the publish is rejected 409." },
+          "sizeBytes": { "type": "integer", "minimum": 0 },
+          "installerIndex": { "type": "integer", "minimum": 0, "description": "Index into manifest.installer.Installers[]." },
+          "originalName": { "type": "string" }
+        }
+      }
+    },
+    "override": {
+      "type": "object",
+      "description": "DELETE only. Requests an audited deletion-gate override.",
+      "additionalProperties": false,
+      "properties": {
+        "force": { "type": "boolean" },
+        "reason": { "type": "string" }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "description": "Standard WinGet 1.6.0 multi-file manifest set.",
+      "required": ["version", "installer", "defaultLocale"],
+      "properties": {
+        "version": { "$ref": "../manifest.version.1.6.0.json" },
+        "installer": { "$ref": "../manifest.installer.1.6.0.json" },
+        "defaultLocale": { "$ref": "../manifest.defaultLocale.1.6.0.json" },
+        "locales": { "type": "array", "items": { "$ref": "../manifest.locale.1.6.0.json" } }
+      }
+    }
+  }
+}

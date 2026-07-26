@@ -25,15 +25,24 @@ function Publish-RfCustomPackage {
         produced by the Node admin's multipart upload handler.
     .PARAMETER Notes
         Optional operator notes stored in custom_packages.notes.
+    .PARAMETER RepoId
+        Target virtual repo slug. Defaults to 'main' (legacy single-repo
+        behaviour). For any other repo the manifest set is committed into that
+        repo's Gitea working tree via the promote-style config override; the
+        binary still lands in the shared installer host.
     .OUTPUTS
-        PSCustomObject {CustomId, PackageId, Version, RepoPath, UploadedFiles, GitCommitSha}.
+        PSCustomObject {CustomId, PackageId, Version, RepoId, RepoPath, UploadedFiles, GitCommitSha}.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([PSCustomObject])]
     param(
         [Parameter(Mandatory)][object]$Manifest,
-        [Parameter(Mandatory)][object[]]$InstallerUploads,
-        [string]$Notes
+        # Local (push) binary mode: staged uploads to host + rewrite InstallerUrl.
+        # Empty = upstream (pull) mode: the manifest already carries InstallerUrl
+        # + InstallerSha256 (verified by the caller) and RepoFabric preserves it.
+        [object[]]$InstallerUploads = @(),
+        [string]$Notes,
+        [string]$RepoId = 'main'
     )
 
     # 1. Schema validation
@@ -44,31 +53,47 @@ function Publish-RfCustomPackage {
 
     $packageId = [string]$Manifest.version.PackageIdentifier
     $version   = [string]$Manifest.version.PackageVersion
-    if (-not $PSCmdlet.ShouldProcess("$packageId $version", 'Custom publish')) { return }
+    $RepoId    = if ($RepoId) { $RepoId.ToLowerInvariant() } else { 'main' }
+    if (-not $PSCmdlet.ShouldProcess("$packageId $version -> repo '$RepoId'", 'Custom publish')) { return }
 
-    $cfg = Get-RfConfiguration
+    # Retarget the git chokepoint at the requested repo (promote-style override).
+    # For 'main' this is the original config verbatim.
+    $scoped = Get-RfRepoScopedConfiguration -RepoId $RepoId
+    $cfg    = $scoped.Configuration
     $installerBase = [string]$cfg.target.installer_base_url
     if (-not $installerBase) { throw 'target.installer_base_url is required.' }
+    if (-not $scoped.IsMain) {
+        try { $null = New-RfGiteaRepoIfMissing -Configuration $cfg -RepoPath $scoped.TargetPaths.GiteaRepoPath }
+        catch { throw "Target Gitea repo $($scoped.TargetPaths.GiteaRepoPath) is missing and could not be auto-created: $($_.Exception.Message)" }
+    }
 
-    # 2. Render YAMLs and rewrite InstallerUrls.
-    $rendered = Format-RfCustomManifest -Manifest $Manifest `
-        -InstallerUploads $InstallerUploads -InstallerBaseUrl $installerBase
-
-    # 3. Copy installers into the serve directory. Invoke-RfInstallerUpload
-    # accepts an -Uploads array (LocalPath, RemoteRelPath, FileName, Sha256,
-    # SizeBytes) + the merged Configuration. Format-RfCustomManifest does
-    # not populate FileName; backfill it so the helper can build the
-    # destination path.
-    $uploadsArg = @($rendered.InstallerUploads | ForEach-Object {
-        [hashtable]@{
-            LocalPath     = $_.LocalPath
-            RemoteRelPath = $_.RemoteRelPath
-            FileName      = ([System.IO.Path]::GetFileName($_.RemoteRelPath))
-            Sha256        = $_.Sha256
-            SizeBytes     = $_.SizeBytes
-        }
-    })
-    $null = Invoke-RfInstallerUpload -Uploads $uploadsArg -Configuration $cfg
+    # 2 + 3. Render YAMLs, then either host the pushed binary (local mode) or
+    # preserve the caller-supplied upstream URL (pull mode).
+    $hasUploads = ($InstallerUploads -and @($InstallerUploads).Count -gt 0)
+    if ($hasUploads) {
+        # Local (push) mode: rewrite InstallerUrl to the local host + copy the
+        # staged binary into the serve directory. Invoke-RfInstallerUpload takes
+        # an -Uploads array (LocalPath, RemoteRelPath, FileName, Sha256,
+        # SizeBytes); Format-RfCustomManifest does not populate FileName, so
+        # backfill it from RemoteRelPath.
+        $rendered = Format-RfCustomManifest -Manifest $Manifest `
+            -InstallerUploads $InstallerUploads -InstallerBaseUrl $installerBase
+        $uploadsArg = @($rendered.InstallerUploads | ForEach-Object {
+            [hashtable]@{
+                LocalPath     = $_.LocalPath
+                RemoteRelPath = $_.RemoteRelPath
+                FileName      = ([System.IO.Path]::GetFileName($_.RemoteRelPath))
+                Sha256        = $_.Sha256
+                SizeBytes     = $_.SizeBytes
+            }
+        })
+        $null = Invoke-RfInstallerUpload -Uploads $uploadsArg -Configuration $cfg
+        $binaryModeEffective = 'local'
+    } else {
+        # Upstream (pull) mode: no upload, InstallerUrl/Sha256 preserved verbatim.
+        $rendered = Format-RfCustomManifest -Manifest $Manifest -InstallerBaseUrl $installerBase
+        $binaryModeEffective = 'upstream'
+    }
 
     # 4. git-publish. Invoke-RfGitPublish takes -Files (hashtable: filename
     # to yaml string) and writes them under <RepoPath> in the long-lived
@@ -97,10 +122,10 @@ function Publish-RfCustomPackage {
     }
     $rows = Invoke-RfSqliteReturning -DataSource $db -Query @'
 INSERT INTO custom_packages
-    (package_id, package_name, publisher, last_published_version, last_published_at,
+    (repo_id, package_id, package_name, publisher, last_published_version, last_published_at,
      manifest_json, total_size_bytes, notes, created_by, created_at, modified_by, modified_at, created_via_gui)
-VALUES (@pid, @name, @pub, @ver, @now, @mj, @sz, @notes, @actor, @now, @actor, @now, 1)
-ON CONFLICT(package_id) DO UPDATE SET
+VALUES (@repo, @pid, @name, @pub, @ver, @now, @mj, @sz, @notes, @actor, @now, @actor, @now, 1)
+ON CONFLICT(repo_id, package_id) DO UPDATE SET
     package_name           = excluded.package_name,
     publisher              = excluded.publisher,
     last_published_version = excluded.last_published_version,
@@ -112,6 +137,7 @@ ON CONFLICT(package_id) DO UPDATE SET
     modified_at            = excluded.modified_at
 RETURNING custom_id;
 '@ -SqlParameters @{
+        repo  = $RepoId
         pid   = $packageId
         name  = [string]$Manifest.defaultLocale.PackageName
         pub   = [string]$Manifest.defaultLocale.Publisher
@@ -129,6 +155,7 @@ RETURNING custom_id;
 
     Write-RfLog -Level Information -Event 'custom_published' -Message "Custom package published" -Data @{
         custom_id   = $cid
+        repo_id     = $RepoId
         package_id  = $packageId
         version     = $version
         repo_path   = $rendered.RepoPath
@@ -137,8 +164,9 @@ RETURNING custom_id;
         actor       = $identity
     }
 
-    Write-RfAdminEvent -EventType 'custom_published' -Subject $packageId -Actor $identity -Data @{
+    Write-RfAdminEvent -EventType 'custom_published' -Subject $packageId -Actor $identity -RepoId $RepoId -Data @{
         custom_id  = $cid
+        repo_id    = $RepoId
         version    = $version
         repo_path  = $rendered.RepoPath
         commit_sha = $pushResult.CommitSha
@@ -146,7 +174,7 @@ RETURNING custom_id;
     }
 
     # 6. Catalog refresh so the new row appears immediately.
-    try { Update-RfRepoCatalog | Out-Null } catch { Write-RfLog -Level Warning -Message "Catalog refresh after custom publish failed: $($_.Exception.Message)" }
+    try { Update-RfRepoCatalog -RepoId $RepoId | Out-Null } catch { Write-RfLog -Level Warning -Message "Catalog refresh after custom publish failed: $($_.Exception.Message)" }
 
     # 7. Snapshot the upstream-hash collision result for this row so the
     # combined Subscriptions tab can render the badge without waiting
@@ -156,12 +184,25 @@ RETURNING custom_id;
     try { Update-RfCustomPackageCollisions -CustomId $cid -Confirm:$false | Out-Null }
     catch { Write-RfLog -Level Warning -Message "Upstream-hash collision snapshot after custom publish failed: $($_.Exception.Message)" }
 
+    # Surface the rendered manifest filenames + installer artefacts + commit
+    # message so a caller that writes the publish_events ledger (the RFIP route
+    # handler) can populate the same forensic columns the managed-sync path does,
+    # instead of leaving manifest_files_json / installer_files_json empty.
+    $upstreamUrl = if ($binaryModeEffective -eq 'upstream' -and $Manifest.installer.Installers) {
+        [string]@($Manifest.installer.Installers)[0].InstallerUrl
+    } else { $null }
     return [PSCustomObject]@{
-        CustomId      = $cid
-        PackageId     = $packageId
-        Version       = $version
-        RepoPath      = $rendered.RepoPath
-        UploadedFiles = @($rendered.InstallerUploads | ForEach-Object { $_.RemoteRelPath })
-        GitCommitSha  = $pushResult.CommitSha
+        CustomId             = $cid
+        PackageId            = $packageId
+        Version              = $version
+        RepoId               = $RepoId
+        RepoPath             = $rendered.RepoPath
+        BinaryModeEffective  = $binaryModeEffective
+        CommitMessage        = $commitMsg
+        ManifestFiles        = @($rendered.Files.Keys)
+        InstallerFiles       = @($rendered.InstallerUploads | ForEach-Object { @{ path = $_.RemoteRelPath; sha256 = $_.Sha256; size = $_.SizeBytes } })
+        UpstreamInstallerUrl = $upstreamUrl
+        UploadedFiles        = @($rendered.InstallerUploads | ForEach-Object { $_.RemoteRelPath })
+        GitCommitSha         = $pushResult.CommitSha
     }
 }

@@ -193,7 +193,7 @@ VALUES
 '@ -SqlParameters @{
         sha     = $CommitSha
         rid     = $RepoId
-        parents = (ConvertTo-Json -InputObject @($parentShas) -Compress -AsArray)
+        parents = (ConvertTo-Json -InputObject ([string[]]@($parentShas)) -Compress)
         tree    = if ($treeSha) { $treeSha } else { [DBNull]::Value }
         aname   = if ($authorName) { $authorName } else { [DBNull]::Value }
         aemail  = if ($authorEmail) { $authorEmail } else { [DBNull]::Value }

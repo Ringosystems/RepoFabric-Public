@@ -1,25 +1,65 @@
+# RepoFabric public documentation site.
+# RingoSystems Graphite Forge v1.0 — RingoSystems Heavy Industries.
+#
+# Presentation notes for anyone editing this file:
+#   * The site is DARK-NATIVE. There is one palette entry (slate) and no toggle.
+#     Do not add a light scheme.
+#   * theme.font is FALSE on purpose. Material would otherwise pull Roboto from
+#     fonts.googleapis.com. RepoFabric ships no external asset, so the type
+#     stacks (Inter/Segoe UI for anything a human wrote, Consolas for anything a
+#     machine emitted) are resolved locally in docs/assets/graphite-forge.css.
+#   * primary/accent are `custom`: Material then applies no colour of its own and
+#     the Graphite Forge tokens in docs/assets/graphite-forge.css own the palette.
+#   * The logo, mark and favicon are local SVGs under docs/assets/.
+
 site_name: RepoFabric
 site_description: >-
   Free, self-hosted, private WinGet source for Microsoft-managed fleets. Native
   Microsoft Intune, Entra ID, and Azure Arc integration, a REST and PowerShell
   automation surface, and a GUI admin console. No license fees, no per-endpoint charges.
+site_author: RingoSystems Heavy Industries
 site_url: https://ringosystems.com/RepoFabric-Public/
 repo_url: https://github.com/Ringosystems/RepoFabric-Public
 repo_name: Ringosystems/RepoFabric-Public
-copyright: Copyright (c) 2026 RingoSystems Heavy Industries. MIT licensed.
+copyright: >-
+  <span class="rf-owner">RingoSystems Heavy Industries</span><span class="rf-sep">·</span>RepoFabric
+  <span class="rf-sep">·</span><span class="rf-fact">Copyright (c) 2026, MIT licensed</span>
 
 theme:
   name: material
+  language: en
+  # No webfont request. See the note at the top of this file.
+  font: false
+  # Real RingoSystems identity (vector rebuild of the source raster, which
+  # carried matte fringing on every exposed edge). Standard §12's logo
+  # placeholder is retired.
+  logo: assets/ringosystems-mark.svg
+  favicon: assets/favicon.svg
   palette:
-    - scheme: default
-      primary: indigo
-      accent: indigo
+    - scheme: slate
+      primary: custom
+      accent: custom
   features:
     - navigation.sections
     - navigation.top
+    - navigation.tracking
+    - navigation.footer
+    - toc.follow
     - content.code.copy
     - search.suggest
     - search.highlight
+
+extra_css:
+  - assets/graphite-forge.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Ringosystems/RepoFabric-Public
+      name: RepoFabric source on GitHub
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/r/ringosystems/repofabric
+      name: RepoFabric container image on Docker Hub
 
 nav:
   - Home: index.md

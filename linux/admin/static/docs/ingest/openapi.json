@@ -1,0 +1,130 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RepoFabric Ingest Protocol (RFIP)",
+    "version": "1.0",
+    "description": "Authenticated system-to-system ingestion of WinGet packages and installer binaries into RepoFabric-managed repos. The manifest body is standard Microsoft WinGet 1.6.0; a thin envelope adds the target repo, binary mode, and idempotency key. Every mutating call requires a per-client bearer key AND an RFC 9421 (ecdsa-p256-sha256) signature. See the client integration guide (/admin/docs/ingest-client-guide) for a signing recipe."
+  },
+  "servers": [{ "url": "/api/v1/ingest", "description": "RFIP v1 transport (relative to the WinGet public host)." }],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/information": {
+      "get": {
+        "summary": "Discovery — supported versions, accepted schema, live rewinged source-API versions, allow-list, auth contract.",
+        "responses": {
+          "200": { "description": "Discovery document.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Discovery" } } } },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": { "summary": "This document.", "security": [], "responses": { "200": { "description": "OpenAPI 3.1 description." } } }
+    },
+    "/binaries": {
+      "post": {
+        "summary": "Stage an installer binary (push mode). Returns a pointer for a subsequent signed publish. Bearer only; not signed (hash-bound at publish).",
+        "requestBody": {
+          "required": true,
+          "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "installer": { "type": "string", "format": "binary" } }, "required": ["installer"] } } }
+        },
+        "responses": {
+          "201": { "description": "Staged.", "content": { "application/json": { "schema": { "type": "object", "properties": { "uploadId": { "type": "string" }, "sha256": { "type": "string" }, "sizeBytes": { "type": "integer" }, "originalName": { "type": "string" } } } } } },
+          "401": { "$ref": "#/components/responses/Error" },
+          "413": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/packages": {
+      "post": {
+        "summary": "Create / publish a package version. Requires a bearer AND an RFC 9421 signature over the request.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+        "responses": {
+          "201": { "description": "Published.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PublishResult" } } } },
+          "200": { "description": "Idempotent replay.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PublishResult" } } } },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/packages/{packageIdentifier}/versions/{version}": {
+      "parameters": [
+        { "name": "packageIdentifier", "in": "path", "required": true, "schema": { "type": "string" } },
+        { "name": "version", "in": "path", "required": true, "schema": { "type": "string" } }
+      ],
+      "put": {
+        "summary": "Update the metadata of an existing version (no binary change). Bearer + signature required.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+        "responses": {
+          "200": { "description": "Updated.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PublishResult" } } } },
+          "400": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "delete": {
+        "summary": "Delete a version. Routes through the fail-closed deletion lock-gate; override.force records an audited override. Bearer + signature required.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["repoId", "idempotencyKey"], "properties": { "repoId": { "type": "string" }, "idempotencyKey": { "type": "string" }, "override": { "type": "object", "properties": { "force": { "type": "boolean" }, "reason": { "type": "string" } } } } } } } },
+        "responses": {
+          "200": { "description": "Deleted.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PublishResult" } } } },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "description": "Per-client bearer key (package:write). Mutating calls additionally require an RFC 9421 Signature + Signature-Input + Content-Digest over the covered set (\"@method\" \"@target-uri\" \"content-digest\" \"@authority\"), keyid = clientId, alg = ecdsa-p256-sha256." }
+    },
+    "responses": {
+      "Error": { "description": "Error.", "content": { "application/json": { "schema": { "type": "object", "required": ["error"], "properties": { "error": { "type": "string" }, "reason": { "type": "string" } } } } } }
+    },
+    "schemas": {
+      "Envelope": {
+        "type": "object",
+        "required": ["protocolVersion", "repoId", "binaryMode", "idempotencyKey", "manifest"],
+        "properties": {
+          "protocolVersion": { "type": "string", "enum": ["1.0"] },
+          "repoId": { "type": "string" },
+          "binaryMode": { "type": "string", "enum": ["local", "upstream"] },
+          "idempotencyKey": { "type": "string" },
+          "notes": { "type": "string" },
+          "installerUploads": { "type": "array", "items": { "type": "object", "required": ["uploadId", "sha256"], "properties": { "uploadId": { "type": "string" }, "sha256": { "type": "string" }, "sizeBytes": { "type": "integer" }, "installerIndex": { "type": "integer" }, "originalName": { "type": "string" } } } },
+          "manifest": { "type": "object", "description": "WinGet 1.6.0 manifest set { version, installer, defaultLocale, locales[] }. See linux/schemas/manifest.*.1.6.0.json." }
+        }
+      },
+      "PublishResult": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["published", "updated", "deleted", "replayed"] },
+          "repoId": { "type": "string" },
+          "packageIdentifier": { "type": "string" },
+          "packageVersion": { "type": "string" },
+          "binaryMode": { "type": "string" },
+          "publishEventId": { "type": "integer" },
+          "giteaCommitSha": { "type": "string" },
+          "requestId": { "type": "string" }
+        }
+      },
+      "Discovery": {
+        "type": "object",
+        "properties": {
+          "protocol": { "type": "string" },
+          "supportedVersions": { "type": "array", "items": { "type": "string" } },
+          "transportPath": { "type": "string" },
+          "manifestSchemaVersion": { "type": "string" },
+          "sourceApi": { "type": "object", "properties": { "sourceIdentifier": { "type": ["string", "null"] }, "serverSupportedVersions": { "type": "array", "items": { "type": "string" } }, "reachable": { "type": "boolean" }, "probedAt": { "type": "string" } } },
+          "maxUploadBytes": { "type": "integer" },
+          "binaryModes": { "type": "array", "items": { "type": "string" } },
+          "allowedRepos": { "type": "array", "items": { "type": "string" } },
+          "auth": { "type": "object" },
+          "openapi": { "type": "string" }
+        }
+      }
+    }
+  }
+}

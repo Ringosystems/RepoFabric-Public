@@ -81,6 +81,18 @@ export function apiRouter() {
   r.delete('/subscriptions/:id',    wrap(async (q, s)  => s.json(await bridge.removeSubscription(q.params.id, { keepRepoContent: q.query.keep === '1' }))));
   r.post('/subscriptions/:id/sync', wrap(async (q, s)  => s.json(await bridge.forceSyncSubscription(q.params.id))));
 
+  // -- Ingest clients (RFIP registry; API Clients tab) -----------------
+  // Operator plane. Register/rotate return secret material (bearer token,
+  // and issued private key) ONCE in the response body; the UI reveals it once
+  // and it is never re-obtainable. Revoke is terminal and audited.
+  r.get('/ingest-clients',             wrap(async (_q, s) => s.json(await bridge.listIngestClients())));
+  r.get('/ingest-clients/:id/events',  wrap(async (q, s)  => s.json(await bridge.listIngestClientEvents(q.params.id, q.query.last))));
+  r.get('/ingest-clients/:id',         wrap(async (q, s)  => s.json(await bridge.getIngestClient(q.params.id))));
+  r.post('/ingest-clients',            wrap(async (q, s)  => s.status(201).json(await bridge.registerIngestClient(q.body || {}))));
+  r.put('/ingest-clients/:id',         wrap(async (q, s)  => s.json(await bridge.updateIngestClient(q.params.id, q.body || {}))));
+  r.post('/ingest-clients/:id/rotate', wrap(async (q, s)  => s.json(await bridge.rotateIngestClientKey(q.params.id, q.body || {}))));
+  r.post('/ingest-clients/:id/revoke', wrap(async (q, s)  => s.json(await bridge.revokeIngestClient(q.params.id, q.body || {}))));
+
   // -- Unified repo view (managed + custom + untracked) ---------------
   r.get('/repo/all',         wrap(async (_q, s) => s.json(await bridge.getRepoAll())));
   r.get('/repo/manifest',    wrap(async (q, s)  => s.json(await bridge.getRepoManifest(q.query.packageId, q.query.version))));

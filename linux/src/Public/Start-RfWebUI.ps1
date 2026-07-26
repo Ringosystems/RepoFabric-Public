@@ -23,12 +23,19 @@ function Start-RfWebUI {
     # Bridge auth: any subset of three scoped Bearer tokens may be configured.
     # The full token is RepoFabric's own admin bridge; the scoped tokens belong
     # to the M6 co-deploy legs and are gated per route (see RfBridgeCapability).
-    $tokensConfigured = [bool]($env:REPOFABRIC_PUBLISHER_TOKEN -or $env:REPOFABRIC_CATALOG_READ_TOKEN -or $env:REPOFABRIC_AUDIT_WRITE_TOKEN)
+    # Ingest (RFIP) is gated by an explicit enable flag. When on, per-client
+    # bearers registered in ingest_client resolve to 'package:write' (always
+    # signature-enforced). Enabling ingest also forces the listener into
+    # authenticated mode even if no static env token is set, so a per-client
+    # bearer is always checked rather than silently bypassed by the dev posture.
+    $ingestEnabled = $env:REPOFABRIC_INGEST_ENABLED -in @('1','true','TRUE','True','yes','on')
+    $tokensConfigured = [bool]($env:REPOFABRIC_PUBLISHER_TOKEN -or $env:REPOFABRIC_CATALOG_READ_TOKEN -or $env:REPOFABRIC_AUDIT_WRITE_TOKEN -or $ingestEnabled)
     if ($tokensConfigured) {
         $loaded = @()
         if ($env:REPOFABRIC_PUBLISHER_TOKEN)    { $loaded += 'PUBLISHER_TOKEN (full)' }
         if ($env:REPOFABRIC_CATALOG_READ_TOKEN) { $loaded += 'CATALOG_READ_TOKEN (catalog:read)' }
         if ($env:REPOFABRIC_AUDIT_WRITE_TOKEN)  { $loaded += 'AUDIT_WRITE_TOKEN (audit:write)' }
+        if ($ingestEnabled)                     { $loaded += 'ingest registry (package:write, per-client, signature-enforced)' }
         Write-Host "Bridge Bearer tokens loaded: $($loaded -join ', '); scoped tokens are gated per route." -ForegroundColor DarkGray
     } else {
         Write-Host "No bridge tokens set; listener will accept unauthenticated requests on $ListenPrefix (full capability)" -ForegroundColor Yellow
@@ -88,6 +95,11 @@ function Start-RfWebUI {
                 # per-route gate. The HttpListener loop is single-threaded, so
                 # there is no race on this script-scope variable.
                 $script:RfCallerCaps = @('full')
+                # Reset the per-request ingest-client stash; Resolve-RfBridgeCapability
+                # repopulates it when a per-client bearer resolves. Must also be cleared
+                # on the no-tokens dev path (where Resolve is not called) so a previous
+                # request's client never leaks into a full-capability request.
+                $script:RfIngestClient = $null
                 if ($tokensConfigured) {
                     $authHeader = $ctx.Request.Headers['Authorization']
                     $presented = if ($authHeader -and $authHeader -match '^Bearer\s+(.+)$') { $Matches[1] } else { '' }

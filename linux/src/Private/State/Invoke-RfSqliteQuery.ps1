@@ -1,18 +1,19 @@
 function Invoke-RfSqliteQuery {
     <#
     .SYNOPSIS
-        SQL shim that preserves the PSSQLite parameter surface on top of
-        MySQLite's Invoke-MySQLiteQuery.
+        Single-statement SQL shim: substitutes @name parameters and runs the
+        query via the sqlite3 CLI (delegates to Invoke-RfSqliteReturning).
 
     .DESCRIPTION
-        Original Windows callsites use:
+        Call sites use:
             Invoke-RfSqliteQuery -DataSource $dbPath -Query 'SELECT ... WHERE id=@id'
                                    -SqlParameters @{ id = 42 }
 
-        MySQLite v0.13.0's Invoke-MySQLiteQuery accepts -Path / -Query / -As
-        but **no parameter-binding parameter**. So we substitute every @name
-        placeholder in the Query with the SQLite literal form of the matching
-        value from -SqlParameters before forwarding.
+        The sqlite3 CLI is the SQLite engine for the whole codebase (musl-native,
+        so Debian and Alpine share one path). The former MySQLite backend
+        (System.Data.SQLite) is glibc-only and cannot load on Alpine. Every
+        @name placeholder in the Query is substituted with the SQLite literal
+        form of the matching -SqlParameters value before the SQL is shipped.
 
         Type handling:
             $null, [DBNull]::Value -> NULL
@@ -42,26 +43,13 @@ function Invoke-RfSqliteQuery {
         [string]$As = 'PSObject'
     )
 
-    Import-Module MySQLite -ErrorAction Stop
-
-    if ($SqlParameters -and $SqlParameters.Count -gt 0) {
-        foreach ($k in $SqlParameters.Keys) {
-            $literal = _ConvertTo-RfSqliteLiteral -Value $SqlParameters[$k]
-            $pattern = '@' + [regex]::Escape([string]$k) + '\b'
-            $Query = [regex]::Replace(
-                $Query,
-                $pattern,
-                [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $literal }
-            )
-        }
-    }
-
-    try {
-        Invoke-MySQLiteQuery -Path $DataSource -Query $Query
-    } catch {
-        $msg = "SQLite query failed on '$DataSource'. Query: $($Query.Trim()). Error: $($_.Exception.Message)"
-        throw [System.InvalidOperationException]::new($msg, $_.Exception)
-    }
+    # Delegate to the sqlite3-CLI path (Invoke-RfSqliteReturning) used by the
+    # rest of the codebase. The former MySQLite backend (System.Data.SQLite)
+    # ships glibc-only native interop and cannot load on musl/Alpine; the CLI is
+    # musl-native, so this is one code path on Debian and Alpine. Parameter
+    # substitution (@name -> SQLite literal) happens inside Invoke-RfSqliteReturning
+    # via _ConvertTo-RfSqliteLiteral, preserving the historical call surface.
+    Invoke-RfSqliteReturning -DataSource $DataSource -Query $Query -SqlParameters $SqlParameters
 }
 
 function _ConvertTo-RfSqliteLiteral {
