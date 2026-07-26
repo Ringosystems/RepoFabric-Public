@@ -11,31 +11,63 @@ distributed**.
 
 ## How RepoFabric is distributed (read this first)
 
-RepoFabric is distributed as **source code**. Operators clone this repository and
-build the container image on their own machine (`docker compose ... up --build`).
-RingoSystems Heavy Industries does **not** currently publish a prebuilt container
-image to any registry. That fact determines what attribution is legally required:
+RepoFabric is distributed **in three ways**, and all three matter for attribution.
 
-- The **only** third-party code committed to this repository is the Microsoft
-  WinGet manifest JSON schemas under [`linux/schemas/`](linux/schemas/).
-  Reproducing Microsoft's MIT notice for those files is **required today** and
-  appears in **Section 1**.
-- Every other component (npm packages, PowerShell modules, the Debian base image,
-  OS/apt packages) is fetched from its upstream registry and assembled into the
-  image **on the operator's machine** at build time. RingoSystems Heavy
-  Industries does not redistribute those binaries, so their notices are not
-  legally required of this project *today*. They are listed in **Section 2** for
-  transparency and so a complete notice is ready the moment a prebuilt image is
-  published.
+1. **As prebuilt container images published by RingoSystems.**
+   [`.github/workflows/publish-image.yml`](.github/workflows/publish-image.yml)
+   builds from [`linux/Dockerfile`](linux/Dockerfile) and, on every `v*.*.*` tag
+   pushed to the public mirror, publishes to **two public registries**:
+   - Docker Hub — `ringosystems/repofabric`
+   - GitHub Container Registry — `ghcr.io/ringosystems/repofabric`
+2. **As a PowerShell Gallery module.**
+   [`.github/workflows/publish-psgallery.yml`](.github/workflows/publish-psgallery.yml)
+   publishes `RepoFabric.Client` on the same tag trigger. Its contents are
+   first-party only (no vendored code, no `RequiredModules`), so it adds no
+   third-party obligation — but it is a published artifact and is named here for
+   completeness.
+3. **As source code.** Operators may still clone and build the image themselves
+   (`docker compose ... up --build`). That remains fully supported, and it does not
+   reduce RingoSystems' obligations for the artifacts RingoSystems publishes. An
+   operator who redistributes their own build becomes a distributor in their own
+   right.
+
+The first published image and module shipped on **2026-07-01** from tag **v0.9.0**
+(images tagged `0.9.0`, `0.9` and `latest` in both registries). From that date,
+RingoSystems distributes a complete assembled binary artifact, not only source.
+
+### What that means for the notices in this file
+
+Because a prebuilt image is published, the notice set for **everything assembled
+into that image is required**, not offered as a courtesy:
+
+- The Microsoft WinGet manifest JSON schemas under
+  [`linux/schemas/`](linux/schemas/) are third-party code committed to this
+  repository *and* shipped in the image. **Section 1**.
+- The Debian 12 base and its OS packages, the Node runtime and npm dependencies,
+  and the PowerShell modules are all baked into the published image and are
+  therefore redistributed by RingoSystems. **Section 2**, including a written
+  offer for GPL/LGPL source.
 - The companion services (Gitea, rewinged) and the recommended reverse proxy
-  (Nginx Proxy Manager) are separate images the operator pulls directly from
-  their own upstreams. They are credited in **Section 3** but are not
-  redistributed by this project.
+  (Nginx Proxy Manager) are separate images the operator pulls from their own
+  upstreams. Credited in **Section 3**; still not redistributed here.
 
-All licenses below are permissive or weak/aggregated copyleft. No component
-places any source-disclosure obligation on RepoFabric's own MIT-licensed code:
-every GPL/LGPL tool in the image is a standalone executable invoked as a separate
-subprocess (mere aggregation), never linked into RepoFabric's code.
+RepoFabric's own code remains MIT licensed, and no component places a
+source-disclosure obligation on it: every GPL/LGPL tool in the image is a
+standalone executable invoked as a separate subprocess, or is simply present and
+unused, never linked into RepoFabric's code. That is a separate question from the
+obligations attaching to those GPL/LGPL binaries **themselves** now that they ship
+inside a published image, which Section 2 addresses.
+
+### Correction notice — 2026-07-26
+
+Earlier revisions of this file, **including the copy shipped inside the v0.9.0
+image**, stated that RepoFabric was distributed as source only and that RingoSystems
+"does not currently publish a prebuilt container image to any registry". **That was
+incorrect from 2026-07-01 onward**, and the components in Section 2 were wrongly
+labelled as provided "for transparency" and "not legally required". Corrected on
+2026-07-26. A reader comparing releases should treat this revision as the accurate
+one. Images already pulled carry the incorrect text; this correction ships with the
+next published image.
 
 ---
 
@@ -78,7 +110,9 @@ SOFTWARE.
 
 ## Section 2 — Assembled into the container image at build time
 
-**Status:** Not redistributed by RingoSystems Heavy Industries today (operators
+**Status: REDISTRIBUTED by RingoSystems since 2026-07-01.** Every component below is
+conveyed to anyone who runs `docker pull`, so these notices and the source offer are
+required now, not conditional. (Operators
 build the image locally). These become subject to attribution only if a prebuilt
 image is published to a registry; at that point the full, per-package notice set
 must ship with the image (see *Generating the full image notice* at the end of
@@ -106,6 +140,22 @@ MIT, with some ISC and a small number of BSD-2-Clause / BSD-3-Clause, Apache-2.0
 prebuilt SQLite amalgamation; SQLite is dedicated to the **public domain** and
 requires no attribution. The exact tree (and each package's verbatim license
 text) is reproduced by the generation step below when an image is published.
+
+#### Packages with no `license` field in the lockfile
+
+`busboy@1.6.0` and `streamsearch@1.1.0` (both transitive, via `multer`, which backs
+the installer upload route in `linux/admin/src/upload.js`) record no `license` field
+in `package-lock.json`. Their licence was resolved from the `LICENSE` file each
+package ships **inside the image**, both of which carry the MIT text:
+
+> Copyright Brian White. All rights reserved.
+> Permission is hereby granted, free of charge, to any person obtaining a copy ...
+
+Both are therefore **MIT**, attributed to Brian White. Verify in place with:
+
+```
+docker run --rm ringosystems/repofabric:<tag>   sh -c 'cat /opt/repofabric-admin/node_modules/busboy/LICENSE'
+```
 
 ### PowerShell modules (installed into the image from the PowerShell Gallery)
 
@@ -152,16 +202,90 @@ build then installs, from the Debian / NodeSource / Docker apt repositories:
 | sqlite3 | public domain | none |
 | tzdata | public domain (data) + BSD-3-Clause (code) | none |
 
-**Copyleft note:** every GPL/LGPL package above is a standalone executable that
-RepoFabric invokes as a separate subprocess (`git`, `gpg`, `msiinfo`/`msibuild`,
-`exiftool`, `crond`) — mere aggregation on a shared filesystem, **not** linking.
-None impose any obligation on RepoFabric's own MIT code. If a prebuilt image is
-published, each GPL/LGPL package's license text **and a written offer of
-corresponding source** must accompany the image (the Debian source packages
-satisfy the source offer). `busybox` (GPL-2.0) appears only in a throwaway
+**Copyleft note:** every GPL/LGPL package above is a standalone executable, never
+linked into RepoFabric's code. Some are invoked as a separate subprocess; others are
+simply present in the image and never called by RepoFabric at all. Both cases are
+mere aggregation on a shared filesystem, **not** linking, so none imposes any
+obligation on RepoFabric's own MIT code.
+
+Verified call sites, so this notice does not overstate usage: RepoFabric invokes
+`git` (publishing to Gitea), `sqlite3` (the whole state layer since the MySQLite
+removal), `msiinfo` (installer metadata) and `crond` (scheduling). It does **not**
+invoke `gpg` or `msibuild` — `gnupg` is a *build-time* dependency used to dearmor
+the NodeSource and Docker apt keys, and by `apt`/`gpgv` for repository signature
+verification, after which it remains in the image unused by RepoFabric. `exiftool`
+is used only on the optional metadata path.
+
+Because a prebuilt image **is** published (since 2026-07-01), each GPL/LGPL
+package's licence text and a written offer of corresponding source must accompany
+that image. Both are provided: the per-package texts ship at
+`/usr/share/doc/*/copyright` inside the image, and the written offer is immediately
+below. `busybox` (GPL-2.0) appears only in a throwaway
 intermediate build stage and is **not** present in the final image.
 
-### Generating the full image notice (do this before any image publish)
+### GPL and LGPL source availability (written offer)
+
+The published image contains roughly 120 packages under the GNU GPL or LGPL. They
+are **unmodified binary packages from Debian 12 (bookworm)**, installed with
+`apt-get` and not patched, recompiled or cross-built by RingoSystems, with one
+documented exception noted below. Because the image conveys those binaries, the
+corresponding source must be available.
+
+**Primary route — Debian's own archive.** Because the packages are unmodified, the
+complete corresponding source for every version in the image is obtainable from
+Debian directly:
+
+```
+apt-get source <package>=<version>          # inside a bookworm environment
+https://snapshot.debian.org/                # exact historical versions
+```
+
+Enumerate the precise set and versions from the image itself, rather than from a
+list here that goes stale on the next build:
+
+```
+docker run --rm ringosystems/repofabric:<tag>   dpkg-query -W -f='${Package} ${Version} ${source:Package}
+'
+```
+
+The verbatim per-package copyright and licence texts Debian ships are present in
+the image and are the authoritative notices for these components:
+
+```
+docker run --rm ringosystems/repofabric:<tag> sh -c 'cat /usr/share/doc/<pkg>/copyright'
+```
+
+177 of the 179 packages carry such a file. The aggregate licence picture, harvested
+from every `License:` line in those files, is dominated by `GPL-1+ or Artistic`
+(Perl), `GPL-2+`, `LGPL-2.1`, `GPL-2`, `Expat`, `LGPL-2.1+`, `GPL-3+` and
+`BSD-3-clause`. That is a **summary, not a per-package determination** — several
+Debian copyright files declare multiple licences for different parts of one source
+tree, so the per-package file is authoritative, never this summary.
+
+**Written offer.** For a period of **three years** from the date RingoSystems last
+distributed a given image tag, RingoSystems will provide, to any third party who
+requests it, a complete machine-readable copy of the corresponding source code for
+the GPL- and LGPL-licensed packages contained in that image, on a medium
+customarily used for software interchange, for no more than the cost of physically
+performing the distribution. Requests should identify the image tag or digest and
+the package(s) required, and be sent to:
+
+> **ceo@ringosystems.com**
+
+This offer is valid for GPLv2 §3(b) and LGPLv2.1 §6(b) purposes and is extended to
+anyone who receives the image. Where a package is GPLv3 or LGPLv3, the equivalent
+obligation under §6(b) of those licences is satisfied by the same route.
+
+**Documented exception to "unmodified".** The `nodejs` package is installed from
+the NodeSource repository and the image then deletes the `npm` and `corepack` trees
+it ships (`/usr/lib/node_modules/npm`, `/usr/lib/node_modules/corepack` and their
+`/usr/bin` links) to remove a recurring CVE surface that this image never executes.
+No file is patched — files are removed — so the corresponding source is unaffected
+and remains as published by NodeSource. Separately, `better-sqlite3` compiles a
+native addon during the build stage from its own published source. Both are noted
+so the "unmodified upstream" premise above is accurate rather than approximate.
+
+### Regenerating this notice for a new image
 
 1. Commit `linux/admin/package-lock.json` and switch `linux/Dockerfile` from
    `npm install --omit=dev` to `npm ci --omit=dev` for a reproducible tree.
