@@ -131,8 +131,23 @@ app.get('/healthz', (_req, res) => res.json({ ok: true, setup_mode: config.inSet
 //                    auth surface exists.
 // Same docsRouter handles all three; the asset CSS is mounted on the
 // matching -static prefix for each.
+// The ONE Graphite Forge foundation. docs pages and the setup wizard live behind
+// their own static mounts and cannot reach static/graphite-forge.css by relative
+// path, so each of them used to hand-mirror the foundation's :root tokens --
+// docs.css carried 34 of the 64 and setup.css carried 40, which is a silent
+// divergence waiting to happen. Serving the single file under each mount is the
+// fix both files documented as pending; their mirrored blocks are now deleted.
+// Unauthenticated on purpose: the docs are public and the wizard runs before any
+// auth surface exists. It is a stylesheet, so there is nothing to leak.
+const FOUNDATION_CSS = path.join(__dirname, '..', 'static', 'graphite-forge.css');
+const sendFoundationCss = (_req, res) => res.sendFile(FOUNDATION_CSS);
+
 function mountDocs(prefix) {
   const leaf = prefix.split('/').pop(); // 'docs' for every mount
+  // Registered BEFORE the static mount: docs-static/ has no graphite-forge.css
+  // on disk, and this keeps the resolution obvious rather than relying on
+  // express.static falling through on a 404.
+  app.get(`${prefix}-static/graphite-forge.css`, sendFoundationCss);
   app.use(`${prefix}-static`, express.static(path.join(__dirname, '..', 'static', 'docs-static'), {
     setHeaders(res) { res.setHeader('Cache-Control', 'public, max-age=600'); },
   }));
@@ -160,6 +175,7 @@ mountDocs('/setup/docs');
 //    flag + token check inside setupRouter) so an authenticated admin
 //    can re-enter the wizard via Settings -> Advanced -> System ->
 //    Re-enter setup wizard, without needing a container restart.
+app.get('/setup/graphite-forge.css', sendFoundationCss);
 app.use('/setup', express.static(path.join(__dirname, '..', 'static', 'setup'), {
   setHeaders(res, filepath) {
     if (filepath.endsWith('.html')) res.setHeader('Cache-Control', 'no-store');

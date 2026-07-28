@@ -3076,10 +3076,14 @@ function updateRepoHeader() {
   if (!repo) return;
   $('#catalog-repo-title').textContent = repo.RepoId;
   const bits = [];
-  if (repo.DisplayName && repo.DisplayName !== repo.RepoId) bits.push(repo.DisplayName);
-  if (repo.Hostname) bits.push(repo.Hostname);
-  if (repo.GiteaRepoPath) bits.push(repo.GiteaRepoPath);
-  $('#catalog-repo-subtitle').textContent = bits.join(' · ');
+  // Type split: DisplayName is human copy and stays in Inter. Hostname and the
+  // Gitea path are machine values, so they take the data face via the
+  // foundation's .mono/.path list. textContent rendered all three in Inter,
+  // which flattened that distinction away.
+  if (repo.DisplayName && repo.DisplayName !== repo.RepoId) bits.push(escapeHtml(repo.DisplayName));
+  if (repo.Hostname) bits.push(`<span class="mono">${escapeHtml(repo.Hostname)}</span>`);
+  if (repo.GiteaRepoPath) bits.push(`<span class="path">${escapeHtml(repo.GiteaRepoPath)}</span>`);
+  $('#catalog-repo-subtitle').innerHTML = bits.join(' · ');
   // 'main' is non-archivable, but it IS editable: it must be able to receive a
   // Hostname, and the Edit handler + PUT /virtual-repos/:id already support it
   // (the slug/rename is fixed because the PUT drops RepoId). Enable Edit for any
@@ -3824,8 +3828,11 @@ function renderInventorySummary(inv) {
   const cmp = inv.IsPrimary
     ? `<span class="inv-pill inv-primary">this IS the primary repo</span>`
     : `<span class="inv-pill inv-ahead">${s.Ahead || 0} ahead</span> <span class="inv-pill inv-behind">${s.Behind || 0} behind</span> <span class="inv-pill inv-diverged">${s.Diverged || 0} diverged</span> <span class="inv-pill inv-insync">${s.InSync || 0} in sync</span>${s.MissingHere ? ` <span class="inv-pill inv-missinghere">${s.MissingHere} missing here</span>` : ''}${s.OnlyHere ? ` <span class="inv-pill inv-onlyhere">${s.OnlyHere} only here</span>` : ''}`;
+  // Type split: the repo id is an identifier and the tallies are machine values,
+  // so both take the data face (.mono / .count from the foundation's list). Only
+  // the connecting words are human copy. The whole line used to render in Inter.
   $('#inv-summary').innerHTML =
-    `<div><b>${escapeHtml(inv.RepoId)}</b> — ${s.Packages || 0} package(s), ${s.OnDiskVersions || 0} version(s) on disk, ${mb} MB`
+    `<div><b class="mono">${escapeHtml(inv.RepoId)}</b> · <span class="count">${s.Packages || 0}</span> package(s), <span class="count">${s.OnDiskVersions || 0}</span> version(s) on disk, <span class="metric">${mb} MB</span>`
     + (s.OrphanRows ? ` · <span class="inv-pill inv-orphan">${s.OrphanRows} orphan publication row(s)</span>` : '')
     + `</div>`
     + `<div class="inv-compare">vs primary <code>${escapeHtml(inv.PrimaryRepoId)}</code>: ${cmp}</div>`;

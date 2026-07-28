@@ -274,6 +274,7 @@ function renderPage(slug, bodyHtml, tocActive) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
 <title>${escapeHtml(title)} — RepoFabric documentation</title>
+<link rel="stylesheet" href="../docs-static/graphite-forge.css">
 <link rel="stylesheet" href="../docs-static/docs.css">
 </head><body>
 <a class="docs-skip-link" href="#doc">Skip to content</a>

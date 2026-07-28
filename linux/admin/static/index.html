@@ -383,8 +383,8 @@
      operator at the full, free, more-secure production deployment. -->
 <dialog id="multirepo-upgrade-modal" class="modal">
   <div class="upgrade-modal-body">
-    <h3>✨ Want more than one repository?</h3>
-    <p class="free-banner">💚 The recommended full deployment is <strong>100% FREE</strong> — same as the Sandbox. No license, no cost, ever.</p>
+    <h3>Want more than one repository?</h3>
+    <p class="free-banner">The recommended full deployment is <strong>100% FREE</strong>, same as the Sandbox. No license, no cost, ever.</p>
     <p>You're running the <strong>Sandbox</strong> — the quick, throwaway way to try RepoFabric. It is intentionally <strong>single-repository</strong>, so multi-repo controls are just a preview here.</p>
     <p>Hosting <strong>multiple WinGet repositories</strong> — each isolated in its own container — is part of the <strong>full RepoFabric deployment</strong>, the recommended, production-ready way to run it. It's also the <strong>more secure</strong> choice: Microsoft Entra sign-in, real TLS certificates, and an isolated reverse proxy.</p>
     <p class="muted">When you're ready for more than a quick trial, deploy RepoFabric the full way — it's the right way, and (worth repeating) <strong class="free-text">it's completely free</strong>.</p>
@@ -400,13 +400,13 @@
      deployment ADDS, grouped by capabilities / management / security. -->
 <dialog id="compare-modal" class="modal">
   <div class="compare-modal-body">
-    <h3>⚖️ Sandbox vs Recommended deployment</h3>
-    <p class="free-banner">💚 Both are <strong>100% FREE</strong> — no license, no cost. The Recommended deployment simply does more, and does it more securely.</p>
+    <h3>Sandbox vs Recommended deployment</h3>
+    <p class="free-banner">Both are <strong>100% FREE</strong>, no license, no cost. The Recommended deployment simply does more, and does it more securely.</p>
     <p class="muted">You're on the <strong>Sandbox</strong> (a throwaway, single-box trial). Here's what the <strong>Recommended</strong> full deployment adds:</p>
 
-    <h4 class="cmp-cat">🚀 Capabilities</h4>
+    <h4 class="cmp-cat">Capabilities</h4>
     <table class="cmp-table">
-      <thead><tr><th></th><th>Sandbox (you)</th><th>Recommended ✅</th></tr></thead>
+      <thead><tr><th></th><th>Sandbox (you)</th><th>Recommended</th></tr></thead>
       <tbody>
         <tr><th>WinGet repositories</th><td class="cmp-sandbox">One, single repo</td><td class="cmp-rec"><strong>Many</strong> — multiple isolated WinGet sources, each in its own container</td></tr>
         <tr><th>Storage</th><td class="cmp-sandbox">Throwaway named volumes (wiped on teardown)</td><td class="cmp-rec"><strong>Persistent</strong> host storage that survives upgrades</td></tr>
@@ -414,9 +414,9 @@
       </tbody>
     </table>
 
-    <h4 class="cmp-cat">🛠️ Management</h4>
+    <h4 class="cmp-cat">Management</h4>
     <table class="cmp-table">
-      <thead><tr><th></th><th>Sandbox (you)</th><th>Recommended ✅</th></tr></thead>
+      <thead><tr><th></th><th>Sandbox (you)</th><th>Recommended</th></tr></thead>
       <tbody>
         <tr><th>Add / archive repos</th><td class="cmp-sandbox">Preview only (disabled)</td><td class="cmp-rec"><strong>Full lifecycle</strong> — create, archive, and reconcile per-repo containers</td></tr>
         <tr><th>Per-repo routing</th><td class="cmp-sandbox">Single shared host</td><td class="cmp-rec">Each repo on its <strong>own hostname or path</strong></td></tr>
@@ -424,9 +424,9 @@
       </tbody>
     </table>
 
-    <h4 class="cmp-cat">🔒 Security</h4>
+    <h4 class="cmp-cat">Security</h4>
     <table class="cmp-table">
-      <thead><tr><th></th><th>Sandbox (you)</th><th>Recommended ✅</th></tr></thead>
+      <thead><tr><th></th><th>Sandbox (you)</th><th>Recommended</th></tr></thead>
       <tbody>
         <tr><th>Sign-in</th><td class="cmp-sandbox">Shared local admin password</td><td class="cmp-rec"><strong>Microsoft Entra SSO</strong> — MFA and group-based access control</td></tr>
         <tr><th>Certificate</th><td class="cmp-sandbox">Self-signed (every client must trust a CA)</td><td class="cmp-rec"><strong>Real CA / Let's Encrypt</strong> — trusted everywhere, nothing to install</td></tr>
@@ -482,7 +482,7 @@
   <!-- Sandbox-only: graduate this throwaway trial to the Recommended (production)
        deployment. Shown only on the sandbox profile (hidden once graduated). -->
   <div id="upgrade-card" class="upgrade-card" hidden>
-    <h3>🚀 Upgrade to the Recommended (production) deployment</h3>
+    <h3>Upgrade to the Recommended (production) deployment</h3>
     <p class="muted">You're on the throwaway <strong>Sandbox</strong>, which is not built for production workloads. When your organization is ready, graduate this install to the <strong>Recommended</strong> posture (Microsoft Entra sign-in, a real certificate, per-repo containers, persistent storage). Run the readiness check as often as you like — it is fine to return over several sessions while changes are scheduled — and complete the conversion once every gap is green.</p>
     <div class="toolbar">
       <button type="button" id="btn-upgrade-check">Run readiness check</button>

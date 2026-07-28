@@ -5,16 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <title>RepoFabric setup &middot; RingoSystems Heavy Industries</title>
-  <!-- RingoSystems Graphite Forge v1.0.
-       Normally a surface links graphite-forge.css then repofabric-tokens.css
-       then its own sheet, in that order. This one cannot: server.js mounts the
-       wizard as express.static(static/setup), so ../graphite-forge.css resolves
-       to /graphite-forge.css, which is not a route in setup mode (and lives
-       behind the authenticated /admin mount in normal mode). setup.css
-       therefore opens with a verbatim mirror of the foundation, the same way
-       static/docs-static/docs.css does, and states the one-line server fix that
-       would let both files drop it. Nothing here is a second opinion on the
-       standard — same token names, same values. -->
+  <!-- RingoSystems Graphite Forge v1.0. Foundation first, then this surface's own
+       sheet, in the standard order. server.js serves the ONE foundation file at
+       /setup/graphite-forge.css (an explicit route, unauthenticated, mounted in
+       setup mode too) so the wizard no longer needs the verbatim token mirror
+       setup.css used to open with. Keep the order: setup.css consumes --gf-*. -->
+  <link rel="stylesheet" href="./graphite-forge.css">
   <link rel="stylesheet" href="./setup.css">
 </head>
 <body>

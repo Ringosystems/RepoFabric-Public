@@ -639,6 +639,16 @@ dialog form input, dialog form select, dialog form textarea {
   font-size: var(--fs-md);
   transition: border-color var(--gf-ease), box-shadow var(--gf-ease);
 }
+/* ...but not ALL of them. A display name, a description and free-form notes are
+   prose a person wrote, and the rule above was rendering them in Consolas. Human
+   copy takes the UI face. Listed by id rather than by input type, because
+   type=text is exactly what the identifier fields use too, so there is no
+   structural signal to key off -- only intent. Add new free-text fields here. */
+#vrepo-display-name,
+#vrepo-description,
+#promo-notes,
+#dlg-custom-edit-notes { font-family: var(--font-ui); }
+
 dialog form input:focus, dialog form select:focus, dialog form textarea:focus {
   outline: none;
   border-color: var(--accent);
@@ -1381,8 +1391,18 @@ button[data-bw-window].active {
 #inv-table td.inv-vers { line-height: 2; }
 
 /* Version chips — shared by Inventory + Reconcile preview. Versions are
-   machine output, so the data face; state is carried by the word/strike as
-   well as the tint. */
+   machine output, so the data face.
+
+   EVERY state carries a channel that survives greyscale, because colour is never
+   the only indicator. keep and drop used to be tint-only: in the Reconcile table
+   the column headings disambiguated them, but app.js also applies these classes
+   to a single inline version list, where hue was the entire signal. So:
+     keep     plain            (the baseline — nothing is happening to it)
+     drop     struck through   (it is going away)
+     orphan   struck + italic  (going away AND anomalous: on disk, not in the manifest)
+     nodisk   dashed border    (declared, absent)
+     pinned   inset ring, bold (held by policy)
+   Struck+italic is what separates orphan from drop without reference to hue. */
 .ver {
   display: inline-block; padding: 1px 6px; margin: 1px 0;
   border-radius: var(--r-sm);
@@ -1390,8 +1410,8 @@ button[data-bw-window].active {
   border: 1px solid var(--border);
 }
 .ver-keep   { background: var(--ok-bg);    border-color: transparent; color: var(--ok); }
-.ver-drop   { background: var(--error-bg); border-color: transparent; color: var(--error); }
-.ver-orphan { background: var(--warn-bg);  border-color: transparent; color: var(--warn); text-decoration: line-through; }
+.ver-drop   { background: var(--error-bg); border-color: transparent; color: var(--error); text-decoration: line-through; }
+.ver-orphan { background: var(--warn-bg);  border-color: transparent; color: var(--warn); text-decoration: line-through; font-style: italic; }
 .ver-nodisk { background: transparent; border-color: var(--border-strong); border-style: dashed; color: var(--text-dim); }
 .ver-pinned { box-shadow: inset 0 0 0 1px var(--text); font-weight: 600; }
 .ver-drop-text { color: var(--error); }

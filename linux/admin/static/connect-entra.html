@@ -91,7 +91,7 @@
     /* Done carries a glyph AND a colour, never colour alone. */
     .step-num.done {
       background: var(--ok-bg);
-      border-color: rgba(82,183,136,.34);
+      border-color: color-mix(in srgb, var(--gf-success) 34%, transparent);
       color: var(--ok);
     }
     .step h2 {
@@ -161,7 +161,7 @@
       background: linear-gradient(135deg, var(--gf-accent), var(--gf-success));
       color: var(--text-on-accent);
       font-weight: var(--gf-weight-display);
-      box-shadow: 0 18px 55px rgba(201,122,64,.18);
+      box-shadow: 0 18px 55px var(--gf-copper-18);
       padding: 10px 18px;
     }
     #connectBtn:hover, .done-card .btn:hover { filter: brightness(1.07); background: linear-gradient(135deg, var(--gf-accent), var(--gf-success)); }
@@ -211,7 +211,7 @@
     .callout {
       display: flex; gap: var(--s-3); align-items: flex-start;
       background: var(--warn-bg);
-      border: 1px solid rgba(246,200,95,.30);
+      border: 1px solid color-mix(in srgb, var(--gf-warning) 30%, transparent);
       border-radius: var(--r-md);
       padding: var(--s-4) var(--s-5);
       margin: var(--s-4) 0 0;
@@ -225,13 +225,13 @@
       width: 20px; height: 20px; margin-top: 1px;
       display: grid; place-items: center;
       border-radius: 50%;
-      background: rgba(246,200,95,.18);
+      background: color-mix(in srgb, var(--gf-warning) 18%, transparent);
       font-family: var(--font-mono);
       font-size: var(--fs-xs);
       font-weight: 700;
     }
-    .callout.warn { background: var(--error-bg); border-color: rgba(214,90,74,.38); color: var(--error); }
-    .callout.warn::before { content: "\25B2"; background: rgba(214,90,74,.20); font-size: 10px; }
+    .callout.warn { background: var(--error-bg); border-color: color-mix(in srgb, var(--gf-danger) 38%, transparent); color: var(--error); }
+    .callout.warn::before { content: "\25B2"; background: color-mix(in srgb, var(--gf-danger) 20%, transparent); font-size: 10px; }
     .callout code.inline { background: rgba(0,0,0,.32); border-color: rgba(255,255,255,.10); color: inherit; }
     #already { margin: 0 0 var(--s-5); }
 
@@ -262,7 +262,7 @@
     input[type=text]:focus, input[type=password]:focus, textarea:focus {
       outline: none;
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(201,122,64,.16);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--gf-accent) 16%, transparent);
     }
     textarea { min-height: 120px; resize: vertical; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-top: var(--s-4); }
@@ -286,10 +286,10 @@
     .probe.show { display: block; }
     .probe::before { font-family: var(--font-mono); font-weight: 700; margin-right: var(--s-2); }
     .probe strong { color: var(--text); font-weight: 640; }
-    .probe.ok      { background: var(--ok-bg);    border-color: rgba(82,183,136,.28); border-left-color: var(--ok); }
+    .probe.ok      { background: var(--ok-bg);    border-color: color-mix(in srgb, var(--gf-success) 28%, transparent); border-left-color: var(--ok); }
     .probe.ok::before      { content: "\2713"; color: var(--ok); }
     .probe.ok strong       { color: var(--ok); }
-    .probe.fail    { background: var(--error-bg); border-color: rgba(214,90,74,.32); border-left-color: var(--error); }
+    .probe.fail    { background: var(--error-bg); border-color: color-mix(in srgb, var(--gf-danger) 32%, transparent); border-left-color: var(--error); }
     .probe.fail::before    { content: "\2715"; color: var(--error); }
     .probe.fail strong     { color: var(--error); }
     .probe.pending { background: var(--muted-bg); border-left-color: var(--text-dim); }

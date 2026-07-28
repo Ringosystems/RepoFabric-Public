@@ -39,9 +39,9 @@
      does for copper (--gf-copper-30 and friends). Same colours, carried at
      low alpha so a 1px line can state a status without shouting. */
   :root {
-    --pc-line-ok:    rgba(82,183,136,.30);   /* var(--gf-success) @ 30% */
-    --pc-line-warn:  rgba(246,200,95,.30);   /* var(--gf-warning) @ 30% */
-    --pc-line-error: rgba(214,90,74,.34);    /* var(--gf-danger)  @ 34% */
+    --pc-line-ok:    color-mix(in srgb, var(--gf-success) 30%, transparent);   /* var(--gf-success) @ 30% */
+    --pc-line-warn:  color-mix(in srgb, var(--gf-warning) 30%, transparent);   /* var(--gf-warning) @ 30% */
+    --pc-line-error: color-mix(in srgb, var(--gf-danger) 34%, transparent);    /* var(--gf-danger)  @ 34% */
   }
 
   /* The wizard hides whole sections in edit mode (dropSection.hidden) and

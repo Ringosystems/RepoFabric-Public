@@ -7,62 +7,33 @@
    Accent: Burnt Copper, used sparingly — links, the active nav item, the eyebrow.
 
    ---------------------------------------------------------------------------
-   WHY THIS FILE RESTATES THE FOUNDATION TOKENS
+   THIS FILE NO LONGER RESTATES THE FOUNDATION TOKENS
 
    The docs are mounted at /docs/, /admin/docs/ and /setup/docs/, are served
    UNAUTHENTICATED, and exist in setup mode as well as normal mode. The only
    static mount a docs page can reach is <mount>-static, which serves this one
-   directory (server.js mountDocs()). static/graphite-forge.css sits behind the
-   authenticated /admin static mount and does not exist as a route at all during
-   first-run setup, so a docs page cannot link it without a server change.
+   directory (server.js mountDocs()) -- so this file used to open with a verbatim
+   mirror of the foundation's :root, and that mirror had drifted to 34 of the
+   foundation's 64 tokens.
 
-   The :root block below is therefore a VERBATIM MIRROR of the foundation's
-   values — same token names, same numbers, no second opinions. If
-   static/graphite-forge.css moves, move it here too. The permanent fix is one
-   line in server.js mountDocs() exposing the foundation on the -static prefix;
-   at that point this block is deleted and the two stylesheets are linked in
-   order, exactly as index.html does it.
+   The permanent fix this header called for is now in place: mountDocs() serves
+   the ONE static/graphite-forge.css at <mount>-static/graphite-forge.css, and
+   renderPage() in src/docs.js links it ahead of this sheet. Only the two tokens
+   the foundation does NOT define are kept below.
+
+   Do not reintroduce --gf-* definitions here. A unit test asserts the foundation
+   has exactly one definition site.
    ========================================================================= */
 
 :root {
   color-scheme: dark;
 
-  /* ---- Surfaces ---- */
-  --gf-bg-base:          #101113;
-  --gf-bg-shell:         #14171B;
-  --gf-surface:          #16181C;
-  --gf-surface-raised:   #1E222A;
-  --gf-surface-elevated: #252932;
   /* Mirrors --surface-3 in repofabric-tokens.css: wells sit BELOW the page. */
   --surface-3:           #0D0E10;
 
-  /* ---- Text: four steps, never more ---- */
-  --gf-text-primary:   #F7F9FB;
-  --gf-text-secondary: #A7B0BE;
-  --gf-text-muted:     #75808E;
-  --gf-text-disabled:  #505965;
-
-  /* ---- Accents ---- */
-  --gf-accent:  #C97A40;
-  --gf-success: #52B788;
-  --gf-violet:  #7B61FF;
-  --gf-data:    #6BD6E8;
-  --gf-warning: #F6C85F;
-  --gf-danger:  #D65A4A;
-
-  /* ---- Type ---- */
-  --gf-font-ui:   Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --gf-font-data: Consolas, "Cascadia Mono", "SF Mono", ui-monospace, monospace;
-
-  --gf-weight-display:   760;
-  --gf-tracking-display: -.065em;
-  --gf-tracking-title:   -.045em;
-
-  --gf-fs-page:    clamp(28px, 3.2vw, 40px);  /* page title  32-40 / 1.05 */
-  --gf-fs-section: 20px;                      /* section     18-22 / 1.2  */
-  --gf-fs-body:    15px;                      /* body        15-17 / 1.55 */
-  --gf-fs-label:   13px;                      /* UI label    12-14 / 1.2  */
-  --gf-fs-code:    12.5px;                    /* code        12-13 / 1.4  */
+  /* ---- Owned HERE: the foundation defines neither of these ---- */
+  --gf-hairline:   rgba(255,255,255,.055);
+  --gf-white-035:  rgba(255,255,255,.035);
 
   /* ---- Spacing / geometry ---- */
   --s-1: 4px;  --s-2: 8px;  --s-3: 12px;  --s-4: 16px;  --s-5: 22px;  --s-6: 32px;
@@ -71,16 +42,9 @@
   --r-md: 11px;   /* control */
   --r-lg: 18px;   /* card    */
 
-  /* ---- Lines and light: borders before shadows ---- */
-  --gf-copper-004: rgba(201,122,64,.04);
-  --gf-copper-08:  rgba(201,122,64,.08);
-  --gf-copper-30:  rgba(201,122,64,.30);
-  --gf-copper-36:  rgba(201,122,64,.36);
-  --gf-white-035:  rgba(255,255,255,.035);
-  --gf-white-04:   rgba(255,255,255,.04);
-  --gf-white-065:  rgba(255,255,255,.065);
-  --gf-hairline:   rgba(255,255,255,.055);
-  --gf-ease: .18s cubic-bezier(.4, 0, .2, 1);
+  /* Lines and light come from the foundation: --gf-copper-*, --gf-white-04,
+     --gf-white-065 and --gf-ease are all defined there. Only --gf-hairline and
+     --gf-white-035 are declared above, because the foundation lacks them. */
 
   /* ---- Application aliases (the names this file has always used) ---- */
   --border:   rgba(255,255,255,.07);

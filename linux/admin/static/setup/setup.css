@@ -46,70 +46,25 @@
    ========================================================================= */
 
 /* ============================================================================
-   MIRRORED FOUNDATION — see the header. Keep byte-for-byte in step with
-   static/graphite-forge.css and static/repofabric-tokens.css.
+   APPLICATION TOKEN MAP ONLY.
+
+   The --gf-* foundation is NOT restated here. index.html links
+   ./graphite-forge.css ahead of this file, served by an explicit server.js route
+   at /setup/graphite-forge.css that is mounted in setup mode too. What remains
+   below is this surface's own layer -- the equivalent of repofabric-tokens.css,
+   which the wizard does not link -- plus --surface-3, the one value that sheet
+   owns rather than the foundation.
+
+   Do not reintroduce --gf-* definitions in this file. A unit test asserts that
+   the foundation has exactly one definition site, because the mirror this
+   replaced had silently drifted to 40 of the foundation's 64 tokens.
    ========================================================================= */
 :root {
   color-scheme: dark;
 
-  /* ---- Surfaces: a single ramp from the void up to the raised plane ---- */
-  --gf-bg-base:          #101113;
-  --gf-bg-shell:         #14171B;
-  --gf-surface:          #16181C;
-  --gf-surface-raised:   #1E222A;
-  --gf-surface-elevated: #252932;
-  /* Mirrors --surface-3 in repofabric-tokens.css: wells sit BELOW the panel. */
-  --surface-3:           #0D0E10;
+  /* Wells sit BELOW the panel. Owned by repofabric-tokens.css, not the foundation. */
+  --surface-3: #0D0E10;
 
-  /* ---- Text: four steps, never more ---- */
-  --gf-text-primary:   #F7F9FB;
-  --gf-text-secondary: #A7B0BE;
-  --gf-text-muted:     #75808E;
-  --gf-text-disabled:  #505965;
-
-  /* ---- Accents. Copper leads; the rest carry meaning, never decoration ---- */
-  --gf-accent:  #C97A40;
-  --gf-success: #52B788;
-  --gf-violet:  #7B61FF;
-  --gf-data:    #6BD6E8;
-  --gf-warning: #F6C85F;
-  --gf-danger:  #D65A4A;
-
-  /* ---- Type ---- */
-  --gf-font-ui:   Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --gf-font-data: Consolas, "Cascadia Mono", "SF Mono", ui-monospace, monospace;
-
-  --gf-weight-display:   760;
-  --gf-tracking-display: -.065em;
-  --gf-tracking-title:   -.045em;
-
-  --gf-fs-page:    clamp(28px, 3.2vw, 40px);  /* page title  32-40 / 1.05 */
-  --gf-fs-section: 20px;                      /* section     18-22 / 1.2  */
-  --gf-fs-body:    15px;                      /* body        15-17 / 1.55 */
-  --gf-fs-label:   13px;                      /* UI label    12-14 / 1.2  */
-  --gf-fs-code:    12.5px;                    /* code        12-13 / 1.4  */
-
-  /* ---- Spacing / geometry (standard §5: 4/8/12/16/22/32) ---- */
-  --gf-space-1: 4px;  --gf-space-2: 8px;  --gf-space-3: 12px;
-  --gf-space-4: 16px; --gf-space-5: 22px; --gf-space-6: 32px;
-  --gf-radius-control: 11px;
-  --gf-radius-card:    18px;
-  --gf-radius-shell:   20px;
-
-  /* ---- Lines and light: borders before shadows ---- */
-  --gf-border-default: 1px solid rgba(255,255,255,.07);
-  --gf-surface-glass:       rgba(255,255,255,.045);
-  --gf-surface-glass-hover: rgba(255,255,255,.065);
-  --gf-copper-004: rgba(201,122,64,.04);
-  --gf-copper-08:  rgba(201,122,64,.08);
-  --gf-copper-30:  rgba(201,122,64,.30);
-  --gf-copper-36:  rgba(201,122,64,.36);
-  /* Ambient only: hero cards, selected preview panels, the brand mark. */
-  --gf-glow-copper:  0 0 80px rgba(201,122,64,.18);
-  --gf-shadow-frame: 0 34px 100px rgba(0,0,0,.42);
-  --gf-ease: .18s cubic-bezier(.4, 0, .2, 1);
-
-  /* ---- Application token map (repofabric-tokens.css) ---- */
   --text:           var(--gf-text-primary);
   --text-dim:       var(--gf-text-secondary);
   --text-disabled:  var(--gf-text-disabled);
